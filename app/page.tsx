@@ -8,6 +8,7 @@ import Image from "next/image";
 import { Navbar } from "@/components/navbar";
 import { ScrollProgress } from "@/components/scroll-progress";
 import { useEffect, useState } from "react";
+import { useSession } from "next-auth/react";
 
 // Define types based on Prisma schema
 type Course = {
@@ -30,9 +31,11 @@ type CourseWithProgress = Course & {
 };
 
 export default function HomePage() {
+  const { data: session, status } = useSession();
   const [courses, setCourses] = useState<CourseWithProgress[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [showScrollIndicator, setShowScrollIndicator] = useState(true);
+  const isLoggedIn = status === "authenticated" && !!session;
 
   useEffect(() => {
     const fetchCourses = async () => {
@@ -694,7 +697,10 @@ export default function HomePage() {
                         variant="default"
                         asChild
                       >
-                        <Link href={course.chapters && course.chapters.length > 0 ? `/courses/${course.id}/chapters/${course.chapters[0].id}` : `/courses/${course.id}`}>
+                        <Link href={isLoggedIn 
+                          ? (course.chapters && course.chapters.length > 0 ? `/courses/${course.id}/chapters/${course.chapters[0].id}` : `/courses/${course.id}`)
+                          : `/sign-in?callbackUrl=${encodeURIComponent(course.chapters && course.chapters.length > 0 ? `/courses/${course.id}/chapters/${course.chapters[0].id}` : `/courses/${course.id}`)}`
+                        }>
                           {course.progress === 100 ? "عرض الكورس" : "عرض الكورس"}
                         </Link>
                       </Button>
