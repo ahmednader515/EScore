@@ -78,6 +78,11 @@ const teacherRoutes = [
         label: "البث المباشر",
         href: "/dashboard/teacher/livestream",
     },
+    {
+        icon: Video,
+        label: "ريلز يوتيوب",
+        href: "/dashboard/teacher/reels",
+    },
 ];
 
 const adminRoutes = [

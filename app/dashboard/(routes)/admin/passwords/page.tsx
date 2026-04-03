@@ -21,7 +21,9 @@ interface User {
 const PasswordsPage = () => {
     const [users, setUsers] = useState<User[]>([]);
     const [loading, setLoading] = useState(true);
+    const [pendingSearchTerm, setPendingSearchTerm] = useState("");
     const [searchTerm, setSearchTerm] = useState("");
+    const [visibleStudentCount, setVisibleStudentCount] = useState(25);
     const [selectedUser, setSelectedUser] = useState<User | null>(null);
     const [newPassword, setNewPassword] = useState("");
     const [showPassword, setShowPassword] = useState(false);
@@ -33,7 +35,7 @@ const PasswordsPage = () => {
 
     const fetchUsers = async () => {
         try {
-            const response = await fetch("/api/admin/users");
+            const response = await fetch("/api/admin/users?limit=5000");
             if (response.ok) {
                 const data = await response.json();
                 // Handle paginated response
@@ -82,6 +84,14 @@ const PasswordsPage = () => {
 
     const staffUsers = filteredUsers.filter(user => user.role === "ADMIN" || user.role === "TEACHER");
     const studentUsers = filteredUsers.filter(user => user.role === "USER");
+    const visibleStudentUsers = studentUsers.slice(0, visibleStudentCount);
+    const hasMoreStudents = visibleStudentUsers.length < studentUsers.length;
+
+    const handleSearchSubmit = (e: React.FormEvent<HTMLFormElement>) => {
+        e.preventDefault();
+        setSearchTerm(pendingSearchTerm.trim());
+        setVisibleStudentCount(25);
+    };
 
     if (loading) {
         return (
@@ -104,15 +114,16 @@ const PasswordsPage = () => {
                 <Card>
                     <CardHeader>
                         <CardTitle>المشرفين والمعلمين</CardTitle>
-                        <div className="flex items-center space-x-2">
+                        <form onSubmit={handleSearchSubmit} className="flex items-center gap-2">
                             <Search className="h-4 w-4 text-muted-foreground" />
                             <Input
                                 placeholder="البحث بالاسم أو رقم الهاتف..."
-                                value={searchTerm}
-                                onChange={(e) => setSearchTerm(e.target.value)}
+                                value={pendingSearchTerm}
+                                onChange={(e) => setPendingSearchTerm(e.target.value)}
                                 className="max-w-sm"
                             />
-                        </div>
+                            <Button type="submit">بحث</Button>
+                        </form>
                     </CardHeader>
                     <CardContent>
                         <Table>
@@ -170,15 +181,16 @@ const PasswordsPage = () => {
                 <Card>
                     <CardHeader>
                         <CardTitle>قائمة الطلاب</CardTitle>
-                        <div className="flex items-center space-x-2">
+                        <form onSubmit={handleSearchSubmit} className="flex items-center gap-2">
                             <Search className="h-4 w-4 text-muted-foreground" />
                             <Input
                                 placeholder="البحث بالاسم أو رقم الهاتف..."
-                                value={searchTerm}
-                                onChange={(e) => setSearchTerm(e.target.value)}
+                                value={pendingSearchTerm}
+                                onChange={(e) => setPendingSearchTerm(e.target.value)}
                                 className="max-w-sm"
                             />
-                        </div>
+                            <Button type="submit">بحث</Button>
+                        </form>
                     </CardHeader>
                     <CardContent>
                         <Table>
@@ -191,7 +203,7 @@ const PasswordsPage = () => {
                                 </TableRow>
                             </TableHeader>
                             <TableBody>
-                                {studentUsers.map((user) => (
+                                {visibleStudentUsers.map((user) => (
                                     <TableRow key={user.id}>
                                         <TableCell className="font-medium">
                                             {user.fullName}
@@ -219,6 +231,19 @@ const PasswordsPage = () => {
                                 ))}
                             </TableBody>
                         </Table>
+                        <div className="mt-4 flex items-center justify-between">
+                            <p className="text-sm text-muted-foreground">
+                                عرض {visibleStudentUsers.length} من {studentUsers.length} طالب
+                            </p>
+                            {hasMoreStudents && (
+                                <Button
+                                    variant="outline"
+                                    onClick={() => setVisibleStudentCount((prev) => prev + 25)}
+                                >
+                                    عرض المزيد
+                                </Button>
+                            )}
+                        </div>
                     </CardContent>
                 </Card>
             )}

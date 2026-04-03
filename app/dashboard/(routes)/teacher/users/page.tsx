@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Search, Edit, Trash2 } from "lucide-react";
+import { Search, Edit, Trash2, Users } from "lucide-react";
 import { format } from "date-fns";
 import { ar } from "date-fns/locale";
 import { toast } from "sonner";
@@ -69,7 +69,9 @@ interface EditUserData {
 const UsersPage = () => {
     const [users, setUsers] = useState<User[]>([]);
     const [loading, setLoading] = useState(true);
+    const [pendingSearchTerm, setPendingSearchTerm] = useState("");
     const [searchTerm, setSearchTerm] = useState("");
+    const [visibleStudentCount, setVisibleStudentCount] = useState(25);
     const [editingUser, setEditingUser] = useState<User | null>(null);
     const [editData, setEditData] = useState<EditUserData>({
         fullName: "",
@@ -86,7 +88,7 @@ const UsersPage = () => {
 
     const fetchUsers = async () => {
         try {
-            const response = await fetch("/api/teacher/users");
+            const response = await fetch("/api/teacher/users?limit=5000");
             if (response.ok) {
                 const data = await response.json();
                 // Handle paginated response
@@ -184,14 +186,23 @@ const UsersPage = () => {
         }
     };
 
+    const handleSearchSubmit = (e: React.FormEvent<HTMLFormElement>) => {
+        e.preventDefault();
+        setSearchTerm(pendingSearchTerm.trim());
+        setVisibleStudentCount(25);
+    };
+
     const filteredUsers = users.filter(user =>
         user.fullName.toLowerCase().includes(searchTerm.toLowerCase()) ||
         user.phoneNumber.includes(searchTerm)
     );
+    const totalStudents = users.filter(user => user.role === "USER").length;
 
     // Separate users by role
     const studentUsers = filteredUsers.filter(user => user.role === "USER");
     const staffUsers = filteredUsers.filter(user => user.role === "TEACHER" || user.role === "ADMIN");
+    const visibleStudentUsers = studentUsers.slice(0, visibleStudentCount);
+    const hasMoreStudents = visibleStudentUsers.length < studentUsers.length;
 
     const renderSignupDetails = (user: User) => (
         <div className="space-y-1 text-sm text-muted-foreground text-right">
@@ -214,13 +225,6 @@ const UsersPage = () => {
         </div>
     );
 
-    // Debug logging
-    console.log("All users:", users);
-    console.log("Filtered users:", filteredUsers);
-    console.log("Student users:", studentUsers);
-    console.log("Staff users:", staffUsers);
-    console.log("Admin users:", filteredUsers.filter(user => user.role === "ADMIN"));
-
     if (loading) {
         return (
             <div className="p-6">
@@ -231,10 +235,23 @@ const UsersPage = () => {
 
     return (
         <div className="p-6 space-y-6">
-            <div className="flex items-center justify-between">
-                <h1 className="text-3xl font-bold text-gray-900 dark:text-white">
+            <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+                <h1 className="text-3xl font-bold text-gray-900 dark:text-white sm:shrink-0">
                     إدارة المستخدمين
                 </h1>
+                <Card className="w-full border-2 border-[#361e01] bg-[#fcfaed] shadow-sm sm:w-auto sm:min-w-56">
+                    <CardContent className="flex items-center gap-3 p-3 sm:p-4">
+                        <Users className="h-9 w-9 shrink-0 text-[#361e01] sm:h-10 sm:w-10" aria-hidden />
+                        <div className="min-w-0 flex-1 text-right">
+                            <p className="text-sm font-semibold text-[#361e01] sm:text-base">
+                                إجمالي عدد الطلاب
+                            </p>
+                            <p className="mt-0.5 text-2xl font-bold tabular-nums text-[#361e01] sm:text-3xl">
+                                {totalStudents}
+                            </p>
+                        </div>
+                    </CardContent>
+                </Card>
             </div>
 
             {/* Staff Table (Admins and Teachers) */}
@@ -242,15 +259,16 @@ const UsersPage = () => {
                 <Card>
                     <CardHeader>
                         <CardTitle>المشرفين والمعلمين</CardTitle>
-                        <div className="flex items-center space-x-2">
+                        <form onSubmit={handleSearchSubmit} className="flex items-center gap-2">
                             <Search className="h-4 w-4 text-muted-foreground" />
                             <Input
                                 placeholder="البحث بالاسم أو رقم الهاتف..."
-                                value={searchTerm}
-                                onChange={(e) => setSearchTerm(e.target.value)}
+                                value={pendingSearchTerm}
+                                onChange={(e) => setPendingSearchTerm(e.target.value)}
                                 className="max-w-sm"
                             />
-                        </div>
+                            <Button type="submit">بحث</Button>
+                        </form>
                     </CardHeader>
                     <CardContent>
                         <Table>
@@ -424,15 +442,16 @@ const UsersPage = () => {
                 <Card>
                     <CardHeader>
                         <CardTitle>قائمة الطلاب</CardTitle>
-                        <div className="flex items-center space-x-2">
+                        <form onSubmit={handleSearchSubmit} className="flex items-center gap-2">
                             <Search className="h-4 w-4 text-muted-foreground" />
                             <Input
                                 placeholder="البحث بالاسم أو رقم الهاتف..."
-                                value={searchTerm}
-                                onChange={(e) => setSearchTerm(e.target.value)}
+                                value={pendingSearchTerm}
+                                onChange={(e) => setPendingSearchTerm(e.target.value)}
                                 className="max-w-sm"
                             />
-                        </div>
+                            <Button type="submit">بحث</Button>
+                        </form>
                     </CardHeader>
                     <CardContent>
                         <Table>
@@ -450,7 +469,7 @@ const UsersPage = () => {
                                 </TableRow>
                             </TableHeader>
                             <TableBody>
-                                {studentUsers.map((user) => (
+                                {visibleStudentUsers.map((user) => (
                                     <TableRow key={user.id}>
                                         <TableCell className="font-medium">
                                             {user.fullName}
@@ -604,6 +623,19 @@ const UsersPage = () => {
                                 ))}
                             </TableBody>
                         </Table>
+                        <div className="mt-4 flex items-center justify-between">
+                            <p className="text-sm text-muted-foreground">
+                                عرض {visibleStudentUsers.length} من {studentUsers.length} طالب
+                            </p>
+                            {hasMoreStudents && (
+                                <Button
+                                    variant="outline"
+                                    onClick={() => setVisibleStudentCount((prev) => prev + 25)}
+                                >
+                                    عرض المزيد
+                                </Button>
+                            )}
+                        </div>
                     </CardContent>
                 </Card>
             )}

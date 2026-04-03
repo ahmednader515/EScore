@@ -33,7 +33,9 @@ const TeacherAddCoursesPage = () => {
     const [courses, setCourses] = useState<Course[]>([]);
     const [ownedCourses, setOwnedCourses] = useState<Course[]>([]);
     const [loading, setLoading] = useState(true);
+    const [pendingSearchTerm, setPendingSearchTerm] = useState("");
     const [searchTerm, setSearchTerm] = useState("");
+    const [visibleUserCount, setVisibleUserCount] = useState(25);
     const [selectedUser, setSelectedUser] = useState<User | null>(null);
     const [selectedCourse, setSelectedCourse] = useState<string>("");
     const [isDialogOpen, setIsDialogOpen] = useState(false);
@@ -68,14 +70,11 @@ const TeacherAddCoursesPage = () => {
 
     const fetchUsers = async () => {
         try {
-            const response = await fetch("/api/teacher/users");
+            const response = await fetch("/api/teacher/users?limit=5000");
             if (response.ok) {
                 const data = await response.json();
                 // Handle paginated response
-                const users = data.users || data;
-                // Filter only students
-                const studentUsers = users.filter((user: User) => user.role === "USER");
-                setUsers(studentUsers);
+                setUsers(data.users || data);
             }
         } catch (error) {
             console.error("Error fetching users:", error);
@@ -167,6 +166,14 @@ const TeacherAddCoursesPage = () => {
         user.fullName.toLowerCase().includes(searchTerm.toLowerCase()) ||
         user.phoneNumber.includes(searchTerm)
     );
+    const visibleUsers = filteredUsers.slice(0, visibleUserCount);
+    const hasMoreUsers = visibleUsers.length < filteredUsers.length;
+
+    const handleSearchSubmit = (e: React.FormEvent<HTMLFormElement>) => {
+        e.preventDefault();
+        setSearchTerm(pendingSearchTerm.trim());
+        setVisibleUserCount(25);
+    };
 
     if (loading) {
         return (
@@ -186,16 +193,17 @@ const TeacherAddCoursesPage = () => {
 
             <Card>
                 <CardHeader>
-                    <CardTitle>قائمة الطلاب</CardTitle>
-                    <div className="flex items-center space-x-2">
+                    <CardTitle>قائمة المستخدمين</CardTitle>
+                    <form onSubmit={handleSearchSubmit} className="flex items-center gap-2">
                         <Search className="h-4 w-4 text-muted-foreground" />
                         <Input
                             placeholder="البحث بالاسم أو رقم الهاتف..."
-                            value={searchTerm}
-                            onChange={(e) => setSearchTerm(e.target.value)}
+                            value={pendingSearchTerm}
+                            onChange={(e) => setPendingSearchTerm(e.target.value)}
                             className="max-w-sm"
                         />
-                    </div>
+                        <Button type="submit">بحث</Button>
+                    </form>
                 </CardHeader>
                 <CardContent>
                     <Table>
@@ -209,15 +217,24 @@ const TeacherAddCoursesPage = () => {
                             </TableRow>
                         </TableHeader>
                         <TableBody>
-                            {filteredUsers.map((user) => (
+                            {visibleUsers.map((user) => (
                                 <TableRow key={user.id}>
                                     <TableCell className="font-medium">
                                         {user.fullName}
                                     </TableCell>
                                     <TableCell>{user.phoneNumber}</TableCell>
                                     <TableCell>
-                                        <Badge variant="secondary">
-                                            طالب
+                                        <Badge
+                                            variant="secondary"
+                                            className={
+                                                user.role === "TEACHER"
+                                                    ? "bg-blue-600 text-white hover:bg-blue-700"
+                                                    : user.role === "ADMIN"
+                                                        ? "bg-orange-600 text-white hover:bg-orange-700"
+                                                        : "bg-green-600 text-white hover:bg-green-700"
+                                            }
+                                        >
+                                            {user.role === "TEACHER" ? "معلم" : user.role === "ADMIN" ? "مشرف" : "طالب"}
                                         </Badge>
                                     </TableCell>
                                     <TableCell>
@@ -229,11 +246,16 @@ const TeacherAddCoursesPage = () => {
                                                 size="sm" 
                                                 variant="outline"
                                                 onClick={() => {
+                                                    if (user.role !== "USER") {
+                                                        toast.error("إضافة الكورسات متاحة للطلاب فقط");
+                                                        return;
+                                                    }
                                                     setSelectedUser(user);
                                                     setDialogMode("add");
                                                     setSelectedCourse("");
                                                     setIsDialogOpen(true);
                                                 }}
+                                                disabled={user.role !== "USER"}
                                             >
                                                 <Plus className="h-4 w-4" />
                                                 إضافة كورس
@@ -242,11 +264,16 @@ const TeacherAddCoursesPage = () => {
                                                 size="sm" 
                                                 variant="destructive"
                                                 onClick={() => {
+                                                    if (user.role !== "USER") {
+                                                        toast.error("حذف الكورسات متاح للطلاب فقط");
+                                                        return;
+                                                    }
                                                     setSelectedUser(user);
                                                     setDialogMode("delete");
                                                     setSelectedCourse("");
                                                     setIsDialogOpen(true);
                                                 }}
+                                                disabled={user.role !== "USER"}
                                             >
                                                 حذف الكورس
                                             </Button>
@@ -256,6 +283,19 @@ const TeacherAddCoursesPage = () => {
                             ))}
                         </TableBody>
                     </Table>
+                    <div className="mt-4 flex items-center justify-between">
+                        <p className="text-sm text-muted-foreground">
+                            عرض {visibleUsers.length} من {filteredUsers.length} مستخدم
+                        </p>
+                        {hasMoreUsers && (
+                            <Button
+                                variant="outline"
+                                onClick={() => setVisibleUserCount((prev) => prev + 25)}
+                            >
+                                عرض المزيد
+                            </Button>
+                        )}
+                    </div>
                 </CardContent>
             </Card>
 
@@ -263,7 +303,7 @@ const TeacherAddCoursesPage = () => {
                 <Card>
                     <CardContent className="p-6">
                         <div className="text-center text-muted-foreground">
-                            لا توجد طلاب متاحين
+                            لا توجد مستخدمين متاحين
                         </div>
                     </CardContent>
                 </Card>

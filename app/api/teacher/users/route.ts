@@ -20,12 +20,15 @@ export async function GET(req: NextRequest) {
 
         // Parse pagination parameters from query string
         const { searchParams } = new URL(req.url);
-        const page = parseInt(searchParams.get("page") || "1", 10);
-        const limit = parseInt(searchParams.get("limit") || "100", 10);
+        const pageRaw = parseInt(searchParams.get("page") || "1", 10);
+        const limitRaw = parseInt(searchParams.get("limit") || "100", 10);
+        const page = Number.isFinite(pageRaw) && pageRaw > 0 ? pageRaw : 1;
+        const limit = Number.isFinite(limitRaw) && limitRaw > 0 ? limitRaw : 100;
         const skip = (page - 1) * limit;
 
-        // Limit the maximum page size to prevent large responses
-        const take = Math.min(limit, 100);
+        /** Dashboard needs full lists; cap avoids accidental huge responses. */
+        const MAX_PAGE = 5000;
+        const take = Math.min(limit, MAX_PAGE);
 
         // Teachers can see all users (USER, TEACHER, and ADMIN roles)
         const [users, total] = await Promise.all([

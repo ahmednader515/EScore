@@ -18,6 +18,8 @@ export default withAuth(
   function middleware(req) {
     const isTeacherRoute = req.nextUrl.pathname.startsWith("/dashboard/teacher");
     const isTeacher = req.nextauth.token?.role === "TEACHER";
+    const isHomePage = req.nextUrl.pathname === "/";
+    const isReelsPage = req.nextUrl.pathname.startsWith("/reels");
     const isAuthPage = req.nextUrl.pathname.startsWith("/sign-in") || 
                       req.nextUrl.pathname.startsWith("/sign-up") ||
                       req.nextUrl.pathname.startsWith("/forgot-password") ||
@@ -35,7 +37,13 @@ export default withAuth(
 
     // If user is not authenticated and trying to access protected routes
     // But exclude payment status page from this check
-    if (!req.nextauth.token && !isAuthPage && !isPaymentStatusPage) {
+    if (
+      !req.nextauth.token &&
+      !isAuthPage &&
+      !isPaymentStatusPage &&
+      !isHomePage &&
+      !isReelsPage
+    ) {
       return NextResponse.redirect(new URL("/sign-in", req.url), { status: 302 });
     }
 

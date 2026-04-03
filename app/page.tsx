@@ -2,7 +2,7 @@
 
 import { motion } from "framer-motion";
 import { Button } from "@/components/ui/button";
-import { ArrowRight, ArrowLeft, Star, Users, BookOpen, Award, ChevronDown, Facebook, Lightbulb, Heart, Check, ChevronRight } from "lucide-react";
+import { ArrowRight, ArrowLeft, Star, Users, BookOpen, Award, ChevronDown, Facebook, Lightbulb, Heart, Check, ChevronRight, PlayCircle } from "lucide-react";
 import Link from "next/link";
 import Image from "next/image";
 import { Navbar } from "@/components/navbar";
@@ -99,6 +99,18 @@ export default function HomePage() {
     <div className="h-full w-full bg-background">
       <Navbar />
       <ScrollProgress />
+      <div className="fixed bottom-6 right-6 z-50 md:bottom-8 md:right-8">
+        <Button
+          asChild
+          size="lg"
+          className="h-14 rounded-full border-2 border-white/90 bg-[#361e01] px-6 text-base font-bold text-white shadow-2xl shadow-black/40 ring-4 ring-[#ab8302]/45 hover:bg-[#4a2a02] hover:ring-[#ab8302]/65 active:scale-[0.98]"
+        >
+          <Link href="/reels" className="inline-flex items-center gap-2.5">
+            <PlayCircle className="h-6 w-6 shrink-0" aria-hidden />
+            شاهد الريلز
+          </Link>
+        </Button>
+      </div>
       {/* Hero Section */}
       <section id="hero-section" className="relative min-h-screen flex items-center justify-center overflow-hidden pt-20 md:pt-24 bg-white">
         <div className="container mx-auto px-4 grid grid-cols-1 md:grid-cols-2 gap-0 md:gap-8 items-center">
@@ -428,11 +440,18 @@ export default function HomePage() {
             <p className="text-lg md:text-xl mb-8" style={{ color: '#361e01' }}>
               انضم إلينا في رحلتنا في <span style={{ color: '#ab8302' }}>2026</span>
             </p>
-            <Button size="lg" asChild className="bg-[#361e01] hover:bg-[#361e01]/90 text-white mb-8">
-              <Link href="/sign-up">
-                تسجيل الدخول <ArrowRight className="mr-2 h-4 w-4" />
-              </Link>
-            </Button>
+            <div className="flex flex-col sm:flex-row items-center justify-center gap-3 mb-8">
+              <Button size="lg" asChild className="bg-[#361e01] hover:bg-[#361e01]/90 text-white">
+                <Link href="/sign-up">
+                  تسجيل الدخول <ArrowRight className="mr-2 h-4 w-4" />
+                </Link>
+              </Button>
+              <Button size="lg" asChild variant="outline" className="border-[#361e01] text-[#361e01] hover:bg-[#fcfaed]">
+                <Link href="/reels">
+                  شاهد الريلز <PlayCircle className="mr-2 h-4 w-4" />
+                </Link>
+              </Button>
+            </div>
           </motion.div>
         </div>
 

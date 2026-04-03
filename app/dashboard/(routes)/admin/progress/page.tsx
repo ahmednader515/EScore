@@ -75,7 +75,7 @@ const ProgressPage = () => {
 
     const fetchUsers = async () => {
         try {
-            const response = await fetch("/api/admin/users");
+            const response = await fetch("/api/admin/users?limit=5000");
             if (response.ok) {
                 const data = await response.json();
                 // Handle paginated response

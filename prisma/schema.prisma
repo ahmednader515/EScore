@@ -300,3 +300,18 @@ model LiveSessionCourse {
   @@index([liveSessionId])
   @@index([courseId])
 }
+
+model ReelVideo {
+  id String @id @default(uuid())
+  title String
+  youtubeUrl String @db.Text
+  youtubeVideoId String
+  createdById String
+  createdByName String?
+  isPublished Boolean @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([isPublished])
+  @@index([createdAt])
+}

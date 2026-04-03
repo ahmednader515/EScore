@@ -1,6 +1,7 @@
 export const extractYouTubeVideoId = (url: string): string | null => {
     const patterns = [
         /(?:youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/embed\/)([^&\n?#]+)/,
+        /youtube\.com\/shorts\/([^&\n?#/]+)/,
         /youtube\.com\/v\/([^&\n?#]+)/,
         /youtube\.com\/watch\?.*v=([^&\n?#]+)/
     ];
