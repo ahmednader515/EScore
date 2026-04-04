@@ -310,6 +310,7 @@ model ReelVideo {
   title String
   youtubeUrl String @db.Text
   youtubeVideoId String
+  thumbnailUrl String? @db.Text
   createdById String
   createdByName String?
   isPublished Boolean @default(true)

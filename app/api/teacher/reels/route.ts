@@ -45,6 +45,11 @@ export async function POST(req: NextRequest) {
     const body = await req.json();
     const title = String(body?.title || "").trim();
     const youtubeUrl = String(body?.youtubeUrl || "").trim();
+    const thumbnailUrlRaw = body?.thumbnailUrl;
+    const thumbnailUrl =
+      thumbnailUrlRaw === null || thumbnailUrlRaw === undefined || thumbnailUrlRaw === ""
+        ? null
+        : String(thumbnailUrlRaw).trim() || null;
 
     if (!title) {
       return NextResponse.json(
@@ -68,11 +73,19 @@ export async function POST(req: NextRequest) {
       );
     }
 
+    if (thumbnailUrl && !/^https?:\/\//i.test(thumbnailUrl)) {
+      return NextResponse.json(
+        { error: "رابط الصورة المصغرة غير صالح" },
+        { status: 400 }
+      );
+    }
+
     const reel = await db.reelVideo.create({
       data: {
         title,
         youtubeUrl,
         youtubeVideoId,
+        thumbnailUrl,
         createdById: session.user.id,
         createdByName: session.user.name || null,
         isPublished: true,

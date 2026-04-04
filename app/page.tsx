@@ -481,11 +481,6 @@ export default function HomePage() {
               {homepageSettings.heroSubText}
             </p>
             <div className="flex flex-col sm:flex-row items-center justify-center gap-3 mb-8">
-              <Button size="lg" asChild className="bg-[#361e01] hover:bg-[#361e01]/90 text-white">
-                <Link href="/sign-up">
-                  {homepageSettings.primaryCtaText} <ArrowRight className="mr-2 h-4 w-4" />
-                </Link>
-              </Button>
               <Button size="lg" asChild variant="outline" className="border-[#361e01] text-[#361e01] hover:bg-[#fcfaed]">
                 <Link href="/reels">
                   {homepageSettings.reelsCtaText} <PlayCircle className="mr-2 h-4 w-4" />

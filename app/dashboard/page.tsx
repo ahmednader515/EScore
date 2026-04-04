@@ -9,6 +9,7 @@ import { BookOpen, Play, Clock, Trophy, Wallet, TrendingUp, BookOpen as BookOpen
 import Link from "next/link";
 import Image from "next/image";
 import { Course, Purchase, Chapter } from "@prisma/client";
+import { StudentReelsFab } from "@/components/student-reels-fab";
 
 type CourseWithProgress = Course & {
   chapters: { id: string }[];
@@ -247,6 +248,7 @@ const CoursesPage = async () => {
 
   return (
     <div className="p-6 space-y-6">
+      <StudentReelsFab />
       {/* Header */}
       <div className="mb-8">
         <h1 className="text-3xl font-bold mb-2">مرحباً بك في لوحة التحكم</h1>
