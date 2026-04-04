@@ -4,10 +4,11 @@ import { useEffect, useState, useCallback, useMemo, useRef } from "react";
 import { useRouter, useParams } from "next/navigation";
 import axios, { AxiosError } from "axios";
 import { Button } from "@/components/ui/button";
-import { ChevronLeft, ChevronRight, CheckCircle2, Circle, Lock, FileText, Download } from "lucide-react";
+import { ChevronLeft, ChevronRight, CheckCircle2, Circle, Lock, FileText, Download, MessageCircle, Send } from "lucide-react";
 import { Progress } from "@/components/ui/progress";
 import { toast } from "sonner";
 import { PlyrVideoPlayer } from "@/components/plyr-video-player";
+import { Input } from "@/components/ui/input";
 
 interface Chapter {
   id: string;
@@ -35,6 +36,22 @@ interface Chapter {
   }[];
 }
 
+interface ChatMessage {
+  id: string;
+  content: string;
+  createdAt: string;
+  sender: {
+    id: string;
+    fullName: string;
+    role: string;
+  };
+}
+
+interface ChatTeacher {
+  id: string;
+  fullName: string;
+}
+
 const ChapterPage = () => {
   const router = useRouter();
   const routeParams = useParams() as { courseId: string; chapterId: string };
@@ -43,6 +60,11 @@ const ChapterPage = () => {
   const [isCompleted, setIsCompleted] = useState(false);
   const [courseProgress, setCourseProgress] = useState(0);
   const [hasAccess, setHasAccess] = useState(false);
+  const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
+  const [chatTeacher, setChatTeacher] = useState<ChatTeacher | null>(null);
+  const [chatInput, setChatInput] = useState("");
+  const [isSendingMessage, setIsSendingMessage] = useState(false);
+  const chatMessagesRef = useRef<HTMLDivElement | null>(null);
 
   // Create a stable key for the video player that only changes when the video source actually changes
   const videoPlayerKey = useMemo(() => {
@@ -257,6 +279,57 @@ const ChapterPage = () => {
     }
   };
 
+  const fetchChat = useCallback(async () => {
+    try {
+      const response = await axios.get(
+        `/api/courses/${routeParams.courseId}/chat?chapterId=${routeParams.chapterId}`
+      );
+      setChatMessages(response.data?.messages || []);
+      setChatTeacher(response.data?.teacher || null);
+    } catch {
+      // Keep chapter experience unaffected if chat endpoint fails.
+    }
+  }, [routeParams.courseId, routeParams.chapterId]);
+
+  const sendChatMessage = async () => {
+    const content = chatInput.trim();
+    if (!content) return;
+
+    setIsSendingMessage(true);
+    try {
+      const response = await axios.post(
+        `/api/courses/${routeParams.courseId}/chat?chapterId=${routeParams.chapterId}`,
+        {
+          content,
+        }
+      );
+      setChatMessages((prev) => [...prev, response.data]);
+      setChatInput("");
+    } catch {
+      toast.error("تعذر إرسال الرسالة");
+    } finally {
+      setIsSendingMessage(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchChat();
+  }, [fetchChat, routeParams.chapterId]);
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      fetchChat();
+    }, 10000);
+
+    return () => clearInterval(interval);
+  }, [fetchChat]);
+
+  useEffect(() => {
+    const chatContainer = chatMessagesRef.current;
+    if (!chatContainer) return;
+    chatContainer.scrollTop = chatContainer.scrollHeight;
+  }, [chatMessages, routeParams.chapterId]);
+
   if (loading) {
     return (
       <div className="h-full flex items-center justify-center">
@@ -428,6 +501,75 @@ const ChapterPage = () => {
                 </div>
               </div>
             )}
+          </div>
+
+          {/* Navigation Buttons */}
+          <div className="mt-6 p-4 border rounded-lg bg-card">
+            <div className="flex items-center justify-between gap-2 mb-3">
+              <div className="flex items-center gap-2">
+                <MessageCircle className="h-5 w-5 text-muted-foreground" />
+                <h3 className="text-lg font-semibold">محادثة المعلم</h3>
+              </div>
+              <div className="text-xs text-muted-foreground">
+                {chatTeacher?.fullName ? `المعلم: ${chatTeacher.fullName}` : "المعلم"}
+              </div>
+            </div>
+
+            <div
+              ref={chatMessagesRef}
+              className="h-64 overflow-y-auto border rounded-md p-3 bg-[#ece5dd] space-y-2"
+            >
+              {chatMessages.length === 0 ? (
+                <p className="text-sm text-muted-foreground text-center py-8">
+                  لا توجد رسائل بعد. ابدأ المحادثة مع معلمك.
+                </p>
+              ) : (
+                chatMessages.map((message) => {
+                  const isTeacher =
+                    message.sender.role === "TEACHER" || message.sender.role === "ADMIN";
+                  return (
+                    <div
+                      key={message.id}
+                      className={`flex ${isTeacher ? "justify-start" : "justify-end"}`}
+                    >
+                      <div
+                        className={`max-w-[85%] px-3 py-2 rounded-2xl shadow-sm text-sm ${
+                          isTeacher
+                            ? "bg-white rounded-tl-md border"
+                            : "bg-[#dcf8c6] rounded-tr-md"
+                        }`}
+                      >
+                        <div className="text-[11px] font-semibold mb-1 text-muted-foreground">
+                              {isTeacher ? (message.sender.fullName || chatTeacher?.fullName || "المعلم") : "أنت"}
+                        </div>
+                        <p className="leading-relaxed">{message.content}</p>
+                        <p className="text-[10px] opacity-70 mt-1 text-left">
+                          {new Date(message.createdAt).toLocaleString("ar-EG")}
+                        </p>
+                      </div>
+                    </div>
+                  );
+                })
+              )}
+            </div>
+
+            <div className="mt-3 flex items-center gap-2">
+              <Input
+                placeholder="اكتب رسالة للمعلم..."
+                value={chatInput}
+                onChange={(e) => setChatInput(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") {
+                    e.preventDefault();
+                    sendChatMessage();
+                  }
+                }}
+              />
+              <Button onClick={sendChatMessage} disabled={isSendingMessage}>
+                <Send className="h-4 w-4 mr-2" />
+                إرسال
+              </Button>
+            </div>
           </div>
 
           {/* Navigation Buttons */}

@@ -34,8 +34,24 @@ export async function GET(
       return new NextResponse("Not found", { status: 404 });
     }
 
-    // Free courses are always accessible
+    // Free courses are always accessible and should appear as purchased
     if (course.price === 0) {
+      const existingPurchase = course.purchases[0];
+      if (!existingPurchase) {
+        await db.purchase.create({
+          data: {
+            userId,
+            courseId,
+            status: "ACTIVE",
+          },
+        });
+      } else if (existingPurchase.status !== "ACTIVE") {
+        await db.purchase.update({
+          where: { id: existingPurchase.id },
+          data: { status: "ACTIVE" },
+        });
+      }
+
       return NextResponse.json({ hasAccess: true });
     }
 

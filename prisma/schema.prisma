@@ -31,6 +31,9 @@ model User {
   balanceTransactions     BalanceTransaction[]
   quizResults             QuizResult[]
   quizAttempts            QuizAttempt[]
+  studentChatThreads      ChatThread[] @relation("StudentChatThreads")
+  teacherChatThreads      ChatThread[] @relation("TeacherChatThreads")
+  chatMessages            ChatMessage[]
 }
 
 model Course {
@@ -52,6 +55,7 @@ model Course {
   quizzes Quiz[]
   promoCodes PromoCode[]
   liveSessions LiveSessionCourse[]
+  chatThreads ChatThread[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -314,4 +318,56 @@ model ReelVideo {
 
   @@index([isPublished])
   @@index([createdAt])
+}
+
+model HomepageSetting {
+  id String @id @default(uuid())
+  isActive Boolean @default(true) @unique
+  heroMainText String @default("تعلم الإنجليزية بسهولة مع أفضل المدرسين")
+  heroSubText String @default("انضم إلينا في رحلتنا في 2026")
+  primaryCtaText String @default("تسجيل الدخول")
+  reelsCtaText String @default("شاهد الريلز")
+  coursesTitle String @default("الكورسات المتاحة")
+  coursesSubtitle String @default("اكتشف مجموعة متنوعة من الكورسات التعليمية المميزة")
+  teacherName1 String @default("علاء الجبيلي")
+  teacherName2 String @default("عبد الكريم الزيات")
+  teacherName3 String @default("رضا المطراوي")
+  heroImage1 String @default("/teacher-image.png")
+  heroImage2 String @default("/teacher-image2.png")
+  heroImage3 String @default("/teacher-image3.png")
+  brandPrimary String @default("#361e01")
+  brandAccent String @default("#ab8302")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model ChatThread {
+  id String @id @default(uuid())
+  studentId String
+  teacherId String
+  courseId String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  student User @relation("StudentChatThreads", fields: [studentId], references: [id], onDelete: Cascade)
+  teacher User @relation("TeacherChatThreads", fields: [teacherId], references: [id], onDelete: Cascade)
+  course Course @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  messages ChatMessage[]
+
+  @@unique([studentId, courseId])
+  @@index([teacherId, updatedAt])
+  @@index([studentId, updatedAt])
+}
+
+model ChatMessage {
+  id String @id @default(uuid())
+  threadId String
+  senderId String
+  content String @db.Text
+  createdAt DateTime @default(now())
+
+  thread ChatThread @relation(fields: [threadId], references: [id], onDelete: Cascade)
+  sender User @relation(fields: [senderId], references: [id], onDelete: Cascade)
+
+  @@index([threadId, createdAt])
 }

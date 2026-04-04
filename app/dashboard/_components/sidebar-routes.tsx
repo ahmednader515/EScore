@@ -1,6 +1,6 @@
 "use client";
 
-import { BarChart, Compass, Layout, List, Wallet, Shield, Users, Eye, TrendingUp, BookOpen, FileText, Award, PlusSquare, Key, Ticket, Video } from "lucide-react";
+import { BarChart, Compass, Layout, List, Wallet, Shield, Users, Eye, TrendingUp, BookOpen, FileText, Award, PlusSquare, Key, Ticket, Video, Paintbrush, MessageCircle } from "lucide-react";
 import { SidebarItem } from "./sidebar-item";
 import { usePathname } from "next/navigation";
 
@@ -82,6 +82,16 @@ const teacherRoutes = [
         icon: Video,
         label: "ريلز يوتيوب",
         href: "/dashboard/teacher/reels",
+    },
+    {
+        icon: Paintbrush,
+        label: "تعديل الصفحة الرئيسية",
+        href: "/dashboard/teacher/homepage-editor",
+    },
+    {
+        icon: MessageCircle,
+        label: "محادثات الطلاب",
+        href: "/dashboard/teacher/chats",
     },
 ];
 

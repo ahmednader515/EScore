@@ -9,6 +9,7 @@ import { Navbar } from "@/components/navbar";
 import { ScrollProgress } from "@/components/scroll-progress";
 import { useEffect, useState } from "react";
 import { useSession } from "next-auth/react";
+import { HOMEPAGE_SETTINGS_DEFAULTS, type HomepageSettingsPayload } from "@/lib/homepage-settings";
 
 // Define types based on Prisma schema
 type Course = {
@@ -35,6 +36,7 @@ export default function HomePage() {
   const [courses, setCourses] = useState<CourseWithProgress[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [showScrollIndicator, setShowScrollIndicator] = useState(true);
+  const [homepageSettings, setHomepageSettings] = useState<HomepageSettingsPayload>(HOMEPAGE_SETTINGS_DEFAULTS);
   const isLoggedIn = status === "authenticated" && !!session;
 
   useEffect(() => {
@@ -60,6 +62,36 @@ export default function HomePage() {
     };
 
     fetchCourses();
+  }, []);
+
+  useEffect(() => {
+    const fetchHomepageSettings = async () => {
+      try {
+        const response = await fetch("/api/homepage-settings", { cache: "no-store" });
+        if (!response.ok) return;
+        const data = await response.json();
+        setHomepageSettings({
+          heroMainText: data.heroMainText || HOMEPAGE_SETTINGS_DEFAULTS.heroMainText,
+          heroSubText: data.heroSubText || HOMEPAGE_SETTINGS_DEFAULTS.heroSubText,
+          primaryCtaText: data.primaryCtaText || HOMEPAGE_SETTINGS_DEFAULTS.primaryCtaText,
+          reelsCtaText: data.reelsCtaText || HOMEPAGE_SETTINGS_DEFAULTS.reelsCtaText,
+          coursesTitle: data.coursesTitle || HOMEPAGE_SETTINGS_DEFAULTS.coursesTitle,
+          coursesSubtitle: data.coursesSubtitle || HOMEPAGE_SETTINGS_DEFAULTS.coursesSubtitle,
+          teacherName1: data.teacherName1 || HOMEPAGE_SETTINGS_DEFAULTS.teacherName1,
+          teacherName2: data.teacherName2 || HOMEPAGE_SETTINGS_DEFAULTS.teacherName2,
+          teacherName3: data.teacherName3 || HOMEPAGE_SETTINGS_DEFAULTS.teacherName3,
+          heroImage1: data.heroImage1 || HOMEPAGE_SETTINGS_DEFAULTS.heroImage1,
+          heroImage2: data.heroImage2 || HOMEPAGE_SETTINGS_DEFAULTS.heroImage2,
+          heroImage3: data.heroImage3 || HOMEPAGE_SETTINGS_DEFAULTS.heroImage3,
+          brandPrimary: data.brandPrimary || HOMEPAGE_SETTINGS_DEFAULTS.brandPrimary,
+          brandAccent: data.brandAccent || HOMEPAGE_SETTINGS_DEFAULTS.brandAccent,
+        });
+      } catch {
+        // keep defaults
+      }
+    };
+
+    fetchHomepageSettings();
   }, []);
 
   useEffect(() => {
@@ -103,11 +135,19 @@ export default function HomePage() {
         <Button
           asChild
           size="lg"
-          className="h-14 rounded-full border-2 border-white/90 bg-[#361e01] px-6 text-base font-bold text-white shadow-2xl shadow-black/40 ring-4 ring-[#ab8302]/45 hover:bg-[#4a2a02] hover:ring-[#ab8302]/65 active:scale-[0.98]"
+          className="floating-reels-btn h-14 rounded-full border-2 border-white/90 px-6 text-base font-bold !text-white shadow-2xl shadow-black/40 ring-4 active:scale-[0.98] [&_*]:!text-white"
+          style={{
+            backgroundColor: homepageSettings.brandPrimary,
+            borderColor: "rgba(255,255,255,0.9)",
+            boxShadow: `0 0 0 4px ${homepageSettings.brandAccent}73`,
+            color: "#ffffff",
+          }}
         >
-          <Link href="/reels" className="inline-flex items-center gap-2.5">
-            <PlayCircle className="h-6 w-6 shrink-0" aria-hidden />
-            شاهد الريلز
+          <Link href="/reels" className="inline-flex items-center gap-2.5 !text-white" style={{ color: "#ffffff" }}>
+            <PlayCircle className="h-6 w-6 shrink-0 !text-white" aria-hidden />
+            <span className="!text-white" style={{ color: "#ffffff" }}>
+              {homepageSettings.reelsCtaText}
+            </span>
           </Link>
         </Button>
       </div>
@@ -144,8 +184,8 @@ export default function HomePage() {
               >
                 <div className="relative w-48 h-48 md:w-56 md:h-56 mb-3">
                   <Image
-                    src="/teacher-image.png"
-                    alt="علاء الجبيلي"
+                    src={homepageSettings.heroImage1}
+                    alt={homepageSettings.teacherName1}
                     fill
                     priority
                     className="object-cover rounded-full border-4 border-[#361e01]/20 shadow-lg"
@@ -153,7 +193,7 @@ export default function HomePage() {
                   />
                 </div>
                 <p className="text-xl md:text-2xl font-bold font-playpen-sans-arabic" style={{ color: '#361e01', fontFamily: 'var(--font-playpen-sans-arabic)' }}>
-                  علاء الجبيلي
+                  {homepageSettings.teacherName1}
                 </p>
               </motion.div>
 
@@ -166,15 +206,15 @@ export default function HomePage() {
               >
                 <div className="relative w-56 h-56 md:w-72 md:h-72 mb-3">
                   <Image
-                    src="/teacher-image2.png"
-                    alt="عبد الكريم الزيات"
+                    src={homepageSettings.heroImage2}
+                    alt={homepageSettings.teacherName2}
                     fill
                     className="object-cover rounded-full border-4 border-[#361e01]/20 shadow-lg"
                     sizes="(max-width: 768px) 224px, 288px"
                   />
                 </div>
                 <p className="text-xl md:text-2xl font-bold font-playpen-sans-arabic" style={{ color: '#361e01', fontFamily: 'var(--font-playpen-sans-arabic)' }}>
-                  عبد الكريم الزيات
+                  {homepageSettings.teacherName2}
                 </p>
               </motion.div>
 
@@ -187,15 +227,15 @@ export default function HomePage() {
               >
                 <div className="relative w-48 h-48 md:w-56 md:h-56 mb-3">
                   <Image
-                    src="/teacher-image3.png"
-                    alt="رضا المطراوي"
+                    src={homepageSettings.heroImage3}
+                    alt={homepageSettings.teacherName3}
                     fill
                     className="object-cover rounded-full border-4 border-[#361e01]/20 shadow-lg"
                     sizes="(max-width: 768px) 192px, 224px"
                   />
                 </div>
                 <p className="text-xl md:text-2xl font-bold font-playpen-sans-arabic" style={{ color: '#361e01', fontFamily: 'var(--font-playpen-sans-arabic)' }}>
-                  رضا المطراوي
+                  {homepageSettings.teacherName3}
                 </p>
               </motion.div>
 
@@ -395,7 +435,7 @@ export default function HomePage() {
               />
             </div>
             <p className="text-xl md:text-2xl mb-4 font-bold" style={{ color: '#ab8302' }}>
-              طور_لغتك_طور_مستقبلك#
+              {homepageSettings.heroMainText}
             </p>
             
             {/* Text Bubbles */}
@@ -438,17 +478,17 @@ export default function HomePage() {
             </div>
             
             <p className="text-lg md:text-xl mb-8" style={{ color: '#361e01' }}>
-              انضم إلينا في رحلتنا في <span style={{ color: '#ab8302' }}>2026</span>
+              {homepageSettings.heroSubText}
             </p>
             <div className="flex flex-col sm:flex-row items-center justify-center gap-3 mb-8">
               <Button size="lg" asChild className="bg-[#361e01] hover:bg-[#361e01]/90 text-white">
                 <Link href="/sign-up">
-                  تسجيل الدخول <ArrowRight className="mr-2 h-4 w-4" />
+                  {homepageSettings.primaryCtaText} <ArrowRight className="mr-2 h-4 w-4" />
                 </Link>
               </Button>
               <Button size="lg" asChild variant="outline" className="border-[#361e01] text-[#361e01] hover:bg-[#fcfaed]">
                 <Link href="/reels">
-                  شاهد الريلز <PlayCircle className="mr-2 h-4 w-4" />
+                  {homepageSettings.reelsCtaText} <PlayCircle className="mr-2 h-4 w-4" />
                 </Link>
               </Button>
             </div>
@@ -626,8 +666,8 @@ export default function HomePage() {
             transition={{ duration: 0.8, delay: 0.2 }}
             className="text-center mb-12"
           >
-            <h2 className="text-3xl font-bold mb-4" style={{ color: '#361e01' }}>الكورسات المتاحة</h2>
-            <p className="text-muted-foreground">اكتشف مجموعة متنوعة من الكورسات التعليمية المميزة</p>
+            <h2 className="text-3xl font-bold mb-4" style={{ color: '#361e01' }}>{homepageSettings.coursesTitle}</h2>
+            <p className="text-muted-foreground">{homepageSettings.coursesSubtitle}</p>
           </motion.div>
 
           <motion.div
