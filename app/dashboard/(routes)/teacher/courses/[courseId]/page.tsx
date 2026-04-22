@@ -71,10 +71,10 @@ export default async function CourseIdPage({
         (course.grade && divisions.length > 0);
 
     const requiredFields = [
-        course.title,
-        course.description,
-        course.imageUrl,
-        course.price,
+        !!course.title,
+        !!course.description,
+        !!course.imageUrl,
+        course.price !== null && course.price !== undefined,
         course.chapters.some(chapter => chapter.isPublished),
         hasGradeDivision
     ];
