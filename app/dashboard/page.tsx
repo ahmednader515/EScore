@@ -5,10 +5,11 @@ import { authOptions } from "@/lib/auth";
 import { getDashboardUrlByRole } from "@/lib/utils";
 import { Progress } from "@/components/ui/progress";
 import { Button } from "@/components/ui/button";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { BookOpen, Play, Clock, Trophy, Wallet, TrendingUp, BookOpen as BookOpenIcon } from "lucide-react";
 import Link from "next/link";
 import Image from "next/image";
-import { Course, Purchase, Chapter } from "@prisma/client";
+import { Course, Purchase } from "@prisma/client";
 import { StudentReelsFab } from "@/components/student-reels-fab";
 
 type CourseWithProgress = Course & {
@@ -16,15 +17,6 @@ type CourseWithProgress = Course & {
   quizzes: { id: string }[];
   purchases: Purchase[];
   progress: number;
-}
-
-type LastWatchedChapter = {
-  id: string;
-  title: string;
-  courseId: string;
-  courseTitle: string;
-  courseImageUrl: string | null;
-  position: number;
 }
 
 type StudentStats = {
@@ -52,7 +44,25 @@ const CoursesPage = async () => {
   // Get user's current balance
   const user = await db.user.findUnique({
     where: { id: session.user.id },
-    select: { balance: true }
+    select: { balance: true, grade: true }
+  });
+
+  // Get the latest active global notification for this student's grade (if any)
+  const now = new Date();
+  const grade = user?.grade ?? null;
+  const globalNotification = await db.globalNotification.findFirst({
+    where: {
+      isActive: true,
+      AND: [
+        { OR: [{ startsAt: null }, { startsAt: { lte: now } }] },
+        { OR: [{ endsAt: null }, { endsAt: { gte: now } }] },
+        grade
+          ? { OR: [{ targetGrades: { isEmpty: true } }, { targetGrades: { has: grade } }] }
+          : { targetGrades: { isEmpty: true } },
+      ],
+    },
+    orderBy: { createdAt: "desc" },
+    select: { id: true, title: true, message: true },
   });
 
   // Get last watched chapter
@@ -254,6 +264,25 @@ const CoursesPage = async () => {
         <h1 className="text-3xl font-bold mb-2">مرحباً بك في لوحة التحكم</h1>
         <p className="text-muted-foreground">حلها... يمكن تطلع الإجابة صح!</p>
       </div>
+
+      {/* Global Notification Banner */}
+      {globalNotification && (
+        <Alert className="border-2 border-[#ab8302] bg-gradient-to-r from-[#fff7d1] to-[#fff0b3] shadow-lg">
+          <div className="flex items-start gap-3">
+            <div className="mt-0.5 h-10 w-10 rounded-full bg-[#ab8302] text-white flex items-center justify-center text-lg font-bold">
+              !
+            </div>
+            <div className="w-full">
+              <AlertTitle className="text-xl md:text-2xl font-extrabold text-[#361e01]">
+                {globalNotification.title}
+              </AlertTitle>
+              <AlertDescription className="text-base md:text-lg text-[#361e01]/90 whitespace-pre-line">
+                {globalNotification.message}
+              </AlertDescription>
+            </div>
+          </div>
+        </Alert>
+      )}
 
       {/* Stats and Balance Row */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">

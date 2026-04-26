@@ -35,6 +35,13 @@ export default withAuth(
       return NextResponse.redirect(new URL(dashboardUrl, req.url));
     }
 
+    // If user is authenticated and hits the homepage, redirect to appropriate dashboard
+    if (isHomePage && req.nextauth.token) {
+      const userRole = req.nextauth.token?.role || "USER";
+      const dashboardUrl = getDashboardUrlByRole(userRole);
+      return NextResponse.redirect(new URL(dashboardUrl, req.url));
+    }
+
     // If user is not authenticated and trying to access protected routes
     // But exclude payment status page from this check
     if (
@@ -89,6 +96,6 @@ export default withAuth(
 
 export const config = {
   matcher: [
-    "/((?!api|_next/static|_next/image|favicon.ico|teacher-image.png|logo.png|male.png|notebook.png|pi.png|calculator.png|music.png|tiktok.png|facebook.png|instagram.png|twitter.png|youtube.png|linkedin.png|).*)",
+    "/((?!api|_next/static|_next/image|favicon.ico|teacher-image.png|logo.png|male.png|notebook.png|pi.png|calculator.png|music.png|tiktok.png|facebook.png|instagram.png|twitter.png|youtube.png|linkedin.png).*)",
   ],
 };

@@ -34,6 +34,7 @@ model User {
   studentChatThreads      ChatThread[] @relation("StudentChatThreads")
   teacherChatThreads      ChatThread[] @relation("TeacherChatThreads")
   chatMessages            ChatMessage[]
+  globalNotificationsCreated GlobalNotification[]
 }
 
 model Course {
@@ -371,4 +372,22 @@ model ChatMessage {
   sender User @relation(fields: [senderId], references: [id], onDelete: Cascade)
 
   @@index([threadId, createdAt])
+}
+
+model GlobalNotification {
+  id           String   @id @default(uuid())
+  title        String   @db.Text
+  message      String   @db.Text
+  targetGrades String[] @default([]) // empty => all grades
+  isActive     Boolean  @default(true)
+  startsAt     DateTime?
+  endsAt       DateTime?
+
+  createdById String?
+  createdBy   User?     @relation(fields: [createdById], references: [id], onDelete: SetNull)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([isActive, createdAt])
 }

@@ -30,14 +30,16 @@ import {
     AlertDialogTitle,
     AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
-import {
-    Select,
-    SelectContent,
-    SelectItem,
-    SelectTrigger,
-    SelectValue,
-} from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
+
+const GRADE_ORDER = [
+    "الاول الاعدادي",
+    "الثاني الاعدادي",
+    "الثالث الاعدادي",
+    "الأول الثانوي",
+    "الثاني الثانوي",
+    "الثالث الثانوي",
+] as const;
 
 interface User {
     id: string;
@@ -71,6 +73,7 @@ const UsersPage = () => {
     const [loading, setLoading] = useState(true);
     const [pendingSearchTerm, setPendingSearchTerm] = useState("");
     const [searchTerm, setSearchTerm] = useState("");
+    const [selectedGrade, setSelectedGrade] = useState<string>("all");
     const [visibleStudentCount, setVisibleStudentCount] = useState(25);
     const [editingUser, setEditingUser] = useState<User | null>(null);
     const [editData, setEditData] = useState<EditUserData>({
@@ -168,13 +171,23 @@ const UsersPage = () => {
         setVisibleStudentCount(25);
     };
 
+    const gradeOptionsSet = new Set(
+        users
+            .filter(u => u.role === "USER")
+            .map(u => (u.grade || "").trim())
+            .filter(Boolean)
+    );
+    const gradeOptions = GRADE_ORDER.filter(g => gradeOptionsSet.has(g));
+
     const filteredUsers = users.filter(user =>
         user.fullName.toLowerCase().includes(searchTerm.toLowerCase()) ||
         user.phoneNumber.includes(searchTerm)
     );
 
     const staffUsers = filteredUsers.filter(user => user.role === "ADMIN" || user.role === "TEACHER");
-    const studentUsers = filteredUsers.filter(user => user.role === "USER");
+    const studentUsers = filteredUsers
+        .filter(user => user.role === "USER")
+        .filter(user => selectedGrade === "all" ? true : (user.grade || "").trim() === selectedGrade);
     const visibleStudentUsers = studentUsers.slice(0, visibleStudentCount);
     const hasMoreStudents = visibleStudentUsers.length < studentUsers.length;
 
@@ -209,10 +222,58 @@ const UsersPage = () => {
 
     return (
         <div className="p-6 space-y-6">
-            <div className="flex items-center justify-between">
-                <h1 className="text-3xl font-bold text-gray-900 dark:text-white">
-                    إدارة المستخدمين
-                </h1>
+            <div className="flex flex-col gap-4">
+                <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+                    <h1 className="text-3xl font-bold text-gray-900 dark:text-white">
+                        إدارة المستخدمين
+                    </h1>
+                    <div className="rounded-lg border px-4 py-2 bg-[#fcfaed] border-[#361e01]/30">
+                        <div className="text-sm font-semibold text-[#361e01]">إجمالي الطلاب (حسب التصفية)</div>
+                        <div className="text-2xl font-bold tabular-nums text-[#361e01]">{studentUsers.length}</div>
+                    </div>
+                </div>
+                <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+                    <form onSubmit={handleSearchSubmit} className="flex items-center gap-2">
+                        <Search className="h-4 w-4 text-muted-foreground" />
+                        <Input
+                            placeholder="البحث بالاسم أو رقم الهاتف..."
+                            value={pendingSearchTerm}
+                            onChange={(e) => setPendingSearchTerm(e.target.value)}
+                            className="max-w-sm"
+                        />
+                        <Button type="submit">بحث</Button>
+                    </form>
+                    <div className="flex flex-col gap-2">
+                        <span className="text-sm text-muted-foreground">تصفية حسب الصف:</span>
+                        <div className="flex flex-wrap items-center gap-2">
+                            <Button
+                                type="button"
+                                variant={selectedGrade === "all" ? "default" : "outline"}
+                                className={selectedGrade === "all" ? "bg-[#361e01] hover:bg-[#361e01]/90 text-white" : ""}
+                                onClick={() => {
+                                    setSelectedGrade("all");
+                                    setVisibleStudentCount(25);
+                                }}
+                            >
+                                كل الصفوف
+                            </Button>
+                            {gradeOptions.map((g) => (
+                                <Button
+                                    key={g}
+                                    type="button"
+                                    variant={selectedGrade === g ? "default" : "outline"}
+                                    className={selectedGrade === g ? "bg-[#361e01] hover:bg-[#361e01]/90 text-white" : ""}
+                                    onClick={() => {
+                                        setSelectedGrade(g);
+                                        setVisibleStudentCount(25);
+                                    }}
+                                >
+                                    {g}
+                                </Button>
+                            ))}
+                        </div>
+                    </div>
+                </div>
             </div>
 
             {/* Staff Table (Admins and Teachers) */}
@@ -220,16 +281,6 @@ const UsersPage = () => {
                 <Card>
                     <CardHeader>
                         <CardTitle>المشرفين والمعلمين</CardTitle>
-                        <form onSubmit={handleSearchSubmit} className="flex items-center gap-2">
-                            <Search className="h-4 w-4 text-muted-foreground" />
-                            <Input
-                                placeholder="البحث بالاسم أو رقم الهاتف..."
-                                value={pendingSearchTerm}
-                                onChange={(e) => setPendingSearchTerm(e.target.value)}
-                                className="max-w-sm"
-                            />
-                            <Button type="submit">بحث</Button>
-                        </form>
                     </CardHeader>
                     <CardContent>
                         <Table>
@@ -396,16 +447,48 @@ const UsersPage = () => {
                 <Card>
                     <CardHeader>
                         <CardTitle>قائمة الطلاب</CardTitle>
-                        <form onSubmit={handleSearchSubmit} className="flex items-center gap-2">
-                            <Search className="h-4 w-4 text-muted-foreground" />
-                            <Input
-                                placeholder="البحث بالاسم أو رقم الهاتف..."
-                                value={pendingSearchTerm}
-                                onChange={(e) => setPendingSearchTerm(e.target.value)}
-                                className="max-w-sm"
-                            />
-                            <Button type="submit">بحث</Button>
-                        </form>
+                        <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+                            <form onSubmit={handleSearchSubmit} className="flex items-center gap-2">
+                                <Search className="h-4 w-4 text-muted-foreground" />
+                                <Input
+                                    placeholder="البحث بالاسم أو رقم الهاتف..."
+                                    value={pendingSearchTerm}
+                                    onChange={(e) => setPendingSearchTerm(e.target.value)}
+                                    className="max-w-sm"
+                                />
+                                <Button type="submit">بحث</Button>
+                            </form>
+                            <div className="flex flex-col gap-2">
+                                <span className="text-sm text-muted-foreground">تصفية حسب الصف:</span>
+                                <div className="flex flex-wrap items-center gap-2">
+                                    <Button
+                                        type="button"
+                                        variant={selectedGrade === "all" ? "default" : "outline"}
+                                        className={selectedGrade === "all" ? "bg-[#361e01] hover:bg-[#361e01]/90 text-white" : ""}
+                                        onClick={() => {
+                                            setSelectedGrade("all");
+                                            setVisibleStudentCount(25);
+                                        }}
+                                    >
+                                        كل الصفوف
+                                    </Button>
+                                    {gradeOptions.map((g) => (
+                                        <Button
+                                            key={g}
+                                            type="button"
+                                            variant={selectedGrade === g ? "default" : "outline"}
+                                            className={selectedGrade === g ? "bg-[#361e01] hover:bg-[#361e01]/90 text-white" : ""}
+                                            onClick={() => {
+                                                setSelectedGrade(g);
+                                                setVisibleStudentCount(25);
+                                            }}
+                                        >
+                                            {g}
+                                        </Button>
+                                    ))}
+                                </div>
+                            </div>
+                        </div>
                     </CardHeader>
                     <CardContent>
                         <Table>
