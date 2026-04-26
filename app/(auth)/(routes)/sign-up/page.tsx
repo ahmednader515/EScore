@@ -167,12 +167,11 @@ export default function SignUpPage() {
         <div className="relative z-10 flex items-center justify-center w-full">
           <div className="text-center space-y-6 p-8">
             <div className="relative w-64 h-64 mx-auto">
-              <Image
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
                 src="/logo.png"
                 alt="Teacher"
-                fill
-                className="object-cover rounded-full border-4 border-[#361e01]/20 shadow-2xl"
-                unoptimized
+                className="h-full w-full object-cover rounded-full border-4 border-[#361e01]/20 shadow-2xl"
               />
             </div>
             <div className="space-y-4">

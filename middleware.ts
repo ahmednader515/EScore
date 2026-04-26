@@ -96,6 +96,7 @@ export default withAuth(
 
 export const config = {
   matcher: [
-    "/((?!api|_next/static|_next/image|favicon.ico|teacher-image.png|logo.png|male.png|notebook.png|pi.png|calculator.png|music.png|tiktok.png|facebook.png|instagram.png|twitter.png|youtube.png|linkedin.png).*)",
+    // Skip middleware for API, Next internals, and public static assets.
+    "/((?!api|_next/static|_next/image|favicon.ico|.*\\.(?:png|jpg|jpeg|svg|webp|gif|ico)$).*)",
   ],
 };

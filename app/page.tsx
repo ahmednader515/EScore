@@ -126,6 +126,8 @@ export default function HomePage() {
     }
   };
 
+  const teacherHeroImages = ["/teacher-image.png", "/teacher-image2.png", "/teacher-image3.png"] as const;
+
   return (
     <div className="h-full w-full bg-background">
       <Navbar />
@@ -162,11 +164,16 @@ export default function HomePage() {
           >
             {/* Background Image */}
             <div className="absolute top-[380px] md:top-0 left-1/2 -translate-x-1/2 md:-translate-y-[55px] -translate-y-1/2 md:translate-y-0 flex items-center justify-center z-0 w-[120%] h-[120%] md:w-[110%] md:h-[110%]">
+              <div className="absolute inset-0 rounded-full bg-gradient-to-br from-[#fcfaed] via-white to-[#fcfaed] opacity-80" />
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img
                 src="/background.png"
                 alt="background"
-                className="h-full w-full object-contain"
+                className="relative h-full w-full object-contain"
+                onError={(e) => {
+                  // If the PNG ever fails to load, keep the gradient fallback visible.
+                  e.currentTarget.style.display = "none";
+                }}
               />
             </div>
             
@@ -182,7 +189,7 @@ export default function HomePage() {
                 <div className="relative w-48 h-48 md:w-56 md:h-56 mb-3">
                   {/* eslint-disable-next-line @next/next/no-img-element */}
                   <img
-                    src={homepageSettings.heroImage1}
+                    src={teacherHeroImages[0]}
                     alt={homepageSettings.teacherName1}
                     className="h-full w-full object-cover rounded-full border-4 border-[#361e01]/20 shadow-lg"
                   />
@@ -202,7 +209,7 @@ export default function HomePage() {
                 <div className="relative w-56 h-56 md:w-72 md:h-72 mb-3">
                   {/* eslint-disable-next-line @next/next/no-img-element */}
                   <img
-                    src={homepageSettings.heroImage2}
+                    src={teacherHeroImages[1]}
                     alt={homepageSettings.teacherName2}
                     className="h-full w-full object-cover rounded-full border-4 border-[#361e01]/20 shadow-lg"
                   />
@@ -222,7 +229,7 @@ export default function HomePage() {
                 <div className="relative w-48 h-48 md:w-56 md:h-56 mb-3">
                   {/* eslint-disable-next-line @next/next/no-img-element */}
                   <img
-                    src={homepageSettings.heroImage3}
+                    src={teacherHeroImages[2]}
                     alt={homepageSettings.teacherName3}
                     className="h-full w-full object-cover rounded-full border-4 border-[#361e01]/20 shadow-lg"
                   />
@@ -323,14 +330,7 @@ export default function HomePage() {
             >
               <div className="bg-[#fcfaed] rounded-lg border border-[#ab8302] px-4 py-3 flex items-center gap-3 shadow-md">
                 <div className="w-10 h-10 bg-[#361e01] rounded-full flex items-center justify-center flex-shrink-0">
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img
-                    src="/pi.png"
-                    alt="pi"
-                    width={24}
-                    height={24}
-                    className="object-contain"
-                  />
+                  <Lightbulb className="w-6 h-6 text-white" aria-hidden />
                 </div>
                 <div className="flex flex-col">
                   <span className="text-base font-bold" style={{ color: '#361e01' }}>لغتك قوتك</span>
@@ -364,14 +364,7 @@ export default function HomePage() {
             >
               <div className="bg-[#fcfaed] rounded-lg border border-[#ab8302] px-4 py-3 flex items-center gap-3 shadow-md">
                 <div className="w-10 h-10 bg-[#361e01] rounded-full flex items-center justify-center flex-shrink-0">
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img
-                    src="/calculator.png"
-                    alt="calculator"
-                    width={24}
-                    height={24}
-                    className="object-contain"
-                  />
+                  <Award className="w-6 h-6 text-white" aria-hidden />
                 </div>
                 <div className="flex flex-col">
                   <span className="text-base font-bold" style={{ color: '#361e01' }}>مستقبلك يبدأ هنا</span>
