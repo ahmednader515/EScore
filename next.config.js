@@ -20,7 +20,15 @@ const nextConfig = {
       },
       {
         protocol: 'https',
-        hostname: '7o7q29b8xy.ufs.sh',
+        hostname: '**.ufs.sh',
+      },
+      {
+        protocol: 'https',
+        hostname: 'images.unsplash.com',
+      },
+      {
+        protocol: 'https',
+        hostname: 'i.ytimg.com',
       },
     ],
   },

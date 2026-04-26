@@ -724,6 +724,7 @@ export default function HomePage() {
                         alt={course.title}
                         fill
                         className="object-cover rounded-t-xl"
+                        unoptimized={typeof course.imageUrl === "string" && course.imageUrl.startsWith("http")}
                       />
                       <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity" />
                     </div>
