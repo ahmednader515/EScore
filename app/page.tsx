@@ -4,7 +4,6 @@ import { motion } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { ArrowRight, ArrowLeft, Star, Users, BookOpen, Award, ChevronDown, Facebook, Lightbulb, Heart, Check, ChevronRight, PlayCircle } from "lucide-react";
 import Link from "next/link";
-import Image from "next/image";
 import { Navbar } from "@/components/navbar";
 import { ScrollProgress } from "@/components/scroll-progress";
 import { useEffect, useState } from "react";
@@ -163,13 +162,11 @@ export default function HomePage() {
           >
             {/* Background Image */}
             <div className="absolute top-[380px] md:top-0 left-1/2 -translate-x-1/2 md:-translate-y-[55px] -translate-y-1/2 md:translate-y-0 flex items-center justify-center z-0 w-[120%] h-[120%] md:w-[110%] md:h-[110%]">
-              <Image
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
                 src="/background.png"
                 alt="background"
-                fill
-                className="object-contain"
-                sizes="(max-width: 768px) 120vw, 55vw"
-                priority={false}
+                className="h-full w-full object-contain"
               />
             </div>
             
@@ -183,13 +180,11 @@ export default function HomePage() {
                 className="flex flex-col items-center"
               >
                 <div className="relative w-48 h-48 md:w-56 md:h-56 mb-3">
-                  <Image
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img
                     src={homepageSettings.heroImage1}
                     alt={homepageSettings.teacherName1}
-                    fill
-                    priority
-                    className="object-cover rounded-full border-4 border-[#361e01]/20 shadow-lg"
-                    sizes="(max-width: 768px) 192px, 224px"
+                    className="h-full w-full object-cover rounded-full border-4 border-[#361e01]/20 shadow-lg"
                   />
                 </div>
                 <p className="text-xl md:text-2xl font-bold font-playpen-sans-arabic" style={{ color: '#361e01', fontFamily: 'var(--font-playpen-sans-arabic)' }}>
@@ -205,12 +200,11 @@ export default function HomePage() {
                 className="flex flex-col items-center"
               >
                 <div className="relative w-56 h-56 md:w-72 md:h-72 mb-3">
-                  <Image
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img
                     src={homepageSettings.heroImage2}
                     alt={homepageSettings.teacherName2}
-                    fill
-                    className="object-cover rounded-full border-4 border-[#361e01]/20 shadow-lg"
-                    sizes="(max-width: 768px) 224px, 288px"
+                    className="h-full w-full object-cover rounded-full border-4 border-[#361e01]/20 shadow-lg"
                   />
                 </div>
                 <p className="text-xl md:text-2xl font-bold font-playpen-sans-arabic" style={{ color: '#361e01', fontFamily: 'var(--font-playpen-sans-arabic)' }}>
@@ -226,12 +220,11 @@ export default function HomePage() {
                 className="flex flex-col items-center -mt-8 md:mt-0"
               >
                 <div className="relative w-48 h-48 md:w-56 md:h-56 mb-3">
-                  <Image
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img
                     src={homepageSettings.heroImage3}
                     alt={homepageSettings.teacherName3}
-                    fill
-                    className="object-cover rounded-full border-4 border-[#361e01]/20 shadow-lg"
-                    sizes="(max-width: 768px) 192px, 224px"
+                    className="h-full w-full object-cover rounded-full border-4 border-[#361e01]/20 shadow-lg"
                   />
                 </div>
                 <p className="text-xl md:text-2xl font-bold font-playpen-sans-arabic" style={{ color: '#361e01', fontFamily: 'var(--font-playpen-sans-arabic)' }}>
@@ -248,7 +241,8 @@ export default function HomePage() {
               >
                 <div className="bg-[#fcfaed] rounded-lg border border-[#ab8302] px-4 py-3 flex items-center gap-3 shadow-md">
                   <div className="w-10 h-10 bg-[#361e01] rounded-full flex items-center justify-center flex-shrink-0">
-                    <Image
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img
                       src="/pi.png"
                       alt="pi"
                       width={24}
@@ -270,7 +264,8 @@ export default function HomePage() {
               >
                 <div className="bg-[#fcfaed] rounded-lg border border-[#ab8302] px-4 py-3 flex items-center gap-3 shadow-md">
                   <div className="w-10 h-10 bg-[#361e01] rounded-full flex items-center justify-center flex-shrink-0">
-                    <Image
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img
                       src="/calculator.png"
                       alt="calculator"
                       width={24}
@@ -328,13 +323,14 @@ export default function HomePage() {
             >
               <div className="bg-[#fcfaed] rounded-lg border border-[#ab8302] px-4 py-3 flex items-center gap-3 shadow-md">
                 <div className="w-10 h-10 bg-[#361e01] rounded-full flex items-center justify-center flex-shrink-0">
-              <Image
-                src="/pi.png"
-                alt="pi"
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img
+                    src="/pi.png"
+                    alt="pi"
                     width={24}
                     height={24}
-                className="object-contain"
-              />
+                    className="object-contain"
+                  />
                 </div>
                 <div className="flex flex-col">
                   <span className="text-base font-bold" style={{ color: '#361e01' }}>لغتك قوتك</span>
@@ -368,13 +364,14 @@ export default function HomePage() {
             >
               <div className="bg-[#fcfaed] rounded-lg border border-[#ab8302] px-4 py-3 flex items-center gap-3 shadow-md">
                 <div className="w-10 h-10 bg-[#361e01] rounded-full flex items-center justify-center flex-shrink-0">
-              <Image
-                src="/calculator.png"
-                alt="calculator"
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img
+                    src="/calculator.png"
+                    alt="calculator"
                     width={24}
                     height={24}
-                className="object-contain"
-              />
+                    className="object-contain"
+                  />
                 </div>
                 <div className="flex flex-col">
                   <span className="text-base font-bold" style={{ color: '#361e01' }}>مستقبلك يبدأ هنا</span>
@@ -425,13 +422,11 @@ export default function HomePage() {
             className="text-center order-1 md:order-1"
           >
             <div className="mb-4 flex justify-center">
-              <Image
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
                 src="/logo.png"
                 alt="منصة E Score"
-                width={700}
-                height={700}
                 className="w-auto h-[360px] md:h-[542px]"
-                unoptimized
               />
             </div>
             <p className="text-xl md:text-2xl mb-4 font-bold" style={{ color: '#ab8302' }}>
@@ -719,12 +714,11 @@ export default function HomePage() {
                     className="group w-full sm:w-80 md:w-72 lg:w-80 bg-card rounded-xl overflow-hidden border border-[#361e01] shadow-sm hover:shadow-md transition-all"
                   >
                     <div className="relative w-full aspect-video">
-                      <Image
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img
                         src={course.imageUrl || "/placeholder.png"}
                         alt={course.title}
-                        fill
-                        className="object-cover rounded-t-xl"
-                        unoptimized={typeof course.imageUrl === "string" && course.imageUrl.startsWith("http")}
+                        className="absolute inset-0 h-full w-full object-cover rounded-t-xl"
                       />
                       <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity" />
                     </div>
@@ -809,11 +803,11 @@ export default function HomePage() {
               >
                 <div className="flex items-center mb-4">
                   <div className="relative h-12 w-12 rounded-full overflow-hidden">
-                    <Image
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img
                       src="/male.png"
                       alt={testimonial.name}
-                      fill
-                      className="object-cover"
+                      className="h-full w-full object-cover"
                     />
                   </div>
                   <div className="mr-4">
