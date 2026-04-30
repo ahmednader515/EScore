@@ -163,7 +163,7 @@ export default function HomePage() {
             className="relative flex justify-center items-center order-2 md:order-2"
           >
             {/* Background Image */}
-            <div className="absolute top-[380px] md:top-0 left-1/2 -translate-x-1/2 md:-translate-y-[55px] -translate-y-1/2 md:translate-y-0 flex items-center justify-center z-0 w-[120%] h-[120%] md:w-[110%] md:h-[110%]">
+            <div className="absolute top-[72%] md:top-0 left-1/2 -translate-x-1/2 md:-translate-y-[55px] -translate-y-1/2 md:translate-y-0 flex items-center justify-center z-0 w-[120%] h-[120%] md:w-[110%] md:h-[110%]">
               <div className="absolute inset-0 rounded-full bg-gradient-to-br from-[#fcfaed] via-white to-[#fcfaed] opacity-80" />
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img
