@@ -11,6 +11,11 @@
     "reset:users": "node scripts/reset-users.js",
     "fix:quiz-options": "node scripts/fix-quiz-options.js",
     "test:quiz-options": "node scripts/test-quiz-options.js",
+    "import:reel-videos": "ts-node --compiler-options \"{\\\"module\\\":\\\"CommonJS\\\"}\" scripts/import-reel-videos.ts",
+    "import:exported-tables": "ts-node --compiler-options \"{\\\"module\\\":\\\"CommonJS\\\"}\" scripts/import-exported-tables.ts",
+    "migrate:db": "ts-node --compiler-options \"{\\\"module\\\":\\\"CommonJS\\\"}\" scripts/migrate-old-db-to-new-db.ts",
+    "migrate:aiven": "ts-node scripts/migrate-aiven-to-prisma.ts",
+    "import:data": "ts-node --compiler-options \"{\\\"module\\\":\\\"CommonJS\\\"}\" scripts/import-data-folder.ts",
     "postinstall": "prisma generate"
   },
   "dependencies": {

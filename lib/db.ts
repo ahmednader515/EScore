@@ -10,39 +10,66 @@ const globalForPrisma = globalThis as unknown as {
 
 const isEdgeRuntime = typeof (globalThis as { EdgeRuntime?: string }).EdgeRuntime !== "undefined";
 
-function createPrismaClient() {
-    const accelerateUrl = process.env.PRISMA_ACCELERATE_URL;
-    const directDatabaseUrl = process.env.DIRECT_DATABASE_URL;
-    const databaseUrl = process.env.DATABASE_URL;
+function isPrismaAccelerateUrl(url: string): boolean {
+    return (
+        url.startsWith("https://") &&
+        (url.includes("accelerate.prisma-data.net") || url.includes("prisma-data.net"))
+    );
+}
 
-    // Use Edge client only in Edge runtimes, otherwise use Node client
-    if (isEdgeRuntime) {
-        if (!accelerateUrl) {
-            throw new Error("PRISMA_ACCELERATE_URL must be set in Edge runtimes.");
-        }
-        return new PrismaClientEdge({
-            datasourceUrl: accelerateUrl,
-        }).$extends(withAccelerate());
+function isPostgresUrl(url: string): boolean {
+    return url.startsWith("postgresql://") || url.startsWith("postgres://");
+}
+
+/**
+ * Resolves the database URL for Prisma Client.
+ * - Real Accelerate URLs (https://accelerate...) use the Accelerate extension.
+ * - Postgres URLs (Neon pooler/direct) connect without Accelerate.
+ * PRISMA_ACCELERATE_URL may hold either format for backward compatibility.
+ */
+function resolveDatabaseUrl(): string {
+    const accelerateUrl = process.env.PRISMA_ACCELERATE_URL?.trim();
+    const databaseUrl = process.env.DATABASE_URL?.trim();
+    const directDatabaseUrl = process.env.DIRECT_DATABASE_URL?.trim();
+
+    if (accelerateUrl && isPrismaAccelerateUrl(accelerateUrl)) {
+        return accelerateUrl;
     }
 
-    // For Node.js runtime, use PrismaClientNode with Accelerate if available
-    if (accelerateUrl) {
+    const postgresUrl =
+        [accelerateUrl, databaseUrl, directDatabaseUrl].find(
+            (url) => url && isPostgresUrl(url)
+        ) ?? null;
+
+    if (!postgresUrl) {
+        throw new Error(
+            "Missing database URL. Set DATABASE_URL, DIRECT_DATABASE_URL, or PRISMA_ACCELERATE_URL to a PostgreSQL connection string."
+        );
+    }
+
+    return postgresUrl;
+}
+
+function createPrismaClient() {
+    const databaseUrl = resolveDatabaseUrl();
+    const useAccelerate = isPrismaAccelerateUrl(databaseUrl);
+
+    if (isEdgeRuntime) {
+        const client = new PrismaClientEdge({
+            datasourceUrl: databaseUrl,
+        });
+        return useAccelerate ? client.$extends(withAccelerate()) : client;
+    }
+
+    if (useAccelerate) {
         return new PrismaClientNode({
             datasources: {
-                db: { url: accelerateUrl },
+                db: { url: databaseUrl },
             },
         }).$extends(withAccelerate());
     }
 
-    // Fallback to direct connection with connection pooling
-    const datasourceUrl = directDatabaseUrl ?? databaseUrl;
-
-    if (!datasourceUrl) {
-        throw new Error("Missing DATABASE_URL or DIRECT_DATABASE_URL environment variable.");
-    }
-
-    // Add connection pooling parameters to prevent "too many connections" errors
-    const urlWithPooling = addConnectionPooling(datasourceUrl);
+    const urlWithPooling = addConnectionPooling(databaseUrl);
 
     return new PrismaClientNode({
         datasources: {
@@ -59,42 +86,31 @@ function createPrismaClient() {
 function addConnectionPooling(url: string): string {
     try {
         const urlObj = new URL(url);
-        
-        // Set connection limit (recommended: 10-20 for most applications)
-        // This limits how many connections Prisma Client can open
+
         if (!urlObj.searchParams.has("connection_limit")) {
             urlObj.searchParams.set("connection_limit", "10");
         }
-        
-        // Set pool timeout (how long to wait for a connection from the pool)
+
         if (!urlObj.searchParams.has("pool_timeout")) {
             urlObj.searchParams.set("pool_timeout", "10");
         }
-        
-        // Set connect timeout (how long to wait when establishing a connection)
+
         if (!urlObj.searchParams.has("connect_timeout")) {
             urlObj.searchParams.set("connect_timeout", "10");
         }
-        
+
         return urlObj.toString();
-    } catch (error) {
-        // If URL parsing fails, try to append parameters manually
+    } catch {
         const separator = url.includes("?") ? "&" : "?";
         const hasConnectionLimit = url.includes("connection_limit");
         const hasPoolTimeout = url.includes("pool_timeout");
         const hasConnectTimeout = url.includes("connect_timeout");
-        
-        let params: string[] = [];
-        if (!hasConnectionLimit) {
-            params.push("connection_limit=10");
-        }
-        if (!hasPoolTimeout) {
-            params.push("pool_timeout=10");
-        }
-        if (!hasConnectTimeout) {
-            params.push("connect_timeout=10");
-        }
-        
+
+        const params: string[] = [];
+        if (!hasConnectionLimit) params.push("connection_limit=10");
+        if (!hasPoolTimeout) params.push("pool_timeout=10");
+        if (!hasConnectTimeout) params.push("connect_timeout=10");
+
         return params.length > 0 ? `${url}${separator}${params.join("&")}` : url;
     }
 }
