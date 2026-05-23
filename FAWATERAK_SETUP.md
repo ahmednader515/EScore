@@ -45,6 +45,9 @@ Enable **Card**, **Fawry**, and **mobile wallets** in the Fawaterak dashboard. T
 
 - Staging dashboard (`staging.fawaterk.com`) → `FAWATERAK_ENV=test` + staging API/provider keys
 - Live dashboard → `FAWATERAK_ENV=live` + live keys
+- Checkout script URL: **`https://staging.fawaterk.com/fawaterkPlugin/fawaterkPlugin.min.js`** (not `app.fawaterk.com`) while `FAWATERAK_USE_STAGING_PLUGIN` is `true` in [`lib/fawaterak/constants.ts`](lib/fawaterak/constants.ts)
+
+When going production: set `FAWATERAK_ENV=live`, live keys, and set `FAWATERAK_USE_STAGING_PLUGIN = false` in constants.
 
 Keys and `envType` must match or you may see “Invalid Token or inactive vendor”.
 

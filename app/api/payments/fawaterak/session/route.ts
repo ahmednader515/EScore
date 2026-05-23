@@ -14,6 +14,8 @@ import {
   FAWATERAK_DEPOSIT_STATUS,
   FAWATERAK_MAX_AMOUNT_EGP,
   FAWATERAK_MIN_AMOUNT_EGP,
+  FAWATERAK_USE_STAGING_PLUGIN,
+  getFawaterakPluginScriptUrl,
 } from "@/lib/fawaterak/constants";
 
 export async function POST(req: NextRequest) {
@@ -108,10 +110,13 @@ export async function POST(req: NextRequest) {
       iframeDomain
     );
 
+    const checkoutEnvType = FAWATERAK_USE_STAGING_PLUGIN ? "test" : secrets.envType;
+
     return NextResponse.json({
       token: secrets.vendorKey,
-      envType: secrets.envType,
+      envType: checkoutEnvType,
       hashKey,
+      pluginScriptUrl: getFawaterakPluginScriptUrl(checkoutEnvType),
       style: { listing: "horizontal" as const },
       version: "0",
       redirectOutIframe: true,

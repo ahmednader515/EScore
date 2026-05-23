@@ -8,31 +8,28 @@ import { CreditCard, Loader2 } from "lucide-react";
 import {
   FAWATERAK_MAX_AMOUNT_EGP,
   FAWATERAK_MIN_AMOUNT_EGP,
+  getFawaterakPluginScriptUrl,
 } from "@/lib/fawaterak/constants";
-
-const FAWATERK_SCRIPT_URL =
-  "https://app.fawaterk.com/fawaterkPlugin/fawaterkPlugin.min.js";
 
 type CheckoutPayload = {
   token: string;
-  envType: string;
+  envType: "test" | "live";
   hashKey: string;
+  pluginScriptUrl?: string;
   style: { listing: string };
   version: string;
   redirectOutIframe: boolean;
   requestBody: Record<string, unknown>;
 };
 
-function loadFawaterkScript(): Promise<void> {
+function loadFawaterkScript(scriptUrl: string): Promise<void> {
   return new Promise((resolve, reject) => {
     if (typeof window.fawaterkCheckout === "function") {
       resolve();
       return;
     }
 
-    const existing = document.querySelector(
-      `script[src="${FAWATERK_SCRIPT_URL}"]`
-    );
+    const existing = document.querySelector(`script[src="${scriptUrl}"]`);
     if (existing) {
       existing.addEventListener("load", () => resolve());
       existing.addEventListener("error", () =>
@@ -42,7 +39,7 @@ function loadFawaterkScript(): Promise<void> {
     }
 
     const script = document.createElement("script");
-    script.src = FAWATERK_SCRIPT_URL;
+    script.src = scriptUrl;
     script.async = true;
     script.onload = () => resolve();
     script.onerror = () => reject(new Error("Failed to load Fawaterak script"));
@@ -118,7 +115,11 @@ export function FawaterakBalanceCheckout({
     checkoutStartedRef.current = true;
 
     try {
-      await loadFawaterkScript();
+      const scriptUrl =
+        checkoutPayload.pluginScriptUrl ??
+        getFawaterakPluginScriptUrl(checkoutPayload.envType);
+
+      await loadFawaterkScript(scriptUrl);
 
       if (typeof window.fawaterkCheckout !== "function") {
         throw new Error("Fawaterak plugin not available");

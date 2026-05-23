@@ -1,6 +1,13 @@
 import { generateIframeHashKey } from "./hmac";
+import {
+  FAWATERAK_LIVE_ORIGIN,
+  FAWATERAK_STAGING_ORIGIN,
+  getFawaterakPluginScriptUrl,
+} from "./constants";
 
 export type FawaterakEnvType = "test" | "live";
+
+export { FAWATERAK_STAGING_ORIGIN, FAWATERAK_LIVE_ORIGIN, getFawaterakPluginScriptUrl };
 
 export function getFawaterakSecrets() {
   const vendorKey =
