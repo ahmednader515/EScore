@@ -5,6 +5,7 @@ import { db } from "@/lib/db";
 import {
   buildIframeHashKey,
   getFawaterakSecrets,
+  resolveAppOrigin,
   resolveIframeDomain,
 } from "@/lib/fawaterak/config";
 import { buildFawaterakCustomer } from "@/lib/fawaterak/customer";
@@ -14,7 +15,6 @@ import {
   FAWATERAK_DEPOSIT_STATUS,
   FAWATERAK_MAX_AMOUNT_EGP,
   FAWATERAK_MIN_AMOUNT_EGP,
-  FAWATERAK_USE_STAGING_PLUGIN,
   getFawaterakPluginScriptUrl,
 } from "@/lib/fawaterak/constants";
 
@@ -63,9 +63,7 @@ export async function POST(req: NextRequest) {
       return new NextResponse("User not found", { status: 404 });
     }
 
-    const origin =
-      secrets.appOrigin ||
-      iframeDomain;
+    const origin = resolveAppOrigin() || iframeDomain;
 
     const deposit = await db.fawaterakDeposit.create({
       data: {
@@ -110,13 +108,12 @@ export async function POST(req: NextRequest) {
       iframeDomain
     );
 
-    const checkoutEnvType = FAWATERAK_USE_STAGING_PLUGIN ? "test" : secrets.envType;
-
     return NextResponse.json({
       token: secrets.vendorKey,
-      envType: checkoutEnvType,
+      envType: secrets.envType,
       hashKey,
-      pluginScriptUrl: getFawaterakPluginScriptUrl(checkoutEnvType),
+      iframeDomain,
+      pluginScriptUrl: getFawaterakPluginScriptUrl(secrets.envType),
       style: { listing: "horizontal" as const },
       version: "0",
       redirectOutIframe: true,

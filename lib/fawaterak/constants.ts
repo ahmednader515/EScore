@@ -19,18 +19,10 @@ export const FAWATERAK_STAGING_ORIGIN = "https://staging.fawaterk.com";
 /** Production */
 export const FAWATERAK_LIVE_ORIGIN = "https://app.fawaterk.com";
 
-/**
- * When true, checkout loads the plugin from staging.fawaterk.com (not app).
- * Set to false when going live with FAWATERAK_ENV=live.
- */
-export const FAWATERAK_USE_STAGING_PLUGIN = true;
-
 export function getFawaterakPluginScriptUrl(
   envType: "test" | "live" = "test"
 ): string {
   const origin =
-    FAWATERAK_USE_STAGING_PLUGIN || envType !== "live"
-      ? FAWATERAK_STAGING_ORIGIN
-      : FAWATERAK_LIVE_ORIGIN;
+    envType === "live" ? FAWATERAK_LIVE_ORIGIN : FAWATERAK_STAGING_ORIGIN;
   return `${origin}/fawaterkPlugin/fawaterkPlugin.min.js`;
 }

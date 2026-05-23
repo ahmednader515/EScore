@@ -15,6 +15,7 @@ type CheckoutPayload = {
   token: string;
   envType: "test" | "live";
   hashKey: string;
+  iframeDomain?: string;
   pluginScriptUrl?: string;
   style: { listing: string };
   version: string;
@@ -84,6 +85,7 @@ export function FawaterakBalanceCheckout({
     checkoutStartedRef.current = false;
 
     try {
+      // Must match Fawaterak plugin: FAWATERAK-DOMAIN = https:// + hostname
       const iframeDomain = `https://${window.location.hostname}`;
 
       const response = await fetch("/api/payments/fawaterak/session", {

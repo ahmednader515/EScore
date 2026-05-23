@@ -45,11 +45,16 @@ Enable **Card**, **Fawry**, and **mobile wallets** in the Fawaterak dashboard. T
 
 - Staging dashboard (`staging.fawaterk.com`) → `FAWATERAK_ENV=test` + staging API/provider keys
 - Live dashboard → `FAWATERAK_ENV=live` + live keys
-- Checkout script URL: **`https://staging.fawaterk.com/fawaterkPlugin/fawaterkPlugin.min.js`** (not `app.fawaterk.com`) while `FAWATERAK_USE_STAGING_PLUGIN` is `true` in [`lib/fawaterak/constants.ts`](lib/fawaterak/constants.ts)
+- Checkout script: `https://staging.fawaterk.com/...` when `FAWATERAK_ENV=test`, `https://app.fawaterk.com/...` when `live`
 
-When going production: set `FAWATERAK_ENV=live`, live keys, and set `FAWATERAK_USE_STAGING_PLUGIN = false` in constants.
+Keys and `envType` must match or you may see **“Invalid Token or inactive vendor”**.
 
-Keys and `envType` must match or you may see “Invalid Token or inactive vendor”.
+### Fixing “Invalid Token or inactive vendor”
+
+1. **IFRAM Domains** (staging dashboard): add the exact site URL(s), e.g. `https://escore-lms.com` and `https://www.escore-lms.com` if you use both (HTTPS, no trailing slash).
+2. **Keys**: use API Key + Provider Key from the **same** environment as `FAWATERAK_ENV` (staging keys with `test`, live keys with `live`).
+3. **Vercel/host env**: set `FAWATERAK_*` and `NEXT_PUBLIC_APP_URL=https://escore-lms.com` on production (not only in local `.env`).
+4. **HMAC domain** must match the browser hostname (the app sends `https://` + `location.hostname` for the hash).
 
 ## Docs
 

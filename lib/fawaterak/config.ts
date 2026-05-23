@@ -32,22 +32,45 @@ export function getFawaterakSecrets() {
   return { vendorKey, providerKey, envType, appOrigin };
 }
 
+/** Normalize to https://hostname (matches Fawaterak plugin FAWATERAK-DOMAIN header) */
+export function normalizeIframeDomain(domain: string): string {
+  const trimmed = domain.trim().replace(/\/$/, "");
+  if (trimmed.startsWith("http://") || trimmed.startsWith("https://")) {
+    try {
+      const url = new URL(trimmed);
+      return `https://${url.hostname}`;
+    } catch {
+      return trimmed;
+    }
+  }
+  return `https://${trimmed.replace(/^\/\//, "")}`;
+}
+
+/**
+ * Domain used for iframe HMAC — must match what the plugin sends:
+ * https:// + window.location.hostname
+ */
 export function resolveIframeDomain(clientDomain?: string): string | null {
-  const override = process.env.FAWATERAK_IFRAME_DOMAIN?.trim();
-  if (override) {
-    return override.replace(/\/$/, "");
+  if (clientDomain?.trim()) {
+    return normalizeIframeDomain(clientDomain);
   }
 
-  if (clientDomain?.trim()) {
-    return clientDomain.trim().replace(/\/$/, "");
+  const override = process.env.FAWATERAK_IFRAME_DOMAIN?.trim();
+  if (override) {
+    return normalizeIframeDomain(override);
   }
 
   const secrets = getFawaterakSecrets();
   if (secrets?.appOrigin) {
-    return secrets.appOrigin;
+    return normalizeIframeDomain(secrets.appOrigin);
   }
 
   return null;
+}
+
+export function resolveAppOrigin(): string {
+  const secrets = getFawaterakSecrets();
+  return (secrets?.appOrigin || "").replace(/\/$/, "");
 }
 
 export function resolveHmacDomain(iframeDomain: string): string {
