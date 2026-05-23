@@ -346,7 +346,7 @@ export default function PurchasePage({
                     تحتاج إلى {(finalPrice - userBalance).toFixed(2)} جنيه إضافية لشراء هذه الكورس
                   </p>
                   <Button asChild className="bg-[#361e01] hover:bg-[#361e01]/90">
-                    <Link href="/dashboard/balance">إضافة رصيد</Link>
+                    <Link href="/dashboard/balance/payment">إضافة رصيد</Link>
                   </Button>
                 </CardContent>
               </Card>

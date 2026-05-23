@@ -1,12 +1,12 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
+import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { toast } from "sonner";
-import { useSession } from "next-auth/react";
-import { Wallet, Plus, History, ArrowUpRight, CreditCard, Send } from "lucide-react";
+import { Wallet, Plus, History, ArrowUpRight, CreditCard } from "lucide-react";
+import { FAWATERAK_MIN_AMOUNT_EGP } from "@/lib/fawaterak/constants";
 
 interface BalanceTransaction {
   id: string;
@@ -17,22 +17,12 @@ interface BalanceTransaction {
 }
 
 export default function BalancePage() {
-  const { data: session } = useSession();
   const [balance, setBalance] = useState(0);
-  const [amount, setAmount] = useState("");
-  const [isLoading, setIsLoading] = useState(false);
+  const [topUpAmount, setTopUpAmount] = useState("");
   const [transactions, setTransactions] = useState<BalanceTransaction[]>([]);
   const [isLoadingTransactions, setIsLoadingTransactions] = useState(true);
 
-  // Check if user is a student (USER role)
-  const isStudent = session?.user?.role === "USER";
-
-  useEffect(() => {
-    fetchBalance();
-    fetchTransactions();
-  }, []);
-
-  const fetchBalance = async () => {
+  const fetchBalance = useCallback(async () => {
     try {
       const response = await fetch("/api/user/balance");
       if (response.ok) {
@@ -42,9 +32,9 @@ export default function BalancePage() {
     } catch (error) {
       console.error("Error fetching balance:", error);
     }
-  };
+  }, []);
 
-  const fetchTransactions = async () => {
+  const fetchTransactions = useCallback(async () => {
     try {
       const response = await fetch("/api/balance/transactions");
       if (response.ok) {
@@ -56,41 +46,20 @@ export default function BalancePage() {
     } finally {
       setIsLoadingTransactions(false);
     }
-  };
+  }, []);
 
-  const handleAddBalance = async () => {
-    if (!amount || parseFloat(amount) <= 0) {
-      toast.error("يرجى إدخال مبلغ صحيح");
-      return;
+  useEffect(() => {
+    fetchBalance();
+    fetchTransactions();
+  }, [fetchBalance, fetchTransactions]);
+
+  const paymentHref = (() => {
+    const parsed = parseFloat(topUpAmount);
+    if (Number.isFinite(parsed) && parsed >= FAWATERAK_MIN_AMOUNT_EGP) {
+      return `/dashboard/balance/payment?amount=${parsed}`;
     }
-
-    setIsLoading(true);
-    try {
-      const response = await fetch("/api/balance/add", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ amount: parseFloat(amount) }),
-      });
-
-      if (response.ok) {
-        const data = await response.json();
-        setBalance(data.newBalance);
-        setAmount("");
-        toast.success("تم إضافة الرصيد بنجاح");
-        fetchTransactions(); // Refresh transactions
-      } else {
-        const error = await response.text();
-        toast.error(error || "حدث خطأ أثناء إضافة الرصيد");
-      }
-    } catch (error) {
-      console.error("Error adding balance:", error);
-      toast.error("حدث خطأ أثناء إضافة الرصيد");
-    } finally {
-      setIsLoading(false);
-    }
-  };
+    return "/dashboard/balance/payment";
+  })();
 
   const formatDate = (dateString: string) => {
     return new Date(dateString).toLocaleDateString("ar-EG", {
@@ -108,24 +77,18 @@ export default function BalancePage() {
         <div>
           <h1 className="text-2xl font-bold">إدارة الرصيد</h1>
           <p className="text-muted-foreground">
-            {isStudent 
-              ? "عرض رصيد حسابك وسجل المعاملات" 
-              : "أضف رصيد إلى حسابك لشراء الكورسات"
-            }
+            شحن رصيدك عبر فواتيرك لشراء الكورسات
           </p>
         </div>
       </div>
 
-      {/* Balance Card */}
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <Wallet className="h-5 w-5" />
             رصيد الحساب
           </CardTitle>
-          <CardDescription>
-            الرصيد المتاح في حسابك
-          </CardDescription>
+          <CardDescription>الرصيد المتاح في حسابك</CardDescription>
         </CardHeader>
         <CardContent>
           <div className="text-3xl font-bold text-[#361e01]">
@@ -134,118 +97,47 @@ export default function BalancePage() {
         </CardContent>
       </Card>
 
-      {/* Payment Methods Section */}
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <CreditCard className="h-5 w-5" />
-            طرق الدفع
+            شحن الرصيد
           </CardTitle>
           <CardDescription>
-            اختر الطريقة المناسبة لإضافة الرصيد
+            انتقل لصفحة الدفع لإتمام الشحن بالبطاقة، فوري، أو المحافظ الإلكترونية
           </CardDescription>
         </CardHeader>
-        <CardContent className="space-y-6">
-          {/* Vodafone Cash */}
-          <div className="p-4 border rounded-lg bg-card hover:bg-accent/5 transition-colors">
-            <div className="flex items-start gap-3">
-              <div className="p-2 bg-[#361e01]/10 rounded-full">
-                <CreditCard className="h-5 w-5 text-[#361e01]" />
-              </div>
-              <div className="flex-1">
-                <h3 className="font-semibold text-lg mb-1">اورانج كاش</h3>
-                <p className="text-2xl font-bold text-[#361e01] mb-2" dir="ltr">01206330158</p>
-                <p className="text-sm text-muted-foreground">
-                  قم بتحويل المبلغ المطلوب عبر اورانج كاش
-                </p>
-              </div>
-            </div>
-          </div>
-
-          {/* Confirmation Instructions */}
-          <div className="p-4 border-2 border-[#361e01]/20 rounded-lg bg-[#361e01]/5">
-            <div className="flex items-start gap-3">
-              <div className="p-2 bg-[#361e01]/10 rounded-full">
-                <Send className="h-5 w-5 text-[#361e01]" />
-              </div>
-              <div className="flex-1">
-                <h3 className="font-semibold text-lg mb-2 text-[#361e01]">تأكيد الدفع</h3>
-                <p className="text-sm mb-3">
-                  بعد إتمام عملية التحويل، يرجى إرسال صورة التحويل إلى أرقام الدعم الفني:
-                </p>
-                <div className="space-y-2">
-                  <div className="flex items-center gap-2">
-                    <div className="w-2 h-2 rounded-full bg-[#361e01]"></div>
-                    <span className="font-semibold" dir="ltr">01275597206</span>
-                  </div>
-                </div>
-                <div className="mt-4">
-                  <Button
-                    asChild
-                    className="bg-green-600 hover:bg-green-700 text-white"
-                  >
-                    <a
-                      href={`https://wa.me/201275597206`}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="flex items-center gap-2"
-                    >
-                      <Send className="h-4 w-4" />
-                      ارسال صورة الايصال علي واتساب
-                    </a>
-                  </Button>
-                </div>
-              </div>
-            </div>
+        <CardContent className="space-y-4">
+          <div className="flex flex-col sm:flex-row gap-4">
+            <Input
+              type="number"
+              placeholder={`المبلغ (اختياري — الحد الأدنى ${FAWATERAK_MIN_AMOUNT_EGP} جنيه)`}
+              value={topUpAmount}
+              onChange={(e) => setTopUpAmount(e.target.value)}
+              min={FAWATERAK_MIN_AMOUNT_EGP}
+              step="1"
+              className="flex-1"
+            />
+            <Button
+              asChild
+              className="bg-[#361e01] hover:bg-[#361e01]/90 text-white shrink-0"
+            >
+              <Link href={paymentHref}>
+                <CreditCard className="h-4 w-4 ml-2" />
+                الذهاب للدفع
+              </Link>
+            </Button>
           </div>
         </CardContent>
       </Card>
 
-      {/* Add Balance Section - Only for non-students */}
-      {!isStudent && (
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Plus className="h-5 w-5" />
-              إضافة رصيد
-            </CardTitle>
-            <CardDescription>
-              أضف مبلغ إلى رصيد حسابك
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="flex gap-4">
-              <Input
-                type="number"
-                placeholder="أدخل المبلغ"
-                value={amount}
-                onChange={(e) => setAmount(e.target.value)}
-                min="0"
-                step="0.01"
-                className="flex-1"
-              />
-              <Button 
-                onClick={handleAddBalance}
-                disabled={isLoading}
-                className="bg-[#361e01] hover:bg-[#361e01]/90"
-              >
-                {isLoading ? "جاري الإضافة..." : "إضافة الرصيد"}
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
-      )}
-
-      {/* Transaction History */}
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <History className="h-5 w-5" />
             سجل المعاملات
           </CardTitle>
-          <CardDescription>
-            تاريخ جميع المعاملات المالية
-          </CardDescription>
+          <CardDescription>تاريخ جميع المعاملات المالية</CardDescription>
         </CardHeader>
         <CardContent>
           {isLoadingTransactions ? (
@@ -265,37 +157,50 @@ export default function BalancePage() {
                   className="flex items-center justify-between p-4 border rounded-lg"
                 >
                   <div className="flex items-center gap-3">
-                    <div className={`p-2 rounded-full ${
-                      transaction.type === "DEPOSIT" 
-                        ? "bg-green-100 text-green-600" 
-                        : "bg-red-100 text-red-600"
-                    }`}>
+                    <div
+                      className={`p-2 rounded-full ${
+                        transaction.type === "DEPOSIT"
+                          ? "bg-green-100 text-green-600"
+                          : "bg-red-100 text-red-600"
+                      }`}
+                    >
                       {transaction.type === "DEPOSIT" ? (
                         <Plus className="h-4 w-4" />
                       ) : (
                         <ArrowUpRight className="h-4 w-4" />
                       )}
                     </div>
-                                         <div>
-                       <p className="font-medium">
-                         {transaction.description.includes("Added") && transaction.type === "DEPOSIT" 
-                           ? transaction.description.replace(/Added (\d+(?:\.\d+)?) EGP to balance/, "تم إضافة $1 جنيه إلى الرصيد")
-                           : transaction.description.includes("Purchased course:") && transaction.type === "PURCHASE"
-                           ? transaction.description.replace(/Purchased course: (.+)/, "تم شراء الكورس: $1")
-                           : transaction.description
-                         }
-                       </p>
-                       <p className="text-sm text-muted-foreground">
-                         {formatDate(transaction.createdAt)}
-                       </p>
-                       <p className="text-xs text-muted-foreground">
-                         {transaction.type === "DEPOSIT" ? "إيداع" : "شراء كورس"}
-                       </p>
-                     </div>
+                    <div>
+                      <p className="font-medium">
+                        {transaction.description.includes("Added") &&
+                        transaction.type === "DEPOSIT"
+                          ? transaction.description.replace(
+                              /Added (\d+(?:\.\d+)?) EGP to balance/,
+                              "تم إضافة $1 جنيه إلى الرصيد"
+                            )
+                          : transaction.description.includes("Purchased course:") &&
+                              transaction.type === "PURCHASE"
+                            ? transaction.description.replace(
+                                /Purchased course: (.+)/,
+                                "تم شراء الكورس: $1"
+                              )
+                            : transaction.description}
+                      </p>
+                      <p className="text-sm text-muted-foreground">
+                        {formatDate(transaction.createdAt)}
+                      </p>
+                      <p className="text-xs text-muted-foreground">
+                        {transaction.type === "DEPOSIT" ? "إيداع" : "شراء كورس"}
+                      </p>
+                    </div>
                   </div>
-                  <div className={`font-bold ${
-                    transaction.type === "DEPOSIT" ? "text-green-600" : "text-red-600"
-                  }`}>
+                  <div
+                    className={`font-bold ${
+                      transaction.type === "DEPOSIT"
+                        ? "text-green-600"
+                        : "text-red-600"
+                    }`}
+                  >
                     {transaction.type === "DEPOSIT" ? "+" : "-"}
                     {Math.abs(transaction.amount).toFixed(2)} جنيه
                   </div>
@@ -307,4 +212,4 @@ export default function BalancePage() {
       </Card>
     </div>
   );
-} 
+}

@@ -20,6 +20,12 @@ export default withAuth(
     const isTeacher = req.nextauth.token?.role === "TEACHER";
     const isHomePage = req.nextUrl.pathname === "/";
     const isReelsPage = req.nextUrl.pathname.startsWith("/reels");
+    const isPublicInfoPage =
+      req.nextUrl.pathname === "/privacy-policy" ||
+      req.nextUrl.pathname === "/terms-and-conditions" ||
+      req.nextUrl.pathname === "/refund-policy" ||
+      req.nextUrl.pathname === "/pricing" ||
+      req.nextUrl.pathname === "/contact";
     const isAuthPage = req.nextUrl.pathname.startsWith("/sign-in") || 
                       req.nextUrl.pathname.startsWith("/sign-up") ||
                       req.nextUrl.pathname.startsWith("/forgot-password") ||
@@ -49,7 +55,8 @@ export default withAuth(
       !isAuthPage &&
       !isPaymentStatusPage &&
       !isHomePage &&
-      !isReelsPage
+      !isReelsPage &&
+      !isPublicInfoPage
     ) {
       return NextResponse.redirect(new URL("/sign-in", req.url), { status: 302 });
     }
