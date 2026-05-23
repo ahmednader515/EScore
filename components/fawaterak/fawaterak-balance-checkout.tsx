@@ -85,7 +85,6 @@ export function FawaterakBalanceCheckout({
     checkoutStartedRef.current = false;
 
     try {
-      // Must match Fawaterak plugin: FAWATERAK-DOMAIN = https:// + hostname
       const iframeDomain = `https://${window.location.hostname}`;
 
       const response = await fetch("/api/payments/fawaterak/session", {

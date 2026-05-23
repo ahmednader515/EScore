@@ -2,13 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { db } from "@/lib/db";
-import {
-  buildIframeHashKey,
-  getFawaterakSecrets,
-  resolveAppOrigin,
-  resolveIframeDomain,
-} from "@/lib/fawaterak/config";
-import { validateFawaterakIframeCredentials } from "@/lib/fawaterak/validate";
+import { resolveAppOrigin } from "@/lib/fawaterak/config";
 import { buildFawaterakCustomer } from "@/lib/fawaterak/customer";
 import {
   FAWATERAK_ALLOWED_ROLES,
@@ -18,6 +12,7 @@ import {
   FAWATERAK_MIN_AMOUNT_EGP,
   getFawaterakPluginScriptUrl,
 } from "@/lib/fawaterak/constants";
+import { resolveFawaterakCheckoutContext } from "@/lib/fawaterak/resolve-checkout";
 
 export async function POST(req: NextRequest) {
   try {
@@ -31,18 +26,23 @@ export async function POST(req: NextRequest) {
       return new NextResponse("Forbidden", { status: 403 });
     }
 
-    const secrets = getFawaterakSecrets();
-    if (!secrets) {
-      return new NextResponse("Fawaterak is not configured", { status: 503 });
-    }
-
     const body = await req.json();
     const amount = Number(body?.amount);
-    const iframeDomain = resolveIframeDomain(body?.iframeDomain);
 
-    if (!iframeDomain) {
-      return new NextResponse("Missing iframe domain", { status: 400 });
+    const checkout = await resolveFawaterakCheckoutContext(body?.iframeDomain);
+    if ("error" in checkout) {
+      console.error("[FAWATERAK_SESSION]", checkout.error);
+      return NextResponse.json(
+        {
+          error: checkout.error,
+          hint:
+            "افتح /api/payments/fawaterak/diagnostics وأنت مسجل الدخول. تأكد أن Vercel فيه نفس FAWATERAK_VENDOR_KEY و FAWATERAK_PROVIDER_KEY.",
+        },
+        { status: 400 }
+      );
     }
+
+    const { secrets, iframeDomain, envType, hashKey } = checkout;
 
     if (
       !Number.isFinite(amount) ||
@@ -103,38 +103,12 @@ export async function POST(req: NextRequest) {
       },
     };
 
-    const hashKey = buildIframeHashKey(
-      secrets.vendorKey,
-      secrets.providerKey,
-      iframeDomain
-    );
-
-    const validation = await validateFawaterakIframeCredentials(
-      secrets.vendorKey,
-      secrets.providerKey,
-      iframeDomain,
-      hashKey,
-      secrets.envType
-    );
-
-    if (!validation.ok) {
-      console.error("[FAWATERAK_SESSION] Credential check failed:", validation.message);
-      return NextResponse.json(
-        {
-          error: validation.message,
-          hint:
-            "تأكد من: مفاتيح staging مع FAWATERAK_ENV=test، وتسجيل https://escore-lms.com في IFRAM Domains، ونفس المتغيرات على Vercel.",
-        },
-        { status: 400 }
-      );
-    }
-
     return NextResponse.json({
       token: secrets.vendorKey,
-      envType: secrets.envType,
+      envType,
       hashKey,
       iframeDomain,
-      pluginScriptUrl: getFawaterakPluginScriptUrl(secrets.envType),
+      pluginScriptUrl: getFawaterakPluginScriptUrl(envType),
       style: { listing: "horizontal" as const },
       version: "0",
       redirectOutIframe: true,

@@ -9,24 +9,30 @@ export type FawaterakEnvType = "test" | "live";
 
 export { FAWATERAK_STAGING_ORIGIN, FAWATERAK_LIVE_ORIGIN, getFawaterakPluginScriptUrl };
 
+function cleanEnvValue(value: string | undefined): string {
+  if (!value) return "";
+  return value
+    .trim()
+    .replace(/^["']|["']$/g, "")
+    .replace(/\r/g, "");
+}
+
 export function getFawaterakSecrets() {
   const vendorKey =
-    process.env.FAWATERAK_VENDOR_KEY?.trim() ||
-    process.env.FAWATERAK_API_KEY?.trim() ||
-    "";
-  const providerKey = process.env.FAWATERAK_PROVIDER_KEY?.trim() || "";
+    cleanEnvValue(process.env.FAWATERAK_VENDOR_KEY) ||
+    cleanEnvValue(process.env.FAWATERAK_API_KEY);
+  const providerKey = cleanEnvValue(process.env.FAWATERAK_PROVIDER_KEY);
 
   if (!vendorKey || !providerKey) {
     return null;
   }
 
-  const envType: FawaterakEnvType =
-    process.env.FAWATERAK_ENV?.trim().toLowerCase() === "live" ? "live" : "test";
+  const envRaw = cleanEnvValue(process.env.FAWATERAK_ENV).toLowerCase();
+  const envType: FawaterakEnvType = envRaw === "live" ? "live" : "test";
 
   const appOrigin = (
-    process.env.NEXT_PUBLIC_APP_URL?.trim() ||
-    process.env.NEXTAUTH_URL?.trim() ||
-    ""
+    cleanEnvValue(process.env.NEXT_PUBLIC_APP_URL) ||
+    cleanEnvValue(process.env.NEXTAUTH_URL)
   ).replace(/\/$/, "");
 
   return { vendorKey, providerKey, envType, appOrigin };
@@ -44,28 +50,6 @@ export function normalizeIframeDomain(domain: string): string {
     }
   }
   return `https://${trimmed.replace(/^\/\//, "")}`;
-}
-
-/**
- * Domain used for iframe HMAC — must match what the plugin sends:
- * https:// + window.location.hostname
- */
-export function resolveIframeDomain(clientDomain?: string): string | null {
-  if (clientDomain?.trim()) {
-    return normalizeIframeDomain(clientDomain);
-  }
-
-  const override = process.env.FAWATERAK_IFRAME_DOMAIN?.trim();
-  if (override) {
-    return normalizeIframeDomain(override);
-  }
-
-  const secrets = getFawaterakSecrets();
-  if (secrets?.appOrigin) {
-    return normalizeIframeDomain(secrets.appOrigin);
-  }
-
-  return null;
 }
 
 export function resolveAppOrigin(): string {
