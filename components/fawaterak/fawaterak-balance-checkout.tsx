@@ -95,8 +95,16 @@ export function FawaterakBalanceCheckout({
       });
 
       if (!response.ok) {
-        const text = await response.text();
-        throw new Error(text || "فشل بدء عملية الدفع");
+        let message = "فشل بدء عملية الدفع";
+        try {
+          const err = await response.json();
+          if (err?.error) message = String(err.error);
+          if (err?.hint) message += ` — ${err.hint}`;
+        } catch {
+          const text = await response.text();
+          if (text) message = text;
+        }
+        throw new Error(message);
       }
 
       const data = (await response.json()) as CheckoutPayload;

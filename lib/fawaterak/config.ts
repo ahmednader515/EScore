@@ -73,15 +73,12 @@ export function resolveAppOrigin(): string {
   return (secrets?.appOrigin || "").replace(/\/$/, "");
 }
 
+/**
+ * HMAC Domain= value — must be full https://hostname (NOT hostname alone).
+ * Using hostname-only causes "Invalid Token or inactive vendor" from Fawaterak.
+ */
 export function resolveHmacDomain(iframeDomain: string): string {
-  if (process.env.FAWATERAK_HMAC_DOMAIN_MODE === "hostname-only") {
-    try {
-      return new URL(iframeDomain).hostname;
-    } catch {
-      return iframeDomain.replace(/^https?:\/\//, "").replace(/\/$/, "");
-    }
-  }
-  return iframeDomain;
+  return normalizeIframeDomain(iframeDomain);
 }
 
 export function buildIframeHashKey(

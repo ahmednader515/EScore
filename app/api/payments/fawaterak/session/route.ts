@@ -8,6 +8,7 @@ import {
   resolveAppOrigin,
   resolveIframeDomain,
 } from "@/lib/fawaterak/config";
+import { validateFawaterakIframeCredentials } from "@/lib/fawaterak/validate";
 import { buildFawaterakCustomer } from "@/lib/fawaterak/customer";
 import {
   FAWATERAK_ALLOWED_ROLES,
@@ -107,6 +108,26 @@ export async function POST(req: NextRequest) {
       secrets.providerKey,
       iframeDomain
     );
+
+    const validation = await validateFawaterakIframeCredentials(
+      secrets.vendorKey,
+      secrets.providerKey,
+      iframeDomain,
+      hashKey,
+      secrets.envType
+    );
+
+    if (!validation.ok) {
+      console.error("[FAWATERAK_SESSION] Credential check failed:", validation.message);
+      return NextResponse.json(
+        {
+          error: validation.message,
+          hint:
+            "تأكد من: مفاتيح staging مع FAWATERAK_ENV=test، وتسجيل https://escore-lms.com في IFRAM Domains، ونفس المتغيرات على Vercel.",
+        },
+        { status: 400 }
+      );
+    }
 
     return NextResponse.json({
       token: secrets.vendorKey,

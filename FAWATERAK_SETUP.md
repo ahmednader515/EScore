@@ -54,7 +54,8 @@ Keys and `envType` must match or you may see **“Invalid Token or inactive vend
 1. **IFRAM Domains** (staging dashboard): add the exact site URL(s), e.g. `https://escore-lms.com` and `https://www.escore-lms.com` if you use both (HTTPS, no trailing slash).
 2. **Keys**: use API Key + Provider Key from the **same** environment as `FAWATERAK_ENV` (staging keys with `test`, live keys with `live`).
 3. **Vercel/host env**: set `FAWATERAK_*` and `NEXT_PUBLIC_APP_URL=https://escore-lms.com` on production (not only in local `.env`).
-4. **HMAC domain** must match the browser hostname (the app sends `https://` + `location.hostname` for the hash).
+4. **HMAC domain** must be the full URL `https://escore-lms.com` (not `escore-lms.com` alone). Do **not** set `FAWATERAK_HMAC_DOMAIN_MODE=hostname-only`.
+5. **Vercel**: copy all `FAWATERAK_*` and `NEXT_PUBLIC_APP_URL` to Production env vars, then redeploy.
 
 ## Docs
 
