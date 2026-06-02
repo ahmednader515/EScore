@@ -1,6 +1,6 @@
 /**
  * Run: node scripts/verify-fawaterak.mjs
- * Tests Fawaterak credentials + HMAC against app.fawaterk.com (same as iframe plugin).
+ * Tests Fawaterak credentials against app.fawaterk.com for each IFRAM domain candidate.
  */
 import crypto from "crypto";
 import { readFileSync } from "fs";
@@ -34,29 +34,52 @@ loadEnv();
 
 const vendorKey = process.env.FAWATERAK_VENDOR_KEY?.trim() || "";
 const providerKey = process.env.FAWATERAK_PROVIDER_KEY?.trim() || "";
-const domain = process.env.FAWATERAK_TEST_DOMAIN?.trim() || "https://escore-lms.com";
+const base = "https://app.fawaterk.com";
+
+const seeds = [
+  process.env.FAWATERAK_IFRAME_DOMAIN?.trim(),
+  process.env.NEXT_PUBLIC_APP_URL?.trim(),
+  process.env.FAWATERAK_TEST_DOMAIN?.trim(),
+  "https://www.escore-lms.com",
+  "https://escore-lms.com",
+].filter(Boolean);
+
+function normalize(domain) {
+  const trimmed = domain.trim().replace(/\/$/, "");
+  if (trimmed.startsWith("http://") || trimmed.startsWith("https://")) {
+    return `https://${new URL(trimmed).hostname}`;
+  }
+  return `https://${trimmed.replace(/^\/\//, "")}`;
+}
+
+const domains = new Set();
+for (const seed of seeds) {
+  const d = normalize(seed);
+  domains.add(d);
+  try {
+    const host = new URL(d).hostname;
+    const apex = host.replace(/^www\./i, "");
+    domains.add(normalize(`https://www.${apex}`));
+    domains.add(normalize(`https://${apex}`));
+  } catch {
+    // skip
+  }
+}
 
 if (!vendorKey || !providerKey) {
   console.error("Missing FAWATERAK_VENDOR_KEY or FAWATERAK_PROVIDER_KEY in .env");
   process.exit(1);
 }
 
-const base = "https://app.fawaterk.com";
-
 function hashFor(hmacDomain) {
   const q = `Domain=${hmacDomain}&ProviderKey=${providerKey}`;
   return crypto.createHmac("sha256", vendorKey).update(q).digest("hex");
 }
 
-const hostname = domain.replace(/^https?:\/\//, "").replace(/\/$/, "");
-const hashFull = hashFor(`https://${hostname}`);
-const hashHost = hashFor(hostname);
-
-const paths = ["/api/v2/getPaymentmethods"];
-
-async function tryCall(path, hashKey) {
-  const url = `${base}${path}`;
-  const res = await fetch(url, {
+async function tryDomain(iframeDomain) {
+  const hostname = iframeDomain.replace(/^https?:\/\//, "").replace(/\/$/, "");
+  const hashKey = hashFor(iframeDomain);
+  const res = await fetch(`${base}/api/v2/getPaymentmethods`, {
     method: "GET",
     headers: {
       Accept: "application/json",
@@ -67,33 +90,30 @@ async function tryCall(path, hashKey) {
       "DOMAIN-VERSION": "0",
     },
   });
-  const text = await res.text();
-  let json;
-  try {
-    json = JSON.parse(text);
-  } catch {
-    json = text.slice(0, 200);
-  }
-  return { url, status: res.status, body: json };
+  const body = await res.json().catch(() => ({}));
+  const ok = body?.status === "success";
+  const msg =
+    body?.message?.token?.[0] ||
+    (typeof body?.message === "string" ? body.message : `HTTP ${res.status}`);
+  return { ok, msg };
 }
 
-console.log("envType: live", "base:", base);
-console.log("domain:", `https://${hostname}`);
+console.log("Fawaterak verify —", base);
 console.log("vendorKey length:", vendorKey.length);
-console.log("providerKey:", providerKey);
+console.log("providerKey prefix:", providerKey.slice(0, 12) + "...");
 
-for (const path of paths) {
-  for (const [label, hash] of [
-    ["full-url", hashFull],
-    ["hostname", hashHost],
-  ]) {
-    try {
-      const r = await tryCall(path, hash);
-      console.log("\n---", path, label, "---");
-      console.log("status:", r.status);
-      console.log("body:", JSON.stringify(r.body, null, 2).slice(0, 500));
-    } catch (e) {
-      console.log(path, label, "error", e.message);
-    }
-  }
+let anyOk = false;
+for (const domain of domains) {
+  const { ok, msg } = await tryDomain(domain);
+  console.log(ok ? "OK  " : "FAIL", domain, "->", msg);
+  if (ok) anyOk = true;
 }
+
+if (!anyOk) {
+  console.log(
+    "\nAll domains failed. Regenerate API Key + Provider Key on app.fawaterk.com (same Integrations page), register IFRAM domains, update Vercel, redeploy."
+  );
+  process.exit(1);
+}
+
+console.log("\nAt least one domain validated successfully.");

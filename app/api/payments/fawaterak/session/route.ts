@@ -37,7 +37,7 @@ export async function POST(req: NextRequest) {
         {
           error: checkout.error,
           hint:
-            "افتح /api/payments/fawaterak/diagnostics وأنت مسجل الدخول. تأكد أن Vercel فيه نفس FAWATERAK_VENDOR_KEY و FAWATERAK_PROVIDER_KEY.",
+            "افتح /api/payments/fawaterak/diagnostics وأنت مسجل الدخول. راجع domainTests — إذا كلها فاشلة فالمفاتيح أو حساب التاجر غير مفعّل على app.fawaterk.com.",
         },
         { status: 400 }
       );

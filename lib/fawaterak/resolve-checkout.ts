@@ -4,6 +4,11 @@ import {
   normalizeIframeDomain,
   type FawaterakEnvType,
 } from "./config";
+import { listFawaterakIframeDomainCandidates } from "./domain-candidates";
+import {
+  hostnamesMatch,
+  resolveCanonicalIframeDomain,
+} from "./iframe-domain";
 import { validateFawaterakIframeCredentials } from "./validate";
 
 export type FawaterakCheckoutContext = {
@@ -13,53 +18,11 @@ export type FawaterakCheckoutContext = {
   hashKey: string;
 };
 
-/**
- * Pick IFRAM/HMAC domain: env canonical URL first, then browser (local dev).
- */
-export function resolveCanonicalIframeDomain(clientDomain?: string): string | null {
-  const fromEnv =
-    process.env.FAWATERAK_IFRAME_DOMAIN?.trim() ||
-    process.env.NEXT_PUBLIC_APP_URL?.trim();
-  if (fromEnv) {
-    return normalizeIframeDomain(fromEnv);
-  }
-  if (clientDomain?.trim()) {
-    return normalizeIframeDomain(clientDomain);
-  }
-  return null;
-}
-
-function apexHostname(hostname: string): string {
-  return hostname.replace(/^www\./i, "");
-}
-
-/** Exact host or same apex (www.escore-lms.com ≡ escore-lms.com). */
-export function hostnamesMatch(a: string, b: string): boolean {
-  try {
-    const ha = new URL(normalizeIframeDomain(a)).hostname;
-    const hb = new URL(normalizeIframeDomain(b)).hostname;
-    return ha === hb || apexHostname(ha) === apexHostname(hb);
-  } catch {
-    return false;
-  }
-}
-
-/** Domain sent to Fawaterak HMAC — must match IFRAM Domains in the dashboard exactly. */
-export function resolveIframeDomainForHmac(clientDomain?: string): string | null {
-  const fromEnv = resolveCanonicalIframeDomain(clientDomain);
-  if (!fromEnv) return null;
-  const clientNorm = clientDomain?.trim()
-    ? normalizeIframeDomain(clientDomain)
-    : null;
-  if (
-    clientNorm &&
-    clientNorm !== fromEnv &&
-    hostnamesMatch(clientNorm, fromEnv)
-  ) {
-    return clientNorm;
-  }
-  return fromEnv;
-}
+export {
+  hostnamesMatch,
+  resolveCanonicalIframeDomain,
+  resolveIframeDomainForHmac,
+} from "./iframe-domain";
 
 export async function resolveFawaterakCheckoutContext(
   clientDomain?: string
@@ -83,31 +46,36 @@ export async function resolveFawaterakCheckoutContext(
     };
   }
 
-  const iframeDomain = resolveIframeDomainForHmac(clientDomain);
-  if (!iframeDomain) {
+  const domainCandidates = listFawaterakIframeDomainCandidates(clientDomain);
+  if (domainCandidates.length === 0) {
     return { error: "Missing iframe domain. Set NEXT_PUBLIC_APP_URL or FAWATERAK_IFRAME_DOMAIN" };
   }
 
   const envType: FawaterakEnvType = "live";
-  const hashKey = buildIframeHashKey(
-    secrets.vendorKey,
-    secrets.providerKey,
-    iframeDomain
-  );
-  const validation = await validateFawaterakIframeCredentials(
-    secrets.vendorKey,
-    secrets.providerKey,
-    iframeDomain,
-    hashKey
-  );
+  let lastMessage =
+    "Invalid Token or inactive vendor. Regenerate API Key + Provider Key together on app.fawaterk.com (Integrations → Fawaterak), add your site under IFRAM Domains, then update Vercel env and redeploy.";
 
-  if (!validation.ok) {
-    return {
-      error:
-        validation.message ||
-        "Invalid Token or inactive vendor. Use live API/provider keys from app.fawaterk.com and register your domain under IFRAM Domains.",
-    };
+  for (const iframeDomain of domainCandidates) {
+    const hashKey = buildIframeHashKey(
+      secrets.vendorKey,
+      secrets.providerKey,
+      iframeDomain
+    );
+    const validation = await validateFawaterakIframeCredentials(
+      secrets.vendorKey,
+      secrets.providerKey,
+      iframeDomain,
+      hashKey
+    );
+
+    if (validation.ok) {
+      return { secrets, iframeDomain, envType, hashKey };
+    }
+
+    if (validation.message) {
+      lastMessage = validation.message;
+    }
   }
 
-  return { secrets, iframeDomain, envType, hashKey };
+  return { error: lastMessage };
 }
