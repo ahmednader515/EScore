@@ -167,8 +167,9 @@ export function FawaterakBalanceCheckout({
     const enhanceIframe = () => {
       host.querySelectorAll("iframe").forEach((iframe) => {
         iframe.style.width = "100%";
-        iframe.style.maxWidth = "100%";
-        iframe.style.minHeight = "520px";
+        iframe.style.maxWidth = "42rem";
+        iframe.style.marginInline = "auto";
+        iframe.style.display = "block";
       });
     };
 
@@ -224,10 +225,12 @@ export function FawaterakBalanceCheckout({
           <p className="text-sm text-muted-foreground mb-4 text-center">
             أكمل الدفع في النافذة أدناه
           </p>
-          <div
-            id="fawaterkDivId"
-            className="fawaterak-checkout-host min-h-[560px] w-full pb-8"
-          />
+          <div className="flex w-full justify-center">
+            <div
+              id="fawaterkDivId"
+              className="fawaterak-checkout-host w-full min-h-[480px]"
+            />
+          </div>
           <Button
             variant="outline"
             className="mt-4 w-full border-[#361e01] text-[#361e01]"
