@@ -3,6 +3,13 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import { toast } from "sonner";
 import { CreditCard, Loader2 } from "lucide-react";
 import {
@@ -15,7 +22,6 @@ type CheckoutPayload = {
   token: string;
   envType: "test" | "live";
   hashKey: string;
-  iframeDomain?: string;
   pluginScriptUrl?: string;
   style: { listing: string };
   version: string;
@@ -59,16 +65,15 @@ export function FawaterakBalanceCheckout({
 }: FawaterakBalanceCheckoutProps) {
   const [amount, setAmount] = useState(initialAmount ?? "");
   const [step, setStep] = useState<"idle" | "loading" | "checkout">("idle");
+  const [checkoutPayload, setCheckoutPayload] =
+    useState<CheckoutPayload | null>(null);
+  const checkoutStartedRef = useRef(false);
 
   useEffect(() => {
     if (initialAmount) {
       setAmount(initialAmount);
     }
   }, [initialAmount]);
-
-  const [checkoutPayload, setCheckoutPayload] =
-    useState<CheckoutPayload | null>(null);
-  const checkoutStartedRef = useRef(false);
 
   const startCheckout = async () => {
     const parsed = parseFloat(amount);
@@ -134,7 +139,7 @@ export function FawaterakBalanceCheckout({
         throw new Error("Fawaterak plugin not available");
       }
 
-      window.fawaterkCheckout({
+      const pluginConfig: Record<string, unknown> = {
         token: checkoutPayload.token,
         envType: checkoutPayload.envType,
         hashKey: checkoutPayload.hashKey,
@@ -142,7 +147,11 @@ export function FawaterakBalanceCheckout({
         version: checkoutPayload.version,
         requestBody: checkoutPayload.requestBody,
         redirectOutIframe: checkoutPayload.redirectOutIframe !== false,
-      });
+      };
+
+      window.pluginConfig = pluginConfig;
+      (globalThis as Record<string, unknown>).pluginConfig = pluginConfig;
+      window.fawaterkCheckout(pluginConfig);
     } catch (error) {
       console.error("[FAWATERAK_PLUGIN]", error);
       toast.error("تعذر تحميل بوابة الدفع. حاول مرة أخرى.");
@@ -158,94 +167,87 @@ export function FawaterakBalanceCheckout({
     }
   }, [step, checkoutPayload, launchPlugin]);
 
-  useEffect(() => {
-    if (step !== "checkout") return;
-
-    const host = document.getElementById("fawaterkDivId");
-    if (!host) return;
-
-    const enhanceIframe = () => {
-      host.querySelectorAll("iframe").forEach((iframe) => {
-        iframe.removeAttribute("width");
-        iframe.removeAttribute("height");
-        iframe.style.display = "block";
-        iframe.style.width = "100%";
-        iframe.style.maxWidth = "100%";
-        iframe.style.marginInline = "auto";
-        iframe.style.border = "0";
-      });
-    };
-
-    enhanceIframe();
-    const observer = new MutationObserver(enhanceIframe);
-    observer.observe(host, { childList: true, subtree: true });
-    return () => observer.disconnect();
-  }, [step]);
+  const cancelCheckout = () => {
+    checkoutStartedRef.current = false;
+    setCheckoutPayload(null);
+    setStep("idle");
+  };
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-5 sm:space-y-6">
       {step !== "checkout" && (
-        <>
-          <div className="flex flex-col sm:flex-row gap-4">
-            <Input
-              type="number"
-              placeholder={`المبلغ (${FAWATERAK_MIN_AMOUNT_EGP} - ${FAWATERAK_MAX_AMOUNT_EGP} جنيه)`}
-              value={amount}
-              onChange={(e) => setAmount(e.target.value)}
-              min={FAWATERAK_MIN_AMOUNT_EGP}
-              max={FAWATERAK_MAX_AMOUNT_EGP}
-              step="1"
-              className="flex-1"
-              disabled={step === "loading"}
-            />
-            <Button
-              onClick={startCheckout}
-              disabled={step === "loading"}
-              className="bg-[#361e01] hover:bg-[#361e01]/90 text-white shrink-0"
-            >
-              {step === "loading" ? (
-                <>
-                  <Loader2 className="h-4 w-4 animate-spin ml-2" />
-                  جاري التحميل...
-                </>
-              ) : (
-                <>
-                  <CreditCard className="h-4 w-4 ml-2" />
-                  ادفع الآن
-                </>
-              )}
-            </Button>
-          </div>
-          <p className="text-sm text-muted-foreground">
-            طرق الدفع المتاحة: بطاقة بنكية، فوري، والمحافظ الإلكترونية (حسب
-            تفعيلها في فواتيرك).
-          </p>
-        </>
+        <Card className="border-[#361e01]/20">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2 text-base">
+              <CreditCard className="h-5 w-5" />
+              شحن الرصيد
+            </CardTitle>
+            <CardDescription className="text-xs sm:text-sm">
+              أدخل المبلغ ثم اضغط متابعة الدفع لاختيار طريقة الدفع
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="flex flex-col gap-4 sm:flex-row">
+              <Input
+                type="number"
+                placeholder={`المبلغ (${FAWATERAK_MIN_AMOUNT_EGP} - ${FAWATERAK_MAX_AMOUNT_EGP} جنيه)`}
+                value={amount}
+                onChange={(e) => setAmount(e.target.value)}
+                min={FAWATERAK_MIN_AMOUNT_EGP}
+                max={FAWATERAK_MAX_AMOUNT_EGP}
+                step="1"
+                className="flex-1"
+                disabled={step === "loading"}
+              />
+              <Button
+                onClick={startCheckout}
+                disabled={step === "loading"}
+                className="shrink-0 bg-[#361e01] text-white hover:bg-[#361e01]/90"
+              >
+                {step === "loading" ? (
+                  <>
+                    <Loader2 className="ml-2 h-4 w-4 animate-spin" />
+                    جاري التحميل...
+                  </>
+                ) : (
+                  "متابعة الدفع"
+                )}
+              </Button>
+            </div>
+            <p className="text-xs text-muted-foreground sm:text-sm">
+              طرق الدفع: بطاقة بنكية، فوري، والمحافظ الإلكترونية (حسب تفعيلها
+              في فواتيرك).
+            </p>
+          </CardContent>
+        </Card>
       )}
 
       {step === "checkout" && (
-        <div className="rounded-lg border border-[#361e01]/20 p-4 sm:p-6 bg-[#fcfaed]/50 w-full">
-          <p className="text-sm text-muted-foreground mb-4 text-center">
-            أكمل الدفع في النافذة أدناه
-          </p>
-          <div className="flex w-full justify-center">
+        <Card className="overflow-hidden border-[#361e01]/20">
+          <CardHeader className="border-b bg-muted/30 py-3 sm:py-4">
+            <CardTitle className="text-base">إتمام الدفع</CardTitle>
+            <CardDescription className="text-xs sm:text-sm">
+              اختر طريقة الدفع. بعد النجاح ستُوجَّه تلقائياً إلى الصفحة
+              المناسبة.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="p-0">
             <div
               id="fawaterkDivId"
-              className="fawaterak-checkout-host w-full min-h-[480px]"
+              className="min-h-[min(70vh,560px)] w-full bg-background sm:min-h-[520px] lg:min-h-[580px]"
             />
+          </CardContent>
+          <div className="border-t p-3 sm:p-4">
+            <Button
+              type="button"
+              variant="outline"
+              className="w-full border-[#361e01] text-[#361e01]"
+              onClick={cancelCheckout}
+            >
+              إلغاء والعودة
+            </Button>
           </div>
-          <Button
-            variant="outline"
-            className="mt-4 w-full border-[#361e01] text-[#361e01]"
-            onClick={() => {
-              checkoutStartedRef.current = false;
-              setCheckoutPayload(null);
-              setStep("idle");
-            }}
-          >
-            إلغاء والعودة
-          </Button>
-        </div>
+        </Card>
       )}
     </div>
   );
