@@ -234,7 +234,7 @@ export function FawaterakBalanceCheckout({
           <CardContent className="p-0">
             <div
               id="fawaterkDivId"
-              className="min-h-[min(70vh,560px)] w-full bg-background sm:min-h-[520px] lg:min-h-[580px]"
+              className="min-h-[min(78vh,680px)] w-full bg-background sm:min-h-[600px] lg:min-h-[660px]"
             />
           </CardContent>
           <div className="border-t p-3 sm:p-4">
