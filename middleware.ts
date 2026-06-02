@@ -33,6 +33,9 @@ export default withAuth(
     
     // Add check for payment status page
     const isPaymentStatusPage = req.nextUrl.pathname.includes("/payment-status");
+    const isFawaterakBalanceReturn = req.nextUrl.pathname.startsWith(
+      "/balance-payment-return"
+    );
 
     // If user is on auth page and is authenticated, redirect to appropriate dashboard
     if (isAuthPage && req.nextauth.token) {
@@ -54,6 +57,7 @@ export default withAuth(
       !req.nextauth.token &&
       !isAuthPage &&
       !isPaymentStatusPage &&
+      !isFawaterakBalanceReturn &&
       !isHomePage &&
       !isReelsPage &&
       !isPublicInfoPage

@@ -215,3 +215,16 @@ body,
 * {
   font-family: var(--font-cairo), system-ui, sans-serif;
 }
+
+/* Fawaterak plugin injects a nested iframe — force full width of checkout card */
+.fawaterak-checkout-host,
+.fawaterak-checkout-host iframe {
+  width: 100% !important;
+  max-width: 100% !important;
+  min-height: 420px;
+}
+
+.fawaterak-checkout-host > div {
+  width: 100% !important;
+  max-width: 100% !important;
+}

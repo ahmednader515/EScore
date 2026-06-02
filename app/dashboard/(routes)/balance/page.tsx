@@ -1,7 +1,9 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { Suspense, useState, useEffect, useCallback } from "react";
+import { useSearchParams, useRouter } from "next/navigation";
 import Link from "next/link";
+import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -16,7 +18,25 @@ interface BalanceTransaction {
   createdAt: string;
 }
 
-export default function BalancePage() {
+function BalanceTopupNotifier({
+  onNotify,
+}: {
+  onNotify: (topup: string) => void;
+}) {
+  const searchParams = useSearchParams();
+  const router = useRouter();
+
+  useEffect(() => {
+    const topup = searchParams.get("topup");
+    if (!topup) return;
+    onNotify(topup);
+    router.replace("/dashboard/balance", { scroll: false });
+  }, [searchParams, router, onNotify]);
+
+  return null;
+}
+
+function BalancePageContent() {
   const [balance, setBalance] = useState(0);
   const [topUpAmount, setTopUpAmount] = useState("");
   const [transactions, setTransactions] = useState<BalanceTransaction[]>([]);
@@ -53,6 +73,23 @@ export default function BalancePage() {
     fetchTransactions();
   }, [fetchBalance, fetchTransactions]);
 
+  const handleTopupNotify = useCallback(
+    (topup: string) => {
+      if (topup === "success") {
+        toast.success("تم الدفع بنجاح. سيظهر الرصيد بعد تأكيد فواتيرك.");
+        fetchBalance();
+        fetchTransactions();
+      } else if (topup === "failed") {
+        toast.error("لم تكتمل عملية الدفع. يمكنك المحاولة مرة أخرى.");
+      } else if (topup === "pending") {
+        toast.message("الدفع قيد المعالجة", {
+          description: "بعض طرق الدفع تحتاج وقتاً للتأكيد قبل إضافة الرصيد.",
+        });
+      }
+    },
+    [fetchBalance, fetchTransactions]
+  );
+
   const paymentHref = (() => {
     const parsed = parseFloat(topUpAmount);
     if (Number.isFinite(parsed) && parsed >= FAWATERAK_MIN_AMOUNT_EGP) {
@@ -73,6 +110,9 @@ export default function BalancePage() {
 
   return (
     <div className="p-6 space-y-6">
+      <Suspense fallback={null}>
+        <BalanceTopupNotifier onNotify={handleTopupNotify} />
+      </Suspense>
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold">إدارة الرصيد</h1>
@@ -212,4 +252,8 @@ export default function BalancePage() {
       </Card>
     </div>
   );
+}
+
+export default function BalancePage() {
+  return <BalancePageContent />;
 }

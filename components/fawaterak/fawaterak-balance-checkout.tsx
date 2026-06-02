@@ -200,11 +200,14 @@ export function FawaterakBalanceCheckout({
       )}
 
       {step === "checkout" && (
-        <div className="rounded-lg border border-[#361e01]/20 p-4 bg-[#fcfaed]/50">
+        <div className="rounded-lg border border-[#361e01]/20 p-4 sm:p-6 bg-[#fcfaed]/50 w-full">
           <p className="text-sm text-muted-foreground mb-4 text-center">
             أكمل الدفع في النافذة أدناه
           </p>
-          <div id="fawaterkDivId" className="min-h-[200px]" />
+          <div
+            id="fawaterkDivId"
+            className="fawaterak-checkout-host min-h-[420px] w-full"
+          />
           <Button
             variant="outline"
             className="mt-4 w-full border-[#361e01] text-[#361e01]"

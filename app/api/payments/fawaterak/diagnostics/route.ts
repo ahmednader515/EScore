@@ -4,8 +4,8 @@ import { authOptions } from "@/lib/auth";
 import { buildIframeHashKey, getFawaterakSecrets } from "@/lib/fawaterak/config";
 import { getFawaterakPluginScriptUrl } from "@/lib/fawaterak/constants";
 import {
-  resolveCanonicalIframeDomain,
   resolveFawaterakCheckoutContext,
+  resolveIframeDomainForHmac,
 } from "@/lib/fawaterak/resolve-checkout";
 import { validateFawaterakIframeCredentials } from "@/lib/fawaterak/validate";
 
@@ -26,9 +26,12 @@ export async function GET(req: Request) {
 
   const url = new URL(req.url);
   const clientDomain =
-    url.searchParams.get("domain") || "https://escore-lms.com";
+    url.searchParams.get("domain") ||
+    process.env.FAWATERAK_IFRAME_DOMAIN?.trim() ||
+    process.env.NEXT_PUBLIC_APP_URL?.trim() ||
+    "https://www.escore-lms.com";
   const iframeDomain =
-    resolveCanonicalIframeDomain(clientDomain) || "https://escore-lms.com";
+    resolveIframeDomainForHmac(clientDomain) || clientDomain;
 
   const tests: Record<string, { ok: boolean; message?: string }> = {};
 

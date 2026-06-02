@@ -6,6 +6,7 @@ import { resolveAppOrigin } from "@/lib/fawaterak/config";
 import { buildFawaterakCustomer } from "@/lib/fawaterak/customer";
 import {
   FAWATERAK_ALLOWED_ROLES,
+  FAWATERAK_BALANCE_RETURN_PATHS,
   FAWATERAK_DEPOSIT_KIND,
   FAWATERAK_DEPOSIT_STATUS,
   FAWATERAK_MAX_AMOUNT_EGP,
@@ -84,9 +85,9 @@ export async function POST(req: NextRequest) {
       currency: "EGP",
       customer: buildFawaterakCustomer(user),
       redirectionUrls: {
-        successUrl: `${origin}/dashboard/balance/payment/success`,
-        failUrl: `${origin}/dashboard/balance/payment/fail`,
-        pendingUrl: `${origin}/dashboard/balance/payment/pending`,
+        successUrl: `${origin}${FAWATERAK_BALANCE_RETURN_PATHS.success}`,
+        failUrl: `${origin}${FAWATERAK_BALANCE_RETURN_PATHS.fail}`,
+        pendingUrl: `${origin}${FAWATERAK_BALANCE_RETURN_PATHS.pending}`,
         webhookUrl: `${origin}/api/webhooks/fawaterak_json`,
       },
       cartItems: [

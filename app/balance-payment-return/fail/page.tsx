@@ -1,9 +1,6 @@
-"use client";
-
 import { PaymentTopRedirect } from "@/components/fawaterak/payment-top-redirect";
 import { fawaterakBalanceReturnTarget } from "@/lib/fawaterak/constants";
 
-/** Legacy URL — redirect whole window to balance (not inside iframe). */
-export default function BalancePaymentFailPage() {
+export default function BalancePaymentReturnFailPage() {
   return <PaymentTopRedirect targetPath={fawaterakBalanceReturnTarget("fail")} />;
 }

@@ -29,12 +29,36 @@ export function resolveCanonicalIframeDomain(clientDomain?: string): string | nu
   return null;
 }
 
+function apexHostname(hostname: string): string {
+  return hostname.replace(/^www\./i, "");
+}
+
+/** Exact host or same apex (www.escore-lms.com ≡ escore-lms.com). */
 export function hostnamesMatch(a: string, b: string): boolean {
   try {
-    return new URL(normalizeIframeDomain(a)).hostname === new URL(normalizeIframeDomain(b)).hostname;
+    const ha = new URL(normalizeIframeDomain(a)).hostname;
+    const hb = new URL(normalizeIframeDomain(b)).hostname;
+    return ha === hb || apexHostname(ha) === apexHostname(hb);
   } catch {
     return false;
   }
+}
+
+/** Domain sent to Fawaterak HMAC — must match IFRAM Domains in the dashboard exactly. */
+export function resolveIframeDomainForHmac(clientDomain?: string): string | null {
+  const fromEnv = resolveCanonicalIframeDomain(clientDomain);
+  if (!fromEnv) return null;
+  const clientNorm = clientDomain?.trim()
+    ? normalizeIframeDomain(clientDomain)
+    : null;
+  if (
+    clientNorm &&
+    clientNorm !== fromEnv &&
+    hostnamesMatch(clientNorm, fromEnv)
+  ) {
+    return clientNorm;
+  }
+  return fromEnv;
 }
 
 /** Try test then live — fixes wrong FAWATERAK_ENV on Vercel. */
@@ -46,18 +70,23 @@ export async function resolveFawaterakCheckoutContext(
     return { error: "Fawaterak is not configured on this server (missing env vars)." };
   }
 
-  const iframeDomain = resolveCanonicalIframeDomain(clientDomain);
-  if (!iframeDomain) {
-    return { error: "Missing iframe domain. Set NEXT_PUBLIC_APP_URL=https://escore-lms.com" };
+  const iframeDomainFromEnv = resolveCanonicalIframeDomain(clientDomain);
+  if (!iframeDomainFromEnv) {
+    return { error: "Missing iframe domain. Set NEXT_PUBLIC_APP_URL or FAWATERAK_IFRAME_DOMAIN" };
   }
 
   const clientNorm = clientDomain?.trim()
     ? normalizeIframeDomain(clientDomain)
     : null;
-  if (clientNorm && !hostnamesMatch(clientNorm, iframeDomain)) {
+  if (clientNorm && !hostnamesMatch(clientNorm, iframeDomainFromEnv)) {
     return {
-      error: `يجب فتح الموقع من ${iframeDomain} (أنت على ${clientNorm}). الدومين يجب أن يطابق IFRAM Domains في فواتيرك.`,
+      error: `يجب فتح الموقع من ${iframeDomainFromEnv} (أنت على ${clientNorm}). الدومين يجب أن يطابق IFRAM Domains في فواتيرك.`,
     };
+  }
+
+  const iframeDomain = resolveIframeDomainForHmac(clientDomain);
+  if (!iframeDomain) {
+    return { error: "Missing iframe domain. Set NEXT_PUBLIC_APP_URL or FAWATERAK_IFRAME_DOMAIN" };
   }
 
   const order: FawaterakEnvType[] =
