@@ -166,10 +166,11 @@ export function FawaterakBalanceCheckout({
 
     const enhanceIframe = () => {
       host.querySelectorAll("iframe").forEach((iframe) => {
-        iframe.style.width = "100%";
-        iframe.style.maxWidth = "42rem";
-        iframe.style.marginInline = "auto";
+        iframe.removeAttribute("width");
+        iframe.removeAttribute("height");
         iframe.style.display = "block";
+        iframe.style.marginInline = "auto";
+        iframe.style.border = "0";
       });
     };
 

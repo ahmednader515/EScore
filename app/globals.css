@@ -217,30 +217,52 @@ body,
 }
 
 /*
- * Fawaterak checkout uses a fixed internal layout (form + side "Pay With" rail).
- * Stretching the iframe to full card width leaves a huge gap — cap width and center.
+ * Fawaterak checkout: horizontal payment methods + form at a fixed internal width.
+ * Center at that width (avoids empty side gap), scale iframe for large method buttons.
  */
 .fawaterak-checkout-host {
   width: 100%;
-  max-width: 42rem;
+  max-width: 36rem;
   margin-inline: auto;
-  min-height: 480px;
+  min-height: 580px;
+  overflow: visible;
 }
 
 .fawaterak-checkout-host > div {
   width: 100% !important;
-  max-width: 42rem !important;
+  max-width: 36rem !important;
   margin-inline: auto !important;
+  min-height: 520px;
 }
 
 .fawaterak-checkout-host iframe {
   display: block;
   width: 100% !important;
-  max-width: 42rem !important;
+  max-width: 36rem !important;
   margin-inline: auto !important;
-  min-height: 480px !important;
-  height: 520px !important;
+  min-height: 520px !important;
+  height: 560px !important;
   border: 0;
+  transform: scale(1.1);
+  transform-origin: top center;
+}
+
+@media (min-width: 640px) {
+  .fawaterak-checkout-host {
+    min-height: 620px;
+  }
+
+  .fawaterak-checkout-host iframe {
+    min-height: 540px !important;
+    height: 600px !important;
+    transform: scale(1.12);
+  }
+}
+
+@media (min-width: 1024px) {
+  .fawaterak-checkout-host iframe {
+    transform: scale(1.15);
+  }
 }
 
 @media (max-width: 639px) {
@@ -253,5 +275,6 @@ body,
   .fawaterak-checkout-host iframe {
     min-height: 500px !important;
     height: 540px !important;
+    transform: scale(1.05);
   }
 }
