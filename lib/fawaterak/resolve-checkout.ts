@@ -61,7 +61,6 @@ export function resolveIframeDomainForHmac(clientDomain?: string): string | null
   return fromEnv;
 }
 
-/** Try test then live — fixes wrong FAWATERAK_ENV on Vercel. */
 export async function resolveFawaterakCheckoutContext(
   clientDomain?: string
 ): Promise<FawaterakCheckoutContext | { error: string }> {
@@ -89,29 +88,26 @@ export async function resolveFawaterakCheckoutContext(
     return { error: "Missing iframe domain. Set NEXT_PUBLIC_APP_URL or FAWATERAK_IFRAME_DOMAIN" };
   }
 
-  const order: FawaterakEnvType[] =
-    secrets.envType === "live" ? ["live", "test"] : ["test", "live"];
+  const envType: FawaterakEnvType = "live";
+  const hashKey = buildIframeHashKey(
+    secrets.vendorKey,
+    secrets.providerKey,
+    iframeDomain
+  );
+  const validation = await validateFawaterakIframeCredentials(
+    secrets.vendorKey,
+    secrets.providerKey,
+    iframeDomain,
+    hashKey
+  );
 
-  for (const envType of order) {
-    const hashKey = buildIframeHashKey(
-      secrets.vendorKey,
-      secrets.providerKey,
-      iframeDomain
-    );
-    const validation = await validateFawaterakIframeCredentials(
-      secrets.vendorKey,
-      secrets.providerKey,
-      iframeDomain,
-      hashKey,
-      envType
-    );
-    if (validation.ok) {
-      return { secrets, iframeDomain, envType, hashKey };
-    }
+  if (!validation.ok) {
+    return {
+      error:
+        validation.message ||
+        "Invalid Token or inactive vendor. Use live API/provider keys from app.fawaterk.com and register your domain under IFRAM Domains.",
+    };
   }
 
-  return {
-    error:
-      "Invalid Token or inactive vendor. Keys work only on staging OR live — check FAWATERAK_ENV and copy keys from the matching Fawaterak dashboard.",
-  };
+  return { secrets, iframeDomain, envType, hashKey };
 }

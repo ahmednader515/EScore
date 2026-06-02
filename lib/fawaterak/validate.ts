@@ -1,8 +1,4 @@
-import {
-  FAWATERAK_LIVE_ORIGIN,
-  FAWATERAK_STAGING_ORIGIN,
-  type FawaterakEnvType,
-} from "./config";
+import { FAWATERAK_ORIGIN } from "./config";
 
 const PAYMENT_METHODS_PATH = "/api/v2/getPaymentmethods";
 
@@ -17,15 +13,11 @@ export async function validateFawaterakIframeCredentials(
   vendorKey: string,
   providerKey: string,
   iframeDomain: string,
-  hashKey: string,
-  envType: FawaterakEnvType
+  hashKey: string
 ): Promise<FawaterakValidateResult> {
-  const base =
-    envType === "live" ? FAWATERAK_LIVE_ORIGIN : FAWATERAK_STAGING_ORIGIN;
-
   try {
     const hostname = iframeDomain.replace(/^https?:\/\//, "").replace(/\/$/, "");
-    const res = await fetch(`${base}${PAYMENT_METHODS_PATH}`, {
+    const res = await fetch(`${FAWATERAK_ORIGIN}${PAYMENT_METHODS_PATH}`, {
       method: "GET",
       headers: {
         Accept: "application/json",
@@ -55,7 +47,7 @@ export async function validateFawaterakIframeCredentials(
 
     return {
       ok: false,
-      message: `Fawaterak rejected credentials (HTTP ${res.status}). Check API key, provider key, IFRAM domain, and FAWATERAK_ENV.`,
+      message: `Fawaterak rejected credentials (HTTP ${res.status}). Check API key, provider key, and IFRAM domain in the app.fawaterk.com dashboard.`,
     };
   } catch (error) {
     console.error("[FAWATERAK_VALIDATE]", error);

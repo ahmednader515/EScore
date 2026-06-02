@@ -33,26 +33,17 @@ export async function GET(req: Request) {
   const iframeDomain =
     resolveIframeDomainForHmac(clientDomain) || clientDomain;
 
-  const tests: Record<string, { ok: boolean; message?: string }> = {};
-
-  for (const envType of ["test", "live"] as const) {
-    const hashKey = buildIframeHashKey(
-      secrets.vendorKey,
-      secrets.providerKey,
-      iframeDomain
-    );
-    const result = await validateFawaterakIframeCredentials(
-      secrets.vendorKey,
-      secrets.providerKey,
-      iframeDomain,
-      hashKey,
-      envType
-    );
-    tests[envType] = {
-      ok: result.ok,
-      message: result.ok ? "OK" : result.message,
-    };
-  }
+  const hashKey = buildIframeHashKey(
+    secrets.vendorKey,
+    secrets.providerKey,
+    iframeDomain
+  );
+  const liveTest = await validateFawaterakIframeCredentials(
+    secrets.vendorKey,
+    secrets.providerKey,
+    iframeDomain,
+    hashKey
+  );
 
   const resolved = await resolveFawaterakCheckoutContext(clientDomain);
 
@@ -68,9 +59,11 @@ export async function GET(req: Request) {
     vendorKeyLength: secrets.vendorKey.length,
     vendorKeyPreview: `${secrets.vendorKey.slice(0, 8)}...${secrets.vendorKey.slice(-6)}`,
     providerKey: secrets.providerKey,
-    pluginScriptUrl: getFawaterakPluginScriptUrl(
-      "error" in resolved ? secrets.envType : resolved.envType
-    ),
-    stagingVsLiveTests: tests,
+    pluginScriptUrl: getFawaterakPluginScriptUrl(),
+    fawaterakOrigin: "https://app.fawaterk.com",
+    liveCredentialTest: {
+      ok: liveTest.ok,
+      message: liveTest.ok ? "OK" : liveTest.message,
+    },
   });
 }

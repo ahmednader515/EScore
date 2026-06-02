@@ -1,6 +1,6 @@
 /**
  * Run: node scripts/verify-fawaterak.mjs
- * Tests Fawaterak credentials + HMAC against staging (same as iframe plugin).
+ * Tests Fawaterak credentials + HMAC against app.fawaterk.com (same as iframe plugin).
  */
 import crypto from "crypto";
 import { readFileSync } from "fs";
@@ -34,7 +34,6 @@ loadEnv();
 
 const vendorKey = process.env.FAWATERAK_VENDOR_KEY?.trim() || "";
 const providerKey = process.env.FAWATERAK_PROVIDER_KEY?.trim() || "";
-const envType = process.env.FAWATERAK_ENV?.trim().toLowerCase() === "live" ? "live" : "test";
 const domain = process.env.FAWATERAK_TEST_DOMAIN?.trim() || "https://escore-lms.com";
 
 if (!vendorKey || !providerKey) {
@@ -42,8 +41,7 @@ if (!vendorKey || !providerKey) {
   process.exit(1);
 }
 
-const base =
-  envType === "live" ? "https://app.fawaterk.com" : "https://staging.fawaterk.com";
+const base = "https://app.fawaterk.com";
 
 function hashFor(hmacDomain) {
   const q = `Domain=${hmacDomain}&ProviderKey=${providerKey}`;
@@ -79,7 +77,7 @@ async function tryCall(path, hashKey) {
   return { url, status: res.status, body: json };
 }
 
-console.log("envType:", envType, "base:", base);
+console.log("envType: live", "base:", base);
 console.log("domain:", `https://${hostname}`);
 console.log("vendorKey length:", vendorKey.length);
 console.log("providerKey:", providerKey);

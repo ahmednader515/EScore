@@ -32,16 +32,11 @@ export function fawaterakBalanceReturnTarget(
   return `${DASHBOARD_BALANCE_PATH}?topup=${topup}`;
 }
 
-/** Staging (sandbox) — use with FAWATERAK_ENV=test and staging dashboard keys */
-export const FAWATERAK_STAGING_ORIGIN = "https://staging.fawaterk.com";
-
-/** Production */
+/** Production Fawaterak host (dashboard, API, iframe plugin). */
 export const FAWATERAK_LIVE_ORIGIN = "https://app.fawaterk.com";
 
-export function getFawaterakPluginScriptUrl(
-  envType: "test" | "live" = "test"
-): string {
-  const origin =
-    envType === "live" ? FAWATERAK_LIVE_ORIGIN : FAWATERAK_STAGING_ORIGIN;
-  return `${origin}/fawaterkPlugin/fawaterkPlugin.min.js`;
+export const FAWATERAK_ORIGIN = FAWATERAK_LIVE_ORIGIN;
+
+export function getFawaterakPluginScriptUrl(): string {
+  return `${FAWATERAK_ORIGIN}/fawaterkPlugin/fawaterkPlugin.min.js`;
 }

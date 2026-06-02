@@ -20,7 +20,7 @@ import {
 
 type CheckoutPayload = {
   token: string;
-  envType: "test" | "live";
+  envType: "live";
   hashKey: string;
   pluginScriptUrl?: string;
   style: { listing: string };
@@ -131,7 +131,7 @@ export function FawaterakBalanceCheckout({
     try {
       const scriptUrl =
         checkoutPayload.pluginScriptUrl ??
-        getFawaterakPluginScriptUrl(checkoutPayload.envType);
+        getFawaterakPluginScriptUrl();
 
       await loadFawaterkScript(scriptUrl);
 

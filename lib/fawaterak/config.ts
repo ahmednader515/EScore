@@ -1,13 +1,13 @@
 import { generateIframeHashKey } from "./hmac";
 import {
   FAWATERAK_LIVE_ORIGIN,
-  FAWATERAK_STAGING_ORIGIN,
+  FAWATERAK_ORIGIN,
   getFawaterakPluginScriptUrl,
 } from "./constants";
 
-export type FawaterakEnvType = "test" | "live";
+export type FawaterakEnvType = "live";
 
-export { FAWATERAK_STAGING_ORIGIN, FAWATERAK_LIVE_ORIGIN, getFawaterakPluginScriptUrl };
+export { FAWATERAK_LIVE_ORIGIN, FAWATERAK_ORIGIN, getFawaterakPluginScriptUrl };
 
 function cleanEnvValue(value: string | undefined): string {
   if (!value) return "";
@@ -27,8 +27,7 @@ export function getFawaterakSecrets() {
     return null;
   }
 
-  const envRaw = cleanEnvValue(process.env.FAWATERAK_ENV).toLowerCase();
-  const envType: FawaterakEnvType = envRaw === "live" ? "live" : "test";
+  const envType: FawaterakEnvType = "live";
 
   const appOrigin = (
     cleanEnvValue(process.env.NEXT_PUBLIC_APP_URL) ||
