@@ -29,8 +29,17 @@ function BalanceTopupNotifier({
   useEffect(() => {
     const topup = searchParams.get("topup");
     if (!topup) return;
+
     onNotify(topup);
     router.replace("/dashboard/balance", { scroll: false });
+
+    if (topup !== "success") return;
+
+    const reloadTimer = window.setTimeout(() => {
+      window.location.reload();
+    }, 2000);
+
+    return () => window.clearTimeout(reloadTimer);
   }, [searchParams, router, onNotify]);
 
   return null;

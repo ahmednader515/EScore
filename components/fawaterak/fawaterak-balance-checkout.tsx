@@ -158,6 +158,26 @@ export function FawaterakBalanceCheckout({
     }
   }, [step, checkoutPayload, launchPlugin]);
 
+  useEffect(() => {
+    if (step !== "checkout") return;
+
+    const host = document.getElementById("fawaterkDivId");
+    if (!host) return;
+
+    const enhanceIframe = () => {
+      host.querySelectorAll("iframe").forEach((iframe) => {
+        iframe.style.width = "100%";
+        iframe.style.maxWidth = "100%";
+        iframe.style.minHeight = "520px";
+      });
+    };
+
+    enhanceIframe();
+    const observer = new MutationObserver(enhanceIframe);
+    observer.observe(host, { childList: true, subtree: true });
+    return () => observer.disconnect();
+  }, [step]);
+
   return (
     <div className="space-y-4">
       {step !== "checkout" && (
@@ -206,7 +226,7 @@ export function FawaterakBalanceCheckout({
           </p>
           <div
             id="fawaterkDivId"
-            className="fawaterak-checkout-host min-h-[420px] w-full"
+            className="fawaterak-checkout-host min-h-[560px] w-full pb-8"
           />
           <Button
             variant="outline"

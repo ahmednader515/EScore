@@ -110,7 +110,7 @@ export async function POST(req: NextRequest) {
       hashKey,
       iframeDomain,
       pluginScriptUrl: getFawaterakPluginScriptUrl(envType),
-      style: { listing: "horizontal" as const },
+      style: { listing: "vertical" as const },
       version: "0",
       redirectOutIframe: true,
       requestBody,

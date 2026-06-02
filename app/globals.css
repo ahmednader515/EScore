@@ -216,15 +216,39 @@ body,
   font-family: var(--font-cairo), system-ui, sans-serif;
 }
 
-/* Fawaterak plugin injects a nested iframe — force full width of checkout card */
-.fawaterak-checkout-host,
-.fawaterak-checkout-host iframe {
-  width: 100% !important;
-  max-width: 100% !important;
-  min-height: 420px;
+/* Fawaterak plugin injects a nested iframe — full width + taller touch targets */
+.fawaterak-checkout-host {
+  width: 100%;
+  min-height: 520px;
+  overflow: visible;
 }
 
 .fawaterak-checkout-host > div {
   width: 100% !important;
   max-width: 100% !important;
+  min-height: 520px;
+}
+
+.fawaterak-checkout-host iframe {
+  width: 100% !important;
+  max-width: 100% !important;
+  min-height: 520px !important;
+  height: 560px !important;
+  border: 0;
+  transform: scale(1.08);
+  transform-origin: top center;
+}
+
+@media (min-width: 640px) {
+  .fawaterak-checkout-host iframe {
+    min-height: 540px !important;
+    height: 600px !important;
+    transform: scale(1.12);
+  }
+}
+
+@media (min-width: 1024px) {
+  .fawaterak-checkout-host iframe {
+    transform: scale(1.15);
+  }
 }
