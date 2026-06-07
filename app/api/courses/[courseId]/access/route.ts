@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server";
-import { auth } from "@/lib/auth";
+import { getServerSession } from "next-auth";
+import { authOptions } from "@/lib/auth";
 import { db } from "@/lib/db";
+import { hasActivePurchase, isFreeCourse } from "@/lib/course-access";
 
 export async function GET(
   req: Request,
@@ -10,7 +12,8 @@ export async function GET(
   const { courseId } = resolvedParams;
 
   try {
-    const { userId } = await auth();
+    const session = await getServerSession(authOptions);
+    const userId = session?.user?.id;
 
     if (!userId) {
       return new NextResponse("Unauthorized", { status: 401 });
@@ -35,7 +38,7 @@ export async function GET(
     }
 
     // Free courses are always accessible and should appear as purchased
-    if (course.price === 0) {
+    if (isFreeCourse(course.price)) {
       const existingPurchase = course.purchases[0];
       if (!existingPurchase) {
         await db.purchase.create({
@@ -56,9 +59,7 @@ export async function GET(
     }
 
     // Check if user has any purchase with ACTIVE status
-    const validPurchase = course.purchases.some(purchase => 
-      purchase.status === "ACTIVE"
-    );
+    const validPurchase = hasActivePurchase(course.purchases);
 
     return NextResponse.json({ hasAccess: validPurchase });
   } catch (error) {

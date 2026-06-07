@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server";
-import { auth } from "@/lib/auth";
+import { getServerSession } from "next-auth";
+import { authOptions } from "@/lib/auth";
 import { db } from "@/lib/db";
+import { canAccessChapter } from "@/lib/course-access";
 
 const isStaff = (role?: string | null) => role === "ADMIN" || role === "TEACHER";
 
@@ -12,7 +14,8 @@ export async function GET(
     const resolvedParams = await params;
     const { courseId, chapterId } = resolvedParams;
     
-    const { userId } = await auth();
+    const session = await getServerSession(authOptions);
+    const userId = session?.user?.id;
 
     if (!userId) {
       return new NextResponse("Unauthorized", { status: 401 });
@@ -27,6 +30,10 @@ export async function GET(
         course: {
           select: {
             userId: true,
+            price: true,
+            purchases: {
+              where: { userId },
+            },
           }
         },
         userProgress: {
@@ -45,6 +52,14 @@ export async function GET(
     if (!chapter) {
       return new NextResponse("Chapter not found", { status: 404 });
     }
+
+    const staff = isStaff(session.user.role);
+    const hasAccess = canAccessChapter(
+      chapter.course.price,
+      chapter.course.purchases,
+      chapter.isFree,
+      staff
+    );
 
     const [chapters, quizzes] = await db.$transaction([
       db.chapter.findMany({
@@ -98,6 +113,15 @@ export async function GET(
       previousChapterId: previousContent?.id || null,
       nextContentType: nextContent?.type || null,
       previousContentType: previousContent?.type || null,
+      ...(hasAccess
+        ? {}
+        : {
+            videoUrl: null,
+            youtubeVideoId: null,
+            documentUrl: null,
+            documentName: null,
+            attachments: [],
+          }),
     };
 
     return NextResponse.json(response);
@@ -115,7 +139,8 @@ export async function PATCH(
     { params }: { params: Promise<{ courseId: string; chapterId: string }> }
 ) {
     try {
-        const { userId, user } = await auth();
+        const session = await getServerSession(authOptions);
+        const userId = session?.user?.id;
         const resolvedParams = await params;
         const values = await req.json();
 
@@ -123,7 +148,7 @@ export async function PATCH(
             return new NextResponse("Unauthorized", { status: 401 });
         }
 
-        if (!isStaff(user?.role)) {
+        if (!isStaff(session.user.role)) {
             return new NextResponse("Forbidden", { status: 403 });
         }
 
@@ -159,14 +184,15 @@ export async function DELETE(
     { params }: { params: Promise<{ courseId: string; chapterId: string }> }
 ) {
     try {
-        const { userId, user } = await auth();
+        const session = await getServerSession(authOptions);
+        const userId = session?.user?.id;
         const resolvedParams = await params;
 
         if (!userId) {
             return new NextResponse("Unauthorized", { status: 401 });
         }
 
-        if (!isStaff(user?.role)) {
+        if (!isStaff(session.user.role)) {
             return new NextResponse("Forbidden", { status: 403 });
         }
 

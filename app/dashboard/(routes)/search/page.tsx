@@ -10,6 +10,7 @@ import { BookOpen, Clock, Users, Search } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
 import { Course, Purchase } from "@prisma/client";
+import { getCourseLink, hasActivePurchase, isFreeCourse } from "@/lib/course-access";
 
 type CourseWithDetails = Course & {
     chapters: { id: string }[];
@@ -135,6 +136,7 @@ export default async function SearchPage({
             purchases: {
                 where: {
                     userId: session.user.id,
+                    status: "ACTIVE",
                 }
             },
             _count: {
@@ -238,7 +240,11 @@ export default async function SearchPage({
 
                 {/* Course Grid */}
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-                    {coursesWithProgress.map((course) => (
+                    {coursesWithProgress.map((course) => {
+                        const enrolled = hasActivePurchase(course.purchases);
+                        const { href, label } = getCourseLink(course);
+
+                        return (
                         <div
                             key={course.id}
                             className="group bg-card rounded-2xl overflow-hidden border shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-[1.02]"
@@ -255,22 +261,22 @@ export default async function SearchPage({
                                 {/* Course Status Badge */}
                                 <div className="absolute top-4 right-4">
                                     <div className={`rounded-full px-3 py-1 text-sm font-medium ${
-                                        course.purchases.length > 0 
+                                        enrolled
                                             ? "bg-green-500 text-white" 
                                             : "bg-white/90 backdrop-blur-sm text-gray-800"
                                     }`}>
-                                        {course.purchases.length > 0 ? "مشترك" : "متاح"}
+                                        {enrolled ? "مشترك" : "متاح"}
                                     </div>
                                 </div>
 
                                 {/* Price Badge */}
                                 <div className="absolute top-4 left-4">
                                     <div className={`rounded-full px-3 py-1 text-sm font-medium ${
-                                        course.price === 0 
+                                        isFreeCourse(course.price)
                                             ? "bg-green-500 text-white" 
                                             : "bg-white/90 backdrop-blur-sm text-gray-800"
                                     }`}>
-                                        {course.price === 0 ? "مجاني" : `${course.price} جنيه`}
+                                        {isFreeCourse(course.price) ? "مجاني" : `${course.price} جنيه`}
                                     </div>
                                 </div>
                             </div>
@@ -308,13 +314,14 @@ export default async function SearchPage({
                                     variant="default"
                                     asChild
                                 >
-                                    <Link href={course.chapters.length > 0 ? `/courses/${course.id}/chapters/${course.chapters[0].id}` : `/courses/${course.id}`}>
-                                        {course.purchases.length > 0 ? "متابعة التعلم" : "عرض الكورس"}
+                                    <Link href={href}>
+                                        {label}
                                     </Link>
                                 </Button>
                             </div>
                         </div>
-                    ))}
+                        );
+                    })}
                 </div>
 
                 {/* Empty State */}
