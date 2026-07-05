@@ -24,11 +24,29 @@ type Course = {
 };
 
 type CourseWithProgress = Course & {
+  courseType?: "FLAT" | "HIERARCHICAL";
   chapters: { id: string }[];
   quizzes: { id: string }[];
+  courseTeachers?: {
+    id: string;
+    units: { id: string; contentItems: { id: string }[] }[];
+  }[];
   enrollmentCount: number;
   progress: number;
 };
+
+function getHomeCourseHref(course: CourseWithProgress, isLoggedIn: boolean): string {
+  const path =
+    course.courseType === "HIERARCHICAL"
+      ? `/courses/${course.id}/teachers`
+      : course.chapters?.length > 0
+        ? `/courses/${course.id}/chapters/${course.chapters[0].id}`
+        : `/courses/${course.id}`;
+
+  return isLoggedIn
+    ? path
+    : `/sign-in?callbackUrl=${encodeURIComponent(path)}`;
+}
 
 export default function HomePage() {
   const { data: session, status } = useSession();
@@ -739,10 +757,7 @@ export default function HomePage() {
                         variant="default"
                         asChild
                       >
-                        <Link href={isLoggedIn 
-                          ? (course.chapters && course.chapters.length > 0 ? `/courses/${course.id}/chapters/${course.chapters[0].id}` : `/courses/${course.id}`)
-                          : `/sign-in?callbackUrl=${encodeURIComponent(course.chapters && course.chapters.length > 0 ? `/courses/${course.id}/chapters/${course.chapters[0].id}` : `/courses/${course.id}`)}`
-                        }>
+                        <Link href={getHomeCourseHref(course, isLoggedIn)}>
                           {course.progress === 100 ? "عرض الكورس" : "عرض الكورس"}
                         </Link>
                       </Button>

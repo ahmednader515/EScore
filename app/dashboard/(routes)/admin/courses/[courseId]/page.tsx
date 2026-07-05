@@ -11,6 +11,8 @@ import { CourseGradeDivisionForm } from "@/app/dashboard/(routes)/teacher/course
 import { CourseContentForm } from "./_components/course-content-form";
 import { Banner } from "@/components/banner";
 import { Actions } from "@/app/dashboard/(routes)/teacher/courses/[courseId]/_components/actions";
+import { CourseTypeForm } from "@/app/dashboard/_components/course-type-form";
+import { HierarchicalCourseBuilder } from "@/app/dashboard/_components/hierarchical-course-builder";
 
 const isStaff = (role?: string | null) => role === "ADMIN" || role === "TEACHER";
 
@@ -47,6 +49,19 @@ export default async function CourseIdPage({
                     position: "asc",
                 },
             },
+            courseTeachers: {
+                orderBy: { position: "asc" },
+                include: {
+                    units: {
+                        orderBy: { position: "asc" },
+                        include: {
+                            contentItems: {
+                                orderBy: { position: "asc" },
+                            },
+                        },
+                    },
+                },
+            },
         }
     });
 
@@ -70,13 +85,28 @@ export default async function CourseIdPage({
         isIntermediateGrade ||
         (course.grade && divisions.length > 0);
 
+    const isHierarchical = course.courseType === "HIERARCHICAL";
+
+    const hasPublishedHierarchicalContent = course.courseTeachers.some((teacher) =>
+        teacher.units.some((unit) =>
+            unit.isPublished &&
+            unit.contentItems.some((item) => item.isPublished)
+        )
+    );
+
+    const hasContent = isHierarchical
+        ? course.courseTeachers.length > 0
+        : course.chapters.length > 0 || course.quizzes.length > 0;
+
     const requiredFields = [
         !!course.title,
         !!course.description,
         !!course.imageUrl,
         course.price !== null && course.price !== undefined,
-        course.chapters.some(chapter => chapter.isPublished),
-        hasGradeDivision
+        isHierarchical
+            ? hasPublishedHierarchicalContent
+            : course.chapters.some((chapter) => chapter.isPublished),
+        hasGradeDivision,
     ];
 
     const totalFields = requiredFields.length;
@@ -92,7 +122,9 @@ export default async function CourseIdPage({
         description: !!course.description,
         imageUrl: !!course.imageUrl,
         price: course.price !== null && course.price !== undefined,
-        publishedChapters: course.chapters.some(chapter => chapter.isPublished),
+        publishedChapters: isHierarchical
+            ? hasPublishedHierarchicalContent
+            : course.chapters.some((chapter) => chapter.isPublished),
         gradeDivision: hasGradeDivision
     };
 
@@ -134,7 +166,7 @@ export default async function CourseIdPage({
                                     </div>
                                     <div className={`flex items-center gap-1 ${completionStatus.publishedChapters ? 'text-green-600' : 'text-red-600'}`}>
                                         <span>{completionStatus.publishedChapters ? '✓' : '✗'}</span>
-                                        <span>فصل منشور</span>
+                                        <span>{isHierarchical ? "محتوى منشور" : "فصل منشور"}</span>
                                     </div>
                                     <div className={`flex items-center gap-1 ${completionStatus.gradeDivision ? 'text-green-600' : 'text-red-600'}`}>
                                         <span>{completionStatus.gradeDivision ? '✓' : '✗'}</span>
@@ -174,19 +206,31 @@ export default async function CourseIdPage({
                             initialData={course}
                             courseId={course.id}
                         />
+                        <CourseTypeForm
+                            initialData={course}
+                            courseId={course.id}
+                            hasContent={hasContent}
+                        />
                     </div>
                     <div className="space-y-6">
                         <div>
                             <div className="flex items-center gap-x-2">
                                 <IconBadge icon={LayoutDashboard} />
                                 <h2 className="text-xl">
-                                    الموارد والفصول
+                                    {isHierarchical ? "المدرسون والوحدات" : "الموارد والفصول"}
                                 </h2>
                             </div>
-                            <CourseContentForm
-                                initialData={course}
-                                courseId={course.id}
-                            />
+                            {isHierarchical ? (
+                                <HierarchicalCourseBuilder
+                                    courseId={course.id}
+                                    initialTeachers={course.courseTeachers}
+                                />
+                            ) : (
+                                <CourseContentForm
+                                    initialData={course}
+                                    courseId={course.id}
+                                />
+                            )}
                         </div>
                         <div>
                             <div className="flex items-center gap-x-2">

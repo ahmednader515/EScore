@@ -21,6 +21,9 @@ const CoursesPage = async () => {
     }
 
     const courses = await db.course.findMany({
+        where: {
+            userId,
+        },
         include: {
             chapters: {
                 select: {
@@ -33,6 +36,20 @@ const CoursesPage = async () => {
                     id: true,
                     isPublished: true,
                 }
+            },
+            courseTeachers: {
+                select: {
+                    id: true,
+                    units: {
+                        select: {
+                            id: true,
+                            isPublished: true,
+                            contentItems: {
+                                select: { id: true, isPublished: true },
+                            },
+                        },
+                    },
+                },
             },
         },
         orderBy: {
@@ -71,8 +88,9 @@ const CoursesPage = async () => {
                             <li>إضافة عنوان للكورس</li>
                             <li>إضافة وصف للكورس</li>
                             <li>إضافة صورة للكورس</li>
-                            <li>إضافة فصل واحد على الأقل ونشره</li>
-                            <li>النقر على زر "نشر" في صفحة إعدادات الكورس</li>
+                            <li>للكورس المسطح: إضافة فصل واحد على الأقل ونشره</li>
+                            <li>للكورس الهرمي: إضافة مدرس → وحدة → محتوى منشور</li>
+                            <li>النقر على زر &quot;نشر&quot; في صفحة إعدادات الكورس</li>
                         </ul>
                     </AlertDescription>
                 </Alert>

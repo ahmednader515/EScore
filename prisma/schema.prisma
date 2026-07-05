@@ -10,6 +10,11 @@ datasource db {
   directUrl = env("DIRECT_DATABASE_URL")
 }
 
+enum CourseType {
+  FLAT
+  HIERARCHICAL
+}
+
 model User {
   id                      String    @id @default(uuid())
   fullName                String
@@ -36,6 +41,8 @@ model User {
   chatMessages            ChatMessage[]
   globalNotificationsCreated GlobalNotification[]
   fawaterakDeposits         FawaterakDeposit[]
+  courseTeachers            CourseTeacher[]
+  contentProgress           ContentProgress[]
 }
 
 model FawaterakDeposit {
@@ -66,6 +73,7 @@ model Course {
   isPublished Boolean @default(false)
   grade String? // الصف الدراسي: الأول الثانوي، الثاني الثانوي، الثالث الثانوي، الكل (لجميع الصفوف)
   divisions String[] @default([]) // القسم: يمكن اختيار أكثر من قسم (عام، أدبي، علمي، علمي رياضة، بكالوريا)
+  courseType CourseType @default(FLAT)
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
@@ -76,6 +84,8 @@ model Course {
   promoCodes PromoCode[]
   liveSessions LiveSessionCourse[]
   chatThreads ChatThread[]
+  courseTeachers CourseTeacher[]
+  units Unit[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -179,6 +189,103 @@ model BalanceTransaction {
     @@index([userId])
 }
 
+model CourseTeacher {
+  id       String @id @default(uuid())
+  courseId String
+  userId   String?
+  name     String
+  imageUrl String? @db.Text
+  position Int
+
+  course Course @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  user   User?  @relation(fields: [userId], references: [id], onDelete: SetNull)
+  units  Unit[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([courseId])
+  @@index([userId])
+}
+
+model Unit {
+  id          String  @id @default(uuid())
+  courseId    String
+  teacherId   String?
+  title       String  @db.Text
+  position    Int
+  isPublished Boolean @default(false)
+
+  course       Course         @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  teacher      CourseTeacher? @relation(fields: [teacherId], references: [id], onDelete: Cascade)
+  contentItems ContentItem[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([courseId])
+  @@index([teacherId])
+}
+
+model ContentItem {
+  id          String  @id @default(uuid())
+  unitId      String
+  type        String  // VIDEO | PDF | ASSIGNMENT
+  title       String  @db.Text
+  description String? @db.Text
+  position    Int
+  isPublished Boolean @default(false)
+  isFree      Boolean @default(false)
+  videoUrl       String? @db.Text
+  videoType      String? // UPLOAD | YOUTUBE
+  youtubeVideoId String?
+  fileUrl        String? @db.Text
+  fileName       String?
+  quizId         String?
+
+  unit            Unit                    @relation(fields: [unitId], references: [id], onDelete: Cascade)
+  quiz            Quiz?                   @relation(fields: [quizId], references: [id], onDelete: SetNull)
+  contentProgress ContentProgress[]
+  attachments     ContentItemAttachment[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([unitId])
+  @@index([quizId])
+}
+
+model ContentItemAttachment {
+  id            String @id @default(uuid())
+  name          String
+  url           String @db.Text
+  position      Int    @default(0)
+  contentItemId String
+
+  contentItem ContentItem @relation(fields: [contentItemId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([contentItemId])
+}
+
+model ContentProgress {
+  id            String  @id @default(uuid())
+  userId        String
+  contentItemId String
+  isCompleted   Boolean @default(false)
+
+  user        User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  contentItem ContentItem @relation(fields: [contentItemId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([userId, contentItemId])
+  @@index([contentItemId])
+}
+
 model Quiz {
     id String @id @default(uuid())
     title String
@@ -189,14 +296,17 @@ model Quiz {
     timer Int? // Timer in minutes, null means no time limit
     maxAttempts Int @default(1) // Maximum number of attempts allowed
     courseId String
+    unitId String?
     course Course @relation(fields: [courseId], references: [id], onDelete: Cascade)
     questions Question[]
     quizResults QuizResult[]
   attempts QuizAttempt[]
+    contentItems ContentItem[]
     createdAt DateTime @default(now())
     updatedAt DateTime @updatedAt
 
     @@index([courseId])
+    @@index([unitId])
 }
 
 model Question {

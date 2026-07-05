@@ -1,6 +1,6 @@
-import { db } from "@/lib/db";
 import { auth } from "@/lib/auth";
 import { redirect } from "next/navigation";
+import { AdminCreateCourseForm } from "./admin-create-course-form";
 
 const AdminCreateCoursePage = async () => {
   const { userId } = await auth();
@@ -9,15 +9,7 @@ const AdminCreateCoursePage = async () => {
     return redirect("/");
   }
 
-  const course = await db.course.create({
-    data: {
-      userId,
-      title: "كورس غير معرفة",
-    },
-  });
-
-  // Reuse the teacher editor UI for course setup
-  return redirect(`/dashboard/teacher/courses/${course.id}`);
+  return <AdminCreateCourseForm />;
 };
 
 export default AdminCreateCoursePage;

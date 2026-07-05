@@ -1,8 +1,7 @@
 import { db } from "@/lib/db";
 import { auth } from "@/lib/auth";
 import { NextResponse } from "next/server";
-
-const isStaff = (role?: string | null) => role === "ADMIN" || role === "TEACHER";
+import { assertCourseStaffAccess } from "@/lib/course-staff";
 
 export async function PATCH(
     req: Request,
@@ -10,42 +9,59 @@ export async function PATCH(
 ) {
     try {
         const { userId, user } = await auth();
-        const resolvedParams = await params;
+        const { courseId } = await params;
 
         if (!userId) {
             return new NextResponse("Unauthorized", { status: 401 });
         }
 
-        if (!isStaff(user?.role)) {
-            return new NextResponse("Forbidden", { status: 403 });
+        const access = await assertCourseStaffAccess(courseId, userId, user?.role);
+        if ("error" in access) {
+            return new NextResponse(access.error, { status: access.status });
         }
 
         const course = await db.course.findUnique({
-            where: {
-                id: resolvedParams.courseId,
-            },
+            where: { id: courseId },
             include: {
-                chapters: true
-            }
+                chapters: { select: { isPublished: true } },
+                units: {
+                    include: {
+                        contentItems: { select: { isPublished: true } },
+                    },
+                },
+            },
         });
 
         if (!course) {
             return new NextResponse("Not found", { status: 404 });
         }
 
-        const hasPublishedChapters = course.chapters.some((chapter) => chapter.isPublished);
+        if (!course.isPublished) {
+            const hasPublishedChapters = course.chapters.some(
+                (chapter) => chapter.isPublished
+            );
+            const hasPublishedContent = course.units.some((unit) =>
+                unit.contentItems.some((item) => item.isPublished)
+            );
 
-        if (!course.title || !course.description || !course.imageUrl || !hasPublishedChapters) {
-            return new NextResponse("Missing required fields", { status: 401 });
+            const hasPublishedMaterial =
+                course.courseType === "HIERARCHICAL"
+                    ? hasPublishedContent
+                    : hasPublishedChapters;
+
+            if (
+                !course.title ||
+                !course.description ||
+                !course.imageUrl ||
+                !hasPublishedMaterial
+            ) {
+                return new NextResponse("Missing required fields", { status: 400 });
+            }
         }
 
         const publishedCourse = await db.course.update({
-            where: {
-                id: resolvedParams.courseId,
-            },
-            data: {
-                isPublished: !course.isPublished
-            }
+            where: { id: courseId },
+            data: { isPublished: !course.isPublished },
         });
 
         return NextResponse.json(publishedCourse);

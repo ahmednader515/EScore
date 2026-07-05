@@ -16,6 +16,7 @@ export type Course = {
     createdAt: Date;
     grade?: string | null;
     divisions?: string[];
+    courseType?: "FLAT" | "HIERARCHICAL";
 }
 
 export const columns: ColumnDef<Course>[] = [
@@ -69,6 +70,19 @@ export const columns: ColumnDef<Course>[] = [
             return (
                 <Badge variant={isPublished ? "default" : "secondary"}>
                     {isPublished ? "منشور" : "مسودة"}
+                </Badge>
+            );
+        },
+    },
+    {
+        accessorKey: "courseType",
+        header: "النوع",
+        cell: ({ row }) => {
+            const courseType = row.getValue("courseType") as string | undefined;
+            const isHierarchical = courseType === "HIERARCHICAL";
+            return (
+                <Badge variant="outline">
+                    {isHierarchical ? "هرمي" : "مسطح"}
                 </Badge>
             );
         },

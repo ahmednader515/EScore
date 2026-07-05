@@ -9,7 +9,8 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { BookOpen, Play, Clock, Trophy, Wallet, TrendingUp, BookOpen as BookOpenIcon } from "lucide-react";
 import Link from "next/link";
 import Image from "next/image";
-import { Course, Purchase } from "@prisma/client";
+import { getCourseLink } from "@/lib/course-access";
+import { getHierarchicalProgress } from "@/lib/course-hierarchy";
 import { StudentReelsFab } from "@/components/student-reels-fab";
 
 type CourseWithProgress = Course & {
@@ -17,6 +18,10 @@ type CourseWithProgress = Course & {
   quizzes: { id: string }[];
   purchases: Purchase[];
   progress: number;
+  courseTeachers?: {
+    id: string;
+    units: { id: string; contentItems: { id: string }[] }[];
+  }[];
 }
 
 type StudentStats = {
@@ -203,7 +208,21 @@ const CoursesPage = async () => {
         where: {
           userId: session.user.id,
         }
-      }
+      },
+      courseTeachers: {
+        orderBy: { position: "asc" },
+        include: {
+          units: {
+            where: { isPublished: true },
+            include: {
+              contentItems: {
+                where: { isPublished: true },
+                select: { id: true },
+              },
+            },
+          },
+        },
+      },
     },
     orderBy: {
       createdAt: "desc",
@@ -212,6 +231,14 @@ const CoursesPage = async () => {
 
   const coursesWithProgress = await Promise.all(
     courses.map(async (course) => {
+      if (course.courseType === "HIERARCHICAL") {
+        const { progress } = await getHierarchicalProgress(
+          session.user.id,
+          course.id
+        );
+        return { ...course, progress } as CourseWithProgress;
+      }
+
       const totalChapters = course.chapters.length;
       const totalQuizzes = course.quizzes.length;
       const totalContent = totalChapters + totalQuizzes;
@@ -495,7 +522,7 @@ const CoursesPage = async () => {
                     variant="default"
                     asChild
                   >
-                    <Link href={course.chapters.length > 0 ? `/courses/${course.id}/chapters/${course.chapters[0].id}` : `/courses/${course.id}`}>
+                    <Link href={getCourseLink(course).href}>
                       متابعة التعلم
                     </Link>
                   </Button>

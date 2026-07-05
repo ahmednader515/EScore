@@ -78,6 +78,20 @@ export async function GET() {
             id: true,
           },
         },
+        courseTeachers: {
+          orderBy: { position: "asc" },
+          include: {
+            units: {
+              where: { isPublished: true },
+              include: {
+                contentItems: {
+                  where: { isPublished: true },
+                  select: { id: true },
+                },
+              },
+            },
+          },
+        },
         purchases: {
           where: {
             status: "ACTIVE",

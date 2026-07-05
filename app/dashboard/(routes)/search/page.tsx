@@ -11,10 +11,15 @@ import Image from "next/image";
 import Link from "next/link";
 import { Course, Purchase } from "@prisma/client";
 import { getCourseLink, hasActivePurchase, isFreeCourse } from "@/lib/course-access";
+import { getHierarchicalProgress } from "@/lib/course-hierarchy";
 
 type CourseWithDetails = Course & {
     chapters: { id: string }[];
     purchases: Purchase[];
+    courseTeachers?: {
+        id: string;
+        units: { id: string; contentItems: { id: string }[] }[];
+    }[];
     _count: {
         purchases: number;
     };
@@ -139,6 +144,20 @@ export default async function SearchPage({
                     status: "ACTIVE",
                 }
             },
+            courseTeachers: {
+                orderBy: { position: "asc" },
+                include: {
+                    units: {
+                        where: { isPublished: true },
+                        include: {
+                            contentItems: {
+                                where: { isPublished: true },
+                                select: { id: true },
+                            },
+                        },
+                    },
+                },
+            },
             _count: {
                 select: {
                     purchases: true,
@@ -163,6 +182,14 @@ export default async function SearchPage({
 
     const coursesWithProgress = await Promise.all(
         courses.map(async (course) => {
+            if (course.courseType === "HIERARCHICAL") {
+                const { progress } = await getHierarchicalProgress(
+                    session.user.id,
+                    course.id
+                );
+                return { ...course, progress } as CourseWithDetails;
+            }
+
             const totalChapters = course.chapters.length;
             const completedChapters = await db.userProgress.count({
                 where: {

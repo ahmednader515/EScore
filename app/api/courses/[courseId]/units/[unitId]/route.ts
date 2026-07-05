@@ -1,0 +1,170 @@
+import { NextResponse } from "next/server";
+import { auth } from "@/lib/auth";
+import { db } from "@/lib/db";
+import { assertCourseStaffAccess, isStaff } from "@/lib/course-staff";
+import { canAccessCourseContent } from "@/lib/course-access";
+
+export async function GET(
+  req: Request,
+  { params }: { params: Promise<{ courseId: string; unitId: string }> }
+) {
+  try {
+    const { userId, user } = await auth();
+    const { courseId, unitId } = await params;
+
+    if (!userId) {
+      return new NextResponse("Unauthorized", { status: 401 });
+    }
+
+    const staff = isStaff(user?.role);
+
+    const unit = await db.unit.findUnique({
+      where: { id: unitId, courseId },
+      include: {
+        course: {
+          select: {
+            id: true,
+            title: true,
+            price: true,
+            courseType: true,
+            purchases: {
+              where: { userId },
+              select: { status: true },
+            },
+          },
+        },
+        teacher: {
+          select: { id: true, name: true, imageUrl: true },
+        },
+        contentItems: {
+          where: staff ? undefined : { isPublished: true },
+          orderBy: { position: "asc" },
+          include: {
+            quiz: {
+              select: {
+                id: true,
+                title: true,
+                isPublished: true,
+                isFree: true,
+              },
+            },
+            attachments: {
+              orderBy: { position: "asc" },
+              select: {
+                id: true,
+                name: true,
+                url: true,
+                position: true,
+              },
+            },
+            contentProgress: {
+              where: { userId },
+              select: { isCompleted: true },
+            },
+          },
+        },
+      },
+    });
+
+    if (!unit) {
+      return new NextResponse("Not found", { status: 404 });
+    }
+
+    const hasAccess =
+      staff || canAccessCourseContent(unit.course.price, unit.course.purchases);
+
+    const sanitizedItems = unit.contentItems.map((item) => {
+      const itemAccess =
+        staff ||
+        hasAccess ||
+        item.isFree ||
+        (item.type === "ASSIGNMENT" && item.quiz?.isFree);
+
+      if (itemAccess) return item;
+
+      return {
+        ...item,
+        description: null,
+        videoUrl: null,
+        youtubeVideoId: null,
+        videoType: null,
+        fileUrl: null,
+        fileName: null,
+        attachments: [],
+        quiz: item.quiz ? { ...item.quiz, id: item.quiz.id } : null,
+        locked: true,
+      };
+    });
+
+    return NextResponse.json({
+      ...unit,
+      contentItems: sanitizedItems,
+      hasAccess: staff || hasAccess,
+    });
+  } catch (error) {
+    console.log("[UNIT_GET]", error);
+    return new NextResponse("Internal Error", { status: 500 });
+  }
+}
+
+export async function PATCH(
+  req: Request,
+  { params }: { params: Promise<{ courseId: string; unitId: string }> }
+) {
+  try {
+    const { userId, user } = await auth();
+    const { courseId, unitId } = await params;
+    const body = await req.json();
+
+    if (!userId) {
+      return new NextResponse("Unauthorized", { status: 401 });
+    }
+
+    const access = await assertCourseStaffAccess(courseId, userId, user?.role);
+    if ("error" in access) {
+      return new NextResponse(access.error, { status: access.status });
+    }
+
+    const data: Record<string, unknown> = {};
+    if (body.title !== undefined) data.title = body.title;
+    if (body.isPublished !== undefined) data.isPublished = body.isPublished;
+
+    const unit = await db.unit.update({
+      where: { id: unitId, courseId },
+      data,
+    });
+
+    return NextResponse.json(unit);
+  } catch (error) {
+    console.log("[UNIT_PATCH]", error);
+    return new NextResponse("Internal Error", { status: 500 });
+  }
+}
+
+export async function DELETE(
+  _req: Request,
+  { params }: { params: Promise<{ courseId: string; unitId: string }> }
+) {
+  try {
+    const { userId, user } = await auth();
+    const { courseId, unitId } = await params;
+
+    if (!userId) {
+      return new NextResponse("Unauthorized", { status: 401 });
+    }
+
+    const access = await assertCourseStaffAccess(courseId, userId, user?.role);
+    if ("error" in access) {
+      return new NextResponse(access.error, { status: access.status });
+    }
+
+    await db.unit.delete({
+      where: { id: unitId, courseId },
+    });
+
+    return new NextResponse(null, { status: 204 });
+  } catch (error) {
+    console.log("[UNIT_DELETE]", error);
+    return new NextResponse("Internal Error", { status: 500 });
+  }
+}

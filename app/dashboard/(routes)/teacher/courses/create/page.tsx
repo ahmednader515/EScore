@@ -1,22 +1,20 @@
-import { db } from "@/lib/db";
 import { auth } from "@/lib/auth";
 import { redirect } from "next/navigation";
+import { CreateCourseForm } from "@/app/dashboard/_components/create-course-form";
 
 const CreatePage = async () => {
-    const { userId } = await auth();
+  const { userId, user } = await auth();
 
-    if (!userId) {
-        return redirect("/");
-    }
+  if (!userId) {
+    return redirect("/");
+  }
 
-    const course = await db.course.create({
-        data: {
-            userId,
-            title: "كورس غير معرفة",
-        }
-    });
+  const isStaff = user?.role === "ADMIN" || user?.role === "TEACHER";
+  if (!isStaff) {
+    return redirect("/dashboard");
+  }
 
-    return redirect(`/dashboard/teacher/courses/${course.id}`);
+  return <CreateCourseForm editorBasePath="/dashboard/teacher" />;
 };
 
 export default CreatePage;

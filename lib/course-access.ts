@@ -1,4 +1,9 @@
-import { Purchase } from "@prisma/client";
+import { CourseType, Purchase } from "@prisma/client";
+import {
+  getHierarchicalEntryHref,
+  hasPublishedHierarchicalContent,
+  isHierarchicalCourse,
+} from "@/lib/course-hierarchy";
 
 export function isFreeCourse(price: number | null | undefined): boolean {
   return price === null || price === 0;
@@ -21,13 +26,40 @@ export function getCourseLink(
   course: {
     id: string;
     price: number | null;
+    courseType?: CourseType;
     chapters: { id: string }[];
     purchases: Pick<Purchase, "status">[];
+    courseTeachers?: {
+      id: string;
+      units: { id: string; contentItems: { id: string }[] }[];
+    }[];
   },
   options?: { previewChapterId?: string }
 ): { href: string; label: string } {
   const enrolled = hasActivePurchase(course.purchases);
   const free = isFreeCourse(course.price);
+  const hierarchical = isHierarchicalCourse(course.courseType ?? "FLAT");
+
+  if (hierarchical) {
+    if (enrolled || free) {
+      return {
+        href: getHierarchicalEntryHref(course.id),
+        label: enrolled ? "متابعة التعلم" : "عرض الكورس",
+      };
+    }
+
+    if (hasPublishedHierarchicalContent(course.courseTeachers)) {
+      return {
+        href: getHierarchicalEntryHref(course.id),
+        label: "معاينة الكورس",
+      };
+    }
+
+    return {
+      href: `/courses/${course.id}/purchase`,
+      label: "شراء الكورس",
+    };
+  }
 
   if (enrolled) {
     const href =
@@ -66,4 +98,14 @@ export function canAccessChapter(
 ): boolean {
   if (isStaff) return true;
   return canAccessCourseContent(price, purchases) || chapterIsFree;
+}
+
+export function canAccessContentItem(
+  price: number | null | undefined,
+  purchases: Pick<Purchase, "status">[],
+  contentIsFree: boolean,
+  isStaff: boolean
+): boolean {
+  if (isStaff) return true;
+  return canAccessCourseContent(price, purchases) || contentIsFree;
 }

@@ -9,7 +9,7 @@ import { UserButton } from "@/components/user-button";
 import { useSession, signOut } from "next-auth/react";
 import { useState } from "react";
 
-export const CourseNavbar = () => {
+export const CourseNavbar = ({ hideSidebar = false }: { hideSidebar?: boolean }) => {
   const router = useRouter();
   const { data: session } = useSession();
   const [isLoggingOut, setIsLoggingOut] = useState(false);
@@ -32,7 +32,7 @@ export const CourseNavbar = () => {
   return (
     <div className="p-4 h-full flex items-center bg-card text-foreground border-b shadow-sm">
       <div className="flex items-center">
-        <CourseMobileSidebar />
+        {!hideSidebar && <CourseMobileSidebar />}
         <Button
           onClick={handleBackToDashboard}
           variant="ghost"

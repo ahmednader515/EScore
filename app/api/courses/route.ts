@@ -1,11 +1,12 @@
 import { db } from "@/lib/db";
 import { auth } from "@/lib/auth";
 import { NextResponse } from "next/server";
+import { getHierarchicalProgress } from "@/lib/course-hierarchy";
 
 export async function POST(req: Request) {
     try {
         const { userId } = await auth()
-        const { title } = await req.json();
+        const { title, courseType } = await req.json();
 
         if(!userId) {
             return new NextResponse("Unauthorized", { status: 401 });
@@ -14,7 +15,8 @@ export async function POST(req: Request) {
         const course = await db.course.create({
             data: {
                 userId,
-                title,
+                title: title || "كورس غير معرفة",
+                courseType: courseType === "HIERARCHICAL" ? "HIERARCHICAL" : "FLAT",
             }
         });
 
@@ -110,6 +112,20 @@ export async function GET(req: Request) {
             id: true,
           }
         },
+        courseTeachers: {
+          orderBy: { position: "asc" },
+          include: {
+            units: {
+              where: { isPublished: true },
+              include: {
+                contentItems: {
+                  where: { isPublished: true },
+                  select: { id: true },
+                },
+              },
+            },
+          },
+        },
         purchases: includeProgress && userId ? {
           where: {
             userId: userId,
@@ -125,6 +141,11 @@ export async function GET(req: Request) {
     if (includeProgress && userId) {
       const coursesWithProgress = await Promise.all(
         courses.map(async (course) => {
+          if (course.courseType === "HIERARCHICAL") {
+            const { progress } = await getHierarchicalProgress(userId!, course.id);
+            return { ...course, progress };
+          }
+
           const totalChapters = course.chapters.length;
           const totalQuizzes = course.quizzes.length;
           const totalContent = totalChapters + totalQuizzes;
