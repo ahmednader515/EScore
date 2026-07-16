@@ -179,8 +179,8 @@ export const HierarchicalCourseBuilder = ({
         </div>
       )}
 
-      <div className="font-medium flex items-center justify-between mb-4">
-        المدرسون والوحدات
+      <div className="font-medium flex flex-wrap items-center justify-between gap-2 mb-4">
+        <span>المدرسون والوحدات</span>
         <Button
           variant="ghost"
           size="sm"
@@ -233,7 +233,7 @@ export const HierarchicalCourseBuilder = ({
                       className="border rounded-md bg-muted/30"
                     >
                       <div className="flex items-center gap-2 p-3">
-                        <div {...provided.dragHandleProps} className="cursor-grab px-1">
+                        <div {...provided.dragHandleProps} className="cursor-grab px-1 shrink-0">
                           <Grip className="h-4 w-4" />
                         </div>
                         {teacher.imageUrl && (
@@ -242,74 +242,101 @@ export const HierarchicalCourseBuilder = ({
                             alt={teacher.name}
                             width={36}
                             height={36}
-                            className="rounded-full object-cover"
+                            className="rounded-full object-cover shrink-0"
                           />
                         )}
-                        <span className="font-medium flex-1">{teacher.name}</span>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() =>
-                            setExpandedTeacher(
-                              expandedTeacher === teacher.id ? null : teacher.id
-                            )
-                          }
-                        >
-                          {expandedTeacher === teacher.id ? (
-                            <ChevronUp className="h-4 w-4" />
-                          ) : (
-                            <ChevronDown className="h-4 w-4" />
-                          )}
-                        </Button>
-                        <Trash2
-                          className="h-4 w-4 cursor-pointer text-destructive"
-                          onClick={() => onDeleteTeacher(teacher.id)}
-                        />
+                        <span className="font-medium flex-1 min-w-0 truncate">
+                          {teacher.name}
+                        </span>
+                        <div className="flex items-center gap-1 shrink-0">
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-8 w-8"
+                            onClick={() =>
+                              setExpandedTeacher(
+                                expandedTeacher === teacher.id ? null : teacher.id
+                              )
+                            }
+                          >
+                            {expandedTeacher === teacher.id ? (
+                              <ChevronUp className="h-4 w-4" />
+                            ) : (
+                              <ChevronDown className="h-4 w-4" />
+                            )}
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-8 w-8 text-destructive hover:text-destructive"
+                            onClick={() => onDeleteTeacher(teacher.id)}
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </div>
                       </div>
 
                       {expandedTeacher === teacher.id && (
-                        <div className="border-t p-3 space-y-2">
+                        <div className="border-t p-3 space-y-3">
                           {teacher.units.map((unit) => (
                             <div
                               key={unit.id}
                               className={cn(
-                                "flex items-center gap-2 p-2 rounded-md bg-background text-sm",
+                                "flex flex-col gap-2 p-3 rounded-md bg-background text-sm sm:flex-row sm:items-center sm:gap-2",
                                 unit.isPublished && "border border-primary/30"
                               )}
                             >
-                              <span className="flex-1">{unit.title}</span>
-                              <Badge variant="outline">
-                                {unit.contentItems.length} عنصر
-                              </Badge>
-                              <Badge
-                                className={cn(
-                                  unit.isPublished && "bg-primary text-primary-foreground"
-                                )}
-                              >
-                                {unit.isPublished ? "منشور" : "مسودة"}
-                              </Badge>
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                onClick={() =>
-                                  onToggleUnitPublish(unit.id, !unit.isPublished)
-                                }
-                              >
-                                {unit.isPublished ? "إلغاء النشر" : "نشر"}
-                              </Button>
-                              <Pencil
-                                className="h-4 w-4 cursor-pointer"
-                                onClick={() => onEditUnit(unit.id)}
-                              />
-                              <Trash2
-                                className="h-4 w-4 cursor-pointer text-destructive"
-                                onClick={() => onDeleteUnit(teacher.id, unit.id)}
-                              />
+                              <span className="font-medium min-w-0 break-words sm:flex-1">
+                                {unit.title}
+                              </span>
+                              <div className="flex flex-wrap items-center gap-2">
+                                <Badge variant="outline" className="shrink-0">
+                                  {unit.contentItems.length} عنصر
+                                </Badge>
+                                <Badge
+                                  className={cn(
+                                    "shrink-0",
+                                    unit.isPublished &&
+                                      "bg-primary text-primary-foreground"
+                                  )}
+                                >
+                                  {unit.isPublished ? "منشور" : "مسودة"}
+                                </Badge>
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  className="h-8 px-2"
+                                  onClick={() =>
+                                    onToggleUnitPublish(unit.id, !unit.isPublished)
+                                  }
+                                >
+                                  {unit.isPublished ? "إلغاء النشر" : "نشر"}
+                                </Button>
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  className="h-8 w-8"
+                                  onClick={() => onEditUnit(unit.id)}
+                                  aria-label="تعديل الوحدة"
+                                >
+                                  <Pencil className="h-4 w-4" />
+                                </Button>
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  className="h-8 w-8 text-destructive hover:text-destructive"
+                                  onClick={() => onDeleteUnit(teacher.id, unit.id)}
+                                  aria-label="حذف الوحدة"
+                                >
+                                  <Trash2 className="h-4 w-4" />
+                                </Button>
+                              </div>
                             </div>
                           ))}
-                          <div className="flex gap-2">
+                          <div className="flex flex-col gap-2 sm:flex-row">
                             <Input
                               placeholder="عنوان الوحدة"
+                              className="sm:flex-1"
                               value={unitTitle[teacher.id] || ""}
                               onChange={(e) =>
                                 setUnitTitle((prev) => ({
@@ -320,6 +347,7 @@ export const HierarchicalCourseBuilder = ({
                             />
                             <Button
                               size="sm"
+                              className="w-full sm:w-auto shrink-0"
                               onClick={() => onCreateUnit(teacher.id)}
                             >
                               إضافة وحدة
