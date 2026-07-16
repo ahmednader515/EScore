@@ -590,7 +590,7 @@ export default function HomePage() {
               </div>
               <div className="flex items-center gap-6" dir="ltr">
                 <Link
-                  href="https://www.facebook.com/share/g/17eVUPDmLb/"
+                  href="https://www.facebook.com/share/1BTCocSHcZ/"
                   target="_blank"
                   rel="noopener noreferrer"
                   className="w-12 h-12 bg-[#361e01] hover:bg-[#361e01]/90 rounded-full flex items-center justify-center transition-all hover:scale-110 flex-shrink-0"
