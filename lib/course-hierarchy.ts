@@ -113,22 +113,33 @@ export async function getHierarchicalProgress(
   userId: string,
   courseId: string
 ): Promise<{ progress: number; total: number; completed: number }> {
-  const contentItems = await db.contentItem.findMany({
-    where: {
-      isPublished: true,
-      unit: {
+  const [contentItems, sharedQuizzes] = await Promise.all([
+    db.contentItem.findMany({
+      where: {
         isPublished: true,
-        courseId,
+        unit: {
+          isPublished: true,
+          courseId,
+        },
       },
-    },
-    select: {
-      id: true,
-      type: true,
-      quizId: true,
-    },
-  });
+      select: {
+        id: true,
+        type: true,
+        quizId: true,
+      },
+    }),
+    db.quiz.findMany({
+      where: {
+        courseId,
+        isPublished: true,
+        unitId: null,
+      },
+      select: { id: true },
+    }),
+  ]);
 
-  const total = contentItems.length;
+  const sharedQuizIds = sharedQuizzes.map((quiz) => quiz.id);
+  const total = contentItems.length + sharedQuizIds.length;
   if (total === 0) {
     return { progress: 0, total: 0, completed: 0 };
   }
@@ -137,10 +148,12 @@ export async function getHierarchicalProgress(
     .filter((item) => item.type !== "ASSIGNMENT")
     .map((item) => item.id);
 
-  const quizIds = contentItems
+  const unitQuizIds = contentItems
     .filter((item) => item.type === "ASSIGNMENT" && item.quizId)
     .map((item) => item.quizId!)
     .filter(Boolean);
+
+  const allQuizIds = Array.from(new Set([...unitQuizIds, ...sharedQuizIds]));
 
   const [completedContent, completedQuizResults] = await Promise.all([
     db.contentProgress.count({
@@ -150,11 +163,11 @@ export async function getHierarchicalProgress(
         isCompleted: true,
       },
     }),
-    quizIds.length
+    allQuizIds.length
       ? db.quizResult.findMany({
           where: {
             studentId: userId,
-            quizId: { in: quizIds },
+            quizId: { in: allQuizIds },
           },
           select: { quizId: true },
         })

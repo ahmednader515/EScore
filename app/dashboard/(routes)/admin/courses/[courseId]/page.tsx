@@ -13,6 +13,7 @@ import { Banner } from "@/components/banner";
 import { Actions } from "@/app/dashboard/(routes)/teacher/courses/[courseId]/_components/actions";
 import { CourseTypeForm } from "@/app/dashboard/_components/course-type-form";
 import { HierarchicalCourseBuilder } from "@/app/dashboard/_components/hierarchical-course-builder";
+import { SharedQuizzesForm } from "@/app/dashboard/_components/shared-quizzes-form";
 
 const isStaff = (role?: string | null) => role === "ADMIN" || role === "TEACHER";
 
@@ -45,6 +46,9 @@ export default async function CourseIdPage({
                 },
             },
             quizzes: {
+                where: {
+                    unitId: null,
+                },
                 orderBy: {
                     position: "asc",
                 },
@@ -232,6 +236,20 @@ export default async function CourseIdPage({
                                 />
                             )}
                         </div>
+                        {isHierarchical && (
+                            <div>
+                                <div className="flex items-center gap-x-2">
+                                    <IconBadge icon={LayoutDashboard} />
+                                    <h2 className="text-xl">
+                                        الاختبارات المشتركة
+                                    </h2>
+                                </div>
+                                <SharedQuizzesForm
+                                    courseId={course.id}
+                                    initialQuizzes={course.quizzes}
+                                />
+                            </div>
+                        )}
                         <div>
                             <div className="flex items-center gap-x-2">
                                 <IconBadge icon={LayoutDashboard} />

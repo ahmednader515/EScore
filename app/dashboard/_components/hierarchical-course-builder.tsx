@@ -8,9 +8,10 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
-import { Grip, PlusCircle, Trash2, ChevronDown, ChevronUp, Pencil } from "lucide-react";
+import { Grip, PlusCircle, Trash2, ChevronDown, ChevronUp, Pencil, ImageIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
 import Image from "next/image";
+import { FileUpload } from "@/components/file-upload";
 import {
   Select,
   SelectContent,
@@ -55,6 +56,8 @@ export const HierarchicalCourseBuilder = ({
   const [creatingTeacher, setCreatingTeacher] = useState(false);
   const [newTeacherName, setNewTeacherName] = useState("");
   const [newTeacherUserId, setNewTeacherUserId] = useState<string>("");
+  const [newTeacherImageUrl, setNewTeacherImageUrl] = useState<string | null>(null);
+  const [editingImageTeacherId, setEditingImageTeacherId] = useState<string | null>(null);
   const [staffUsers, setStaffUsers] = useState<StaffUser[]>([]);
   const [unitTitle, setUnitTitle] = useState<Record<string, string>>({});
 
@@ -71,6 +74,13 @@ export const HierarchicalCourseBuilder = ({
 
   const refresh = () => router.refresh();
 
+  const resetCreateTeacherForm = () => {
+    setNewTeacherName("");
+    setNewTeacherUserId("");
+    setNewTeacherImageUrl(null);
+    setCreatingTeacher(false);
+  };
+
   const onCreateTeacher = async () => {
     if (!newTeacherName.trim() && !newTeacherUserId) {
       toast.error("أدخل اسم المدرس أو اختر مستخدم");
@@ -81,11 +91,26 @@ export const HierarchicalCourseBuilder = ({
       await axios.post(`/api/courses/${courseId}/teachers`, {
         name: newTeacherName,
         userId: newTeacherUserId || undefined,
+        imageUrl: newTeacherImageUrl || undefined,
       });
       toast.success("تم إضافة المدرس");
-      setNewTeacherName("");
-      setNewTeacherUserId("");
-      setCreatingTeacher(false);
+      resetCreateTeacherForm();
+      refresh();
+    } catch {
+      toast.error("حدث خطأ");
+    } finally {
+      setIsUpdating(false);
+    }
+  };
+
+  const onUpdateTeacherImage = async (teacherId: string, imageUrl: string) => {
+    try {
+      setIsUpdating(true);
+      await axios.patch(`/api/courses/${courseId}/teachers/${teacherId}`, {
+        imageUrl,
+      });
+      toast.success("تم تحديث صورة المدرس");
+      setEditingImageTeacherId(null);
       refresh();
     } catch {
       toast.error("حدث خطأ");
@@ -213,9 +238,40 @@ export const HierarchicalCourseBuilder = ({
               ))}
             </SelectContent>
           </Select>
+          <div className="space-y-2">
+            <p className="text-sm font-medium">صورة المدرس</p>
+            {newTeacherImageUrl ? (
+              <div className="flex items-center gap-3">
+                <Image
+                  src={newTeacherImageUrl}
+                  alt="صورة المدرس"
+                  width={64}
+                  height={64}
+                  className="rounded-full object-cover"
+                />
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  onClick={() => setNewTeacherImageUrl(null)}
+                >
+                  إزالة الصورة
+                </Button>
+              </div>
+            ) : (
+              <FileUpload
+                endpoint="courseImage"
+                onChange={(res) => {
+                  if (res) setNewTeacherImageUrl(res.url);
+                }}
+              />
+            )}
+            <p className="text-xs text-muted-foreground">
+              تظهر هذه الصورة في صفحة اختيار المدرس للطلاب
+            </p>
+          </div>
           <div className="flex gap-2">
             <Button size="sm" onClick={onCreateTeacher}>إضافة</Button>
-            <Button size="sm" variant="ghost" onClick={() => setCreatingTeacher(false)}>إلغاء</Button>
+            <Button size="sm" variant="ghost" onClick={resetCreateTeacherForm}>إلغاء</Button>
           </div>
         </div>
       )}
@@ -236,7 +292,7 @@ export const HierarchicalCourseBuilder = ({
                         <div {...provided.dragHandleProps} className="cursor-grab px-1 shrink-0">
                           <Grip className="h-4 w-4" />
                         </div>
-                        {teacher.imageUrl && (
+                        {teacher.imageUrl ? (
                           <Image
                             src={teacher.imageUrl}
                             alt={teacher.name}
@@ -244,11 +300,28 @@ export const HierarchicalCourseBuilder = ({
                             height={36}
                             className="rounded-full object-cover shrink-0"
                           />
+                        ) : (
+                          <div className="w-9 h-9 rounded-full bg-primary/10 flex items-center justify-center text-sm font-bold text-primary shrink-0">
+                            {teacher.name.charAt(0)}
+                          </div>
                         )}
                         <span className="font-medium flex-1 min-w-0 truncate">
                           {teacher.name}
                         </span>
                         <div className="flex items-center gap-1 shrink-0">
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-8 w-8"
+                            title={teacher.imageUrl ? "تغيير الصورة" : "إضافة صورة"}
+                            onClick={() =>
+                              setEditingImageTeacherId(
+                                editingImageTeacherId === teacher.id ? null : teacher.id
+                              )
+                            }
+                          >
+                            <ImageIcon className="h-4 w-4" />
+                          </Button>
                           <Button
                             variant="ghost"
                             size="icon"
@@ -275,6 +348,27 @@ export const HierarchicalCourseBuilder = ({
                           </Button>
                         </div>
                       </div>
+
+                      {editingImageTeacherId === teacher.id && (
+                        <div className="border-t p-3 space-y-2">
+                          <p className="text-sm font-medium">
+                            {teacher.imageUrl ? "تغيير صورة المدرس" : "إضافة صورة المدرس"}
+                          </p>
+                          <FileUpload
+                            endpoint="courseImage"
+                            onChange={(res) => {
+                              if (res) onUpdateTeacherImage(teacher.id, res.url);
+                            }}
+                          />
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            onClick={() => setEditingImageTeacherId(null)}
+                          >
+                            إلغاء
+                          </Button>
+                        </div>
+                      )}
 
                       {expandedTeacher === teacher.id && (
                         <div className="border-t p-3 space-y-3">
