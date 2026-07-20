@@ -195,7 +195,6 @@ async function importPromoCodes(): Promise<number> {
   const rows = parseCsvFile(path.join(DATA_DIR, "promo-codes.csv"));
   let n = 0;
   for (const r of rows) {
-    const usageLimit = numOrNull(r.usageLimit);
     const usedCount = r.usedCount?.trim() === "" ? 0 : parseInt(r.usedCount, 10) || 0;
     await prisma.promoCode.upsert({
       where: { id: r.id },
@@ -206,10 +205,10 @@ async function importPromoCodes(): Promise<number> {
         description: r.description?.trim() || null,
         discountType: r.discountType,
         discountValue: parseFloat(r.discountValue),
-        isActive: boolField(r.isActive, true),
+        isActive: usedCount > 0 ? false : boolField(r.isActive, true),
         minPurchase: numOrNull(r.minPurchase),
         maxDiscount: numOrNull(r.maxDiscount),
-        usageLimit,
+        usageLimit: 1,
         usedCount,
         validFrom: dateOrNull(r.validFrom),
         validUntil: dateOrNull(r.validUntil),
@@ -222,10 +221,10 @@ async function importPromoCodes(): Promise<number> {
         description: r.description?.trim() || null,
         discountType: r.discountType,
         discountValue: parseFloat(r.discountValue),
-        isActive: boolField(r.isActive, true),
+        isActive: usedCount > 0 ? false : boolField(r.isActive, true),
         minPurchase: numOrNull(r.minPurchase),
         maxDiscount: numOrNull(r.maxDiscount),
-        usageLimit,
+        usageLimit: 1,
         usedCount,
         validFrom: dateOrNull(r.validFrom),
         validUntil: dateOrNull(r.validUntil),

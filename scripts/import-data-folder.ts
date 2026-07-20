@@ -660,7 +660,6 @@ async function importQuizAnswers(rows: Row[], spinner: Spinner): Promise<number>
 async function importPromoCodes(rows: Row[]): Promise<number> {
   let n = 0;
   for (const r of rows) {
-    const usageLimit = numOrNull(r.usageLimit);
     const usedCount =
       r.usedCount?.trim() === "" ? 0 : parseInt(r.usedCount, 10) || 0;
     await prisma.promoCode.upsert({
@@ -672,10 +671,10 @@ async function importPromoCodes(rows: Row[]): Promise<number> {
         description: strOrNull(r.description),
         discountType: r.discountType,
         discountValue: parseFloat(r.discountValue),
-        isActive: boolField(r.isActive, true),
+        isActive: usedCount > 0 ? false : boolField(r.isActive, true),
         minPurchase: numOrNull(r.minPurchase),
         maxDiscount: numOrNull(r.maxDiscount),
-        usageLimit,
+        usageLimit: 1,
         usedCount,
         validFrom: dateOrNull(r.validFrom),
         validUntil: dateOrNull(r.validUntil),
@@ -688,10 +687,10 @@ async function importPromoCodes(rows: Row[]): Promise<number> {
         description: strOrNull(r.description),
         discountType: r.discountType,
         discountValue: parseFloat(r.discountValue),
-        isActive: boolField(r.isActive, true),
+        isActive: usedCount > 0 ? false : boolField(r.isActive, true),
         minPurchase: numOrNull(r.minPurchase),
         maxDiscount: numOrNull(r.maxDiscount),
-        usageLimit,
+        usageLimit: 1,
         usedCount,
         validFrom: dateOrNull(r.validFrom),
         validUntil: dateOrNull(r.validUntil),

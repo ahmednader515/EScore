@@ -82,10 +82,11 @@ export async function POST(
           (!promocode.validFrom || new Date(promocode.validFrom) <= now) &&
           (!promocode.validUntil || new Date(promocode.validUntil) >= now);
         
-        const isWithinUsageLimit = !promocode.usageLimit || promocode.usedCount < promocode.usageLimit;
+        // Codes are one-time use only
+        const isUnused = promocode.usedCount === 0;
         const meetsMinimumPurchase = !promocode.minPurchase || coursePrice >= promocode.minPurchase;
 
-        if (isValidDate && isWithinUsageLimit && meetsMinimumPurchase) {
+        if (isValidDate && isUnused && meetsMinimumPurchase) {
           // Calculate discount
           if (promocode.discountType === "PERCENTAGE") {
             discountAmount = (coursePrice * promocode.discountValue) / 100;
@@ -160,16 +161,22 @@ export async function POST(
         },
       });
 
-      // Increment promocode usage count if applied
+      // Atomically claim one-time promocode (prevents concurrent double-use)
       if (promocodeId) {
-        await tx.promoCode.update({
-          where: { id: promocodeId },
+        const claimed = await tx.promoCode.updateMany({
+          where: {
+            id: promocodeId,
+            usedCount: 0,
+          },
           data: {
-            usedCount: {
-              increment: 1,
-            },
+            usedCount: 1,
+            isActive: false,
           },
         });
+
+        if (claimed.count === 0) {
+          throw new Error("تم استخدام هذا الكود مسبقاً");
+        }
       }
 
       return { purchase, updatedUser };
@@ -189,6 +196,9 @@ export async function POST(
   } catch (error) {
     console.error("[PURCHASE_ERROR] Unexpected error:", error);
     if (error instanceof Error) {
+      if (error.message === "تم استخدام هذا الكود مسبقاً") {
+        return new NextResponse(error.message, { status: 400 });
+      }
       return new NextResponse(`Internal Error: ${error.message}`, { status: 500 });
     }
     return new NextResponse("Internal Error", { status: 500 });

@@ -64,16 +64,8 @@ export async function POST(req: NextRequest) {
             );
         }
 
-        // Check usage limit (for single-use codes, usedCount should be 0)
-        if (promocode.usageLimit && promocode.usedCount >= promocode.usageLimit) {
-            return new NextResponse(
-                JSON.stringify({ error: "تم استنفاذ عدد مرات استخدام هذا الكوبون" }),
-                { status: 400, headers: { "Content-Type": "application/json" } }
-            );
-        }
-
-        // For single-use codes (usageLimit = 1), check if already used
-        if (promocode.usageLimit === 1 && promocode.usedCount > 0) {
+        // Codes are one-time use only
+        if (promocode.usedCount > 0) {
             return new NextResponse(
                 JSON.stringify({ error: "تم استخدام هذا الكود مسبقاً" }),
                 { status: 400, headers: { "Content-Type": "application/json" } }

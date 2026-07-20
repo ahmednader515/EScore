@@ -69,7 +69,6 @@ export async function PATCH(
             discountValue,
             minPurchase,
             maxDiscount,
-            usageLimit,
             isActive,
             validFrom,
             validUntil,
@@ -122,7 +121,8 @@ export async function PATCH(
         if (discountValue !== undefined) updateData.discountValue = discountValue;
         if (minPurchase !== undefined) updateData.minPurchase = minPurchase || null;
         if (maxDiscount !== undefined) updateData.maxDiscount = maxDiscount || null;
-        if (usageLimit !== undefined) updateData.usageLimit = usageLimit || null;
+        // Codes are always one-time use
+        updateData.usageLimit = 1;
         if (isActive !== undefined) updateData.isActive = isActive;
         if (validFrom !== undefined) updateData.validFrom = validFrom ? new Date(validFrom) : null;
         if (validUntil !== undefined) updateData.validUntil = validUntil ? new Date(validUntil) : null;

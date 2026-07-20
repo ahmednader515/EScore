@@ -385,7 +385,7 @@ model PromoCode {
     discountValue Float // قيمة الخصم (نسبة أو مبلغ ثابت)
     minPurchase Float? // الحد الأدنى للشراء (اختياري)
     maxDiscount Float? // الحد الأقصى للخصم (للمناسب) (اختياري)
-    usageLimit Int? // الحد الأقصى لعدد مرات الاستخدام (اختياري)
+    usageLimit Int @default(1) // استخدام لمرة واحدة فقط
     usedCount Int @default(0) // عدد مرات الاستخدام الحالية
     isActive Boolean @default(true) // هل الكوبون نشط
     validFrom DateTime? // تاريخ بداية الصلاحية (اختياري)

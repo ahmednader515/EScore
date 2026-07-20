@@ -97,7 +97,6 @@ export async function POST(req: NextRequest) {
             discountValue,
             minPurchase,
             maxDiscount,
-            usageLimit,
             isActive,
             validFrom,
             validUntil,
@@ -171,7 +170,7 @@ export async function POST(req: NextRequest) {
                 discountValue,
                 minPurchase: minPurchase || null,
                 maxDiscount: maxDiscount || null,
-                usageLimit: usageLimit || null,
+                usageLimit: 1, // One-time use only
                 isActive: isActive !== undefined ? isActive : true,
                 validFrom: validFrom ? new Date(validFrom) : null,
                 validUntil: validUntil ? new Date(validUntil) : null,
