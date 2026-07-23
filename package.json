@@ -96,7 +96,6 @@
     "eslint": "^9",
     "eslint-config-next": "15.2.4",
     "lightningcss": "1.32.0",
-    "lightningcss-win32-x64-msvc": "1.32.0",
     "prisma": "^6.19.0",
     "tailwindcss": "^4",
     "tailwindcss-animate": "^1.0.7",
