@@ -2,12 +2,13 @@ import { db } from "@/lib/db";
 import { auth } from "@/lib/auth";
 import { redirect } from "next/navigation";
 import Link from "next/link";
-import { ArrowLeft, Video, Files } from "lucide-react";
+import { ArrowLeft, Video, Files, ImageIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { IconBadge } from "@/components/icon-badge";
 import { ContentItemForm } from "@/app/dashboard/_components/content-item-form";
 import { ContentVideoForm } from "@/app/dashboard/_components/content-video-form";
 import { ContentAttachmentsForm } from "@/app/dashboard/_components/content-attachments-form";
+import { ContentImageForm } from "@/app/dashboard/_components/content-image-form";
 
 export default async function ContentItemEditorPage({
   params,
@@ -73,6 +74,18 @@ export default async function ContentItemEditorPage({
             unitId={unitId}
             contentId={contentId}
           />
+          <div className="mt-6">
+            <div className="flex items-center gap-x-2">
+              <IconBadge icon={ImageIcon} />
+              <h2 className="text-xl">صورة الدرس</h2>
+            </div>
+            <ContentImageForm
+              initialData={item}
+              courseId={courseId}
+              unitId={unitId}
+              contentId={contentId}
+            />
+          </div>
         </div>
         <div className="space-y-6">
           <div>

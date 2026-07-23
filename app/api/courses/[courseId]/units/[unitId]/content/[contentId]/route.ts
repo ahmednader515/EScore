@@ -38,6 +38,7 @@ export async function PATCH(
       "videoUrl",
       "videoType",
       "youtubeVideoId",
+      "imageUrl",
       "fileUrl",
       "fileName",
     ];
