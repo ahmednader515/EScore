@@ -1,6 +1,7 @@
 import { db } from "@/lib/db";
 import { auth } from "@/lib/auth";
 import { NextResponse } from "next/server";
+import { userHasCourseAccess } from "@/lib/user-course-access";
 
 // POST - Reset quiz attempt to allow retry
 export async function POST(
@@ -21,7 +22,8 @@ export async function POST(
                 id: resolvedParams.quizId
             },
             select: {
-                maxAttempts: true
+                maxAttempts: true,
+                isFree: true
             }
         });
 
@@ -32,36 +34,7 @@ export async function POST(
         // Check if user has access to the course
         // If quiz is free (isFree === true), all students have access regardless of purchase
         if (!quiz.isFree) {
-            // Get course to check if it's free
-            const course = await db.course.findUnique({
-                where: {
-                    id: resolvedParams.courseId
-                },
-                select: {
-                    price: true
-                }
-            });
-
-            if (!course) {
-                return new NextResponse("Course not found", { status: 404 });
-            }
-
-            // Free courses (price === 0 or null) are always accessible
-            let hasAccess = false;
-            if (course.price === null || course.price === 0) {
-                hasAccess = true; // Free course
-            } else {
-                const purchase = await db.purchase.findUnique({
-                    where: {
-                        userId_courseId: {
-                            userId,
-                            courseId: resolvedParams.courseId
-                        },
-                        status: "ACTIVE"
-                    }
-                });
-                hasAccess = !!purchase;
-            }
+            const hasAccess = await userHasCourseAccess(userId, resolvedParams.courseId);
 
             if (!hasAccess) {
                 return new NextResponse("Course access required", { status: 403 });

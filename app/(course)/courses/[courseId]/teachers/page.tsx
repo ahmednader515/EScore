@@ -59,7 +59,24 @@ export default async function CourseTeachersPage({
     return redirect("/dashboard");
   }
 
-  const hasAccess = canAccessCourseContent(course.price, course.purchases);
+  const subscriptions = await db.subscription.findMany({
+    where: {
+      userId,
+      status: "ACTIVE",
+      endsAt: { gt: new Date() },
+    },
+    select: {
+      status: true,
+      endsAt: true,
+      grade: true,
+      division: true,
+    },
+  });
+
+  const hasAccess = canAccessCourseContent(course.price, course.purchases, {
+    subscriptions,
+    course: { grade: course.grade, divisions: course.divisions },
+  });
 
   return (
     <div className="py-6">
@@ -77,7 +94,7 @@ export default async function CourseTeachersPage({
         <div className="mb-6 p-4 border rounded-md bg-muted/30 flex items-center justify-between">
           <div className="flex items-center gap-2 text-sm">
             <Lock className="h-4 w-4" />
-            <span>يجب شراء الكورس للوصول إلى جميع المحتويات</span>
+            <span>يجب شراء الكورس أو الاشتراك للوصول إلى جميع المحتويات</span>
           </div>
           <Button asChild size="sm">
             <Link href={`/courses/${courseId}/purchase`}>شراء الكورس</Link>

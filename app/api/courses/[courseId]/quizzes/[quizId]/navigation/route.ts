@@ -1,6 +1,7 @@
 import { db } from "@/lib/db";
 import { auth } from "@/lib/auth";
 import { NextResponse } from "next/server";
+import { userHasCourseAccess } from "@/lib/user-course-access";
 
 export async function GET(
     req: Request,
@@ -32,32 +33,7 @@ export async function GET(
 
         // Check if user has access to the course (unless they're staff or quiz is free or course is free)
         if (!isStaff && !quiz.isFree) {
-            // Get course to check if it's free
-            const course = await db.course.findUnique({
-                where: {
-                    id: resolvedParams.courseId
-                },
-                select: {
-                    price: true
-                }
-            });
-
-            // Free courses (price === 0 or null) are always accessible
-            let hasAccess = false;
-            if (course && (course.price === null || course.price === 0)) {
-                hasAccess = true; // Free course
-            } else {
-                const purchase = await db.purchase.findUnique({
-                    where: {
-                        userId_courseId: {
-                            userId,
-                            courseId: resolvedParams.courseId
-                        },
-                        status: "ACTIVE"
-                    }
-                });
-                hasAccess = !!purchase;
-            }
+            const hasAccess = await userHasCourseAccess(userId, resolvedParams.courseId);
 
             if (!hasAccess) {
                 return new NextResponse("Course access required", { status: 403 });

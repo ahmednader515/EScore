@@ -40,9 +40,30 @@ export default async function TeacherUnitsPage({
 
   if (!teacher) return redirect(`/courses/${courseId}/teachers`);
 
+  const subscriptions = await db.subscription.findMany({
+    where: {
+      userId,
+      status: "ACTIVE",
+      endsAt: { gt: new Date() },
+    },
+    select: {
+      status: true,
+      endsAt: true,
+      grade: true,
+      division: true,
+    },
+  });
+
   const hasAccess = canAccessCourseContent(
     teacher.course.price,
-    teacher.course.purchases
+    teacher.course.purchases,
+    {
+      subscriptions,
+      course: {
+        grade: teacher.course.grade,
+        divisions: teacher.course.divisions,
+      },
+    }
   );
 
   return (

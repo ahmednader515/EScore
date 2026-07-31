@@ -1,5 +1,6 @@
 import { getServerSession } from "next-auth";
 import { redirect } from "next/navigation";
+import { Course, Purchase } from "@prisma/client";
 import { db } from "@/lib/db";
 import { authOptions } from "@/lib/auth";
 import { getDashboardUrlByRole } from "@/lib/utils";
@@ -12,6 +13,7 @@ import Image from "next/image";
 import { getCourseLink } from "@/lib/course-access";
 import { getHierarchicalProgress } from "@/lib/course-hierarchy";
 import { StudentReelsFab } from "@/components/student-reels-fab";
+import { subscriptionCoversCourse } from "@/lib/subscriptions";
 
 type CourseWithProgress = Course & {
   chapters: { id: string }[];
@@ -49,8 +51,24 @@ const CoursesPage = async () => {
   // Get user's current balance
   const user = await db.user.findUnique({
     where: { id: session.user.id },
-    select: { balance: true, grade: true }
+    select: { balance: true, grade: true, division: true }
   });
+
+  const activeSubscriptions = await db.subscription.findMany({
+    where: {
+      userId: session.user.id,
+      status: "ACTIVE",
+      endsAt: { gt: new Date() },
+    },
+    select: {
+      status: true,
+      endsAt: true,
+      grade: true,
+      division: true,
+    },
+  });
+
+  const hasActiveSubscription = activeSubscriptions.length > 0;
 
   // Get the latest active global notification for this student's grade (if any)
   const now = new Date();
@@ -180,12 +198,36 @@ const CoursesPage = async () => {
 
   const courses = await db.course.findMany({
     where: {
-      purchases: {
-        some: {
-          userId: session.user.id,
-          status: "ACTIVE"
-        }
-      }
+      isPublished: true,
+      OR: [
+        {
+          purchases: {
+            some: {
+              userId: session.user.id,
+              status: "ACTIVE",
+            },
+          },
+        },
+        ...(hasActiveSubscription
+          ? [
+              {
+                OR: [
+                  { grade: "الكل" },
+                  ...activeSubscriptions.flatMap((sub) => [
+                    {
+                      AND: [
+                        { grade: sub.grade },
+                        ...(sub.division
+                          ? [{ divisions: { has: sub.division } }]
+                          : [{ divisions: { isEmpty: true } }]),
+                      ],
+                    },
+                  ]),
+                ],
+              },
+            ]
+          : []),
+      ],
     },
     include: {
       chapters: {
@@ -229,8 +271,22 @@ const CoursesPage = async () => {
     }
   });
 
+  // Filter subscription matches precisely (division rules)
+  const accessibleCourses = courses.filter((course) => {
+    const purchased = course.purchases.some((p) => p.status === "ACTIVE");
+    if (purchased) return true;
+    return activeSubscriptions.some((sub) =>
+      subscriptionCoversCourse(sub, {
+        grade: course.grade,
+        divisions: course.divisions,
+      })
+    );
+  });
+
+  studentStats.totalCourses = Math.max(studentStats.totalCourses, accessibleCourses.length);
+
   const coursesWithProgress = await Promise.all(
-    courses.map(async (course) => {
+    accessibleCourses.map(async (course) => {
       if (course.courseType === "HIERARCHICAL") {
         const { progress } = await getHierarchicalProgress(
           session.user.id,
@@ -522,7 +578,7 @@ const CoursesPage = async () => {
                     variant="default"
                     asChild
                   >
-                    <Link href={getCourseLink(course).href}>
+                    <Link href={getCourseLink(course, { subscriptions: activeSubscriptions }).href}>
                       متابعة التعلم
                     </Link>
                   </Button>

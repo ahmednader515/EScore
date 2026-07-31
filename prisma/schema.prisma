@@ -43,6 +43,7 @@ model User {
   fawaterakDeposits         FawaterakDeposit[]
   courseTeachers            CourseTeacher[]
   contentProgress           ContentProgress[]
+  subscriptions             Subscription[]
 }
 
 model FawaterakDeposit {
@@ -176,11 +177,47 @@ model Purchase {
     @@index([courseId])
 }
 
+model SubscriptionPlan {
+  id             String         @id @default(uuid())
+  grade          String         // الأول الثانوي، الثاني الثانوي، الثالث الثانوي
+  durationMonths Int            // 1 | 3 | 4
+  price          Float          @default(0)
+  label          String?        // شهر، ترم كامل، 3 أشهر
+  isActive       Boolean        @default(true)
+  subscriptions  Subscription[]
+  createdAt      DateTime       @default(now())
+  updatedAt      DateTime       @updatedAt
+
+  @@unique([grade, durationMonths])
+  @@index([grade])
+}
+
+model Subscription {
+  id             String           @id @default(uuid())
+  userId         String
+  planId         String
+  grade          String           // snapshot of student grade at purchase
+  division       String?          // snapshot of student division
+  durationMonths Int
+  pricePaid      Float
+  status         String           @default("ACTIVE") // ACTIVE | EXPIRED
+  startsAt       DateTime         @default(now())
+  endsAt         DateTime
+  user           User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  plan           SubscriptionPlan @relation(fields: [planId], references: [id], onDelete: Restrict)
+  createdAt      DateTime         @default(now())
+  updatedAt      DateTime         @updatedAt
+
+  @@index([userId, status])
+  @@index([endsAt])
+  @@index([planId])
+}
+
 model BalanceTransaction {
     id String @id @default(uuid())
     userId String
     amount Float
-    type String // "DEPOSIT" or "PURCHASE"
+    type String // "DEPOSIT" or "PURCHASE" or "SUBSCRIPTION"
     description String
     user User @relation(fields: [userId], references: [id], onDelete: Cascade)
     createdAt DateTime @default(now())

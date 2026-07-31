@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { db } from "@/lib/db";
+import { userHasCourseAccess } from "@/lib/user-course-access";
 
 export async function GET(
   req: NextRequest,
@@ -28,22 +29,7 @@ export async function GET(
       return new NextResponse("Course not found", { status: 404 });
     }
 
-    // Check if user has access (free course or purchased)
-    let hasAccess = false;
-    if (course.price === null || course.price === 0) {
-      hasAccess = true; // Free course
-    } else {
-      const purchase = await db.purchase.findUnique({
-        where: {
-          userId_courseId: {
-            userId: session.user.id,
-            courseId: courseId,
-          },
-          status: "ACTIVE",
-        },
-      });
-      hasAccess = !!purchase;
-    }
+    const hasAccess = await userHasCourseAccess(session.user.id, courseId);
 
     // Get current time
     const now = new Date();

@@ -4,6 +4,11 @@ import {
   hasPublishedHierarchicalContent,
   isHierarchicalCourse,
 } from "@/lib/course-hierarchy";
+import {
+  hasActiveSubscriptionForCourse,
+  type CourseForSubscription,
+  type SubscriptionLike,
+} from "@/lib/subscriptions";
 
 export function isFreeCourse(price: number | null | undefined): boolean {
   return price === null || price === 0;
@@ -17,9 +22,21 @@ export function hasActivePurchase(
 
 export function canAccessCourseContent(
   price: number | null | undefined,
-  purchases: Pick<Purchase, "status">[]
+  purchases: Pick<Purchase, "status">[],
+  options?: {
+    subscriptions?: SubscriptionLike[];
+    course?: CourseForSubscription;
+  }
 ): boolean {
-  return isFreeCourse(price) || hasActivePurchase(purchases);
+  if (isFreeCourse(price) || hasActivePurchase(purchases)) {
+    return true;
+  }
+
+  if (options?.subscriptions && options?.course) {
+    return hasActiveSubscriptionForCourse(options.subscriptions, options.course);
+  }
+
+  return false;
 }
 
 export function getCourseLink(
@@ -27,6 +44,8 @@ export function getCourseLink(
     id: string;
     price: number | null;
     courseType?: CourseType;
+    grade?: string | null;
+    divisions?: string[];
     chapters: { id: string }[];
     purchases: Pick<Purchase, "status">[];
     courseTeachers?: {
@@ -34,9 +53,18 @@ export function getCourseLink(
       units: { id: string; contentItems: { id: string }[] }[];
     }[];
   },
-  options?: { previewChapterId?: string }
+  options?: {
+    previewChapterId?: string;
+    subscriptions?: SubscriptionLike[];
+  }
 ): { href: string; label: string } {
-  const enrolled = hasActivePurchase(course.purchases);
+  const subscribed =
+    !!options?.subscriptions &&
+    hasActiveSubscriptionForCourse(options.subscriptions, {
+      grade: course.grade ?? null,
+      divisions: course.divisions ?? [],
+    });
+  const enrolled = hasActivePurchase(course.purchases) || subscribed;
   const free = isFreeCourse(course.price);
   const hierarchical = isHierarchicalCourse(course.courseType ?? "FLAT");
 
@@ -94,18 +122,26 @@ export function canAccessChapter(
   price: number | null | undefined,
   purchases: Pick<Purchase, "status">[],
   chapterIsFree: boolean,
-  isStaff: boolean
+  isStaff: boolean,
+  options?: {
+    subscriptions?: SubscriptionLike[];
+    course?: CourseForSubscription;
+  }
 ): boolean {
   if (isStaff) return true;
-  return canAccessCourseContent(price, purchases) || chapterIsFree;
+  return canAccessCourseContent(price, purchases, options) || chapterIsFree;
 }
 
 export function canAccessContentItem(
   price: number | null | undefined,
   purchases: Pick<Purchase, "status">[],
   contentIsFree: boolean,
-  isStaff: boolean
+  isStaff: boolean,
+  options?: {
+    subscriptions?: SubscriptionLike[];
+    course?: CourseForSubscription;
+  }
 ): boolean {
   if (isStaff) return true;
-  return canAccessCourseContent(price, purchases) || contentIsFree;
+  return canAccessCourseContent(price, purchases, options) || contentIsFree;
 }

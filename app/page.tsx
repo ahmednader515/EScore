@@ -822,7 +822,7 @@ export default function HomePage() {
                       <h3 className="text-lg font-semibold mb-2 line-clamp-2">
                         {course.title}
                       </h3>
-                      <div className="flex flex-wrap items-center justify-between gap-2 text-sm text-muted-foreground mb-4">
+                      <div className="flex flex-wrap items-center gap-2 text-sm text-muted-foreground mb-4">
                         <div className="flex items-center gap-2">
                           <BookOpen className="h-4 w-4" />
                           <span>
@@ -831,10 +831,6 @@ export default function HomePage() {
                               <span className="mr-2">، {course.quizzes.length} {course.quizzes.length === 1 ? "اختبار" : "اختبارات"}</span>
                             )}
                           </span>
-                        </div>
-                        <div className="flex items-center gap-2">
-                          <Users className="h-4 w-4" />
-                          <span>{course.enrollmentCount ?? 0} طالب مسجل</span>
                         </div>
                       </div>
                       <Button 

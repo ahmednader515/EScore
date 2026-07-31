@@ -26,6 +26,8 @@ export async function GET(
             id: true,
             title: true,
             price: true,
+            grade: true,
+            divisions: true,
             courseType: true,
             purchases: {
               where: { userId },
@@ -70,8 +72,33 @@ export async function GET(
       return new NextResponse("Not found", { status: 404 });
     }
 
+    const subscriptions = staff
+      ? []
+      : (
+          await db.subscription.findMany({
+            where: {
+              userId,
+              status: "ACTIVE",
+              endsAt: { gt: new Date() },
+            },
+            select: {
+              status: true,
+              endsAt: true,
+              grade: true,
+              division: true,
+            },
+          })
+        );
+
     const hasAccess =
-      staff || canAccessCourseContent(unit.course.price, unit.course.purchases);
+      staff ||
+      canAccessCourseContent(unit.course.price, unit.course.purchases, {
+        subscriptions,
+        course: {
+          grade: unit.course.grade,
+          divisions: unit.course.divisions,
+        },
+      });
 
     const sanitizedItems = unit.contentItems.map((item) => {
       const itemAccess =

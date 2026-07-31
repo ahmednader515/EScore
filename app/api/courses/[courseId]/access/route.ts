@@ -3,6 +3,7 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { hasActivePurchase, isFreeCourse } from "@/lib/course-access";
+import { userHasCourseAccess } from "@/lib/user-course-access";
 
 export async function GET(
   req: Request,
@@ -58,10 +59,11 @@ export async function GET(
       return NextResponse.json({ hasAccess: true });
     }
 
-    // Check if user has any purchase with ACTIVE status
-    const validPurchase = hasActivePurchase(course.purchases);
+    const hasAccess =
+      hasActivePurchase(course.purchases) ||
+      (await userHasCourseAccess(userId, courseId));
 
-    return NextResponse.json({ hasAccess: validPurchase });
+    return NextResponse.json({ hasAccess });
   } catch (error) {
     console.error("[COURSE_ACCESS]", error);
     if (error instanceof Error) {
@@ -69,4 +71,4 @@ export async function GET(
     }
     return new NextResponse("Internal Error", { status: 500 });
   }
-} 
+}

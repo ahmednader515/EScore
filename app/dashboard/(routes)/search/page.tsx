@@ -10,7 +10,7 @@ import { BookOpen, Clock, Users, Search } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
 import { Course, Purchase } from "@prisma/client";
-import { getCourseLink, hasActivePurchase, isFreeCourse } from "@/lib/course-access";
+import { getCourseLink, canAccessCourseContent, isFreeCourse } from "@/lib/course-access";
 import { getHierarchicalProgress } from "@/lib/course-hierarchy";
 
 type CourseWithDetails = Course & {
@@ -180,6 +180,20 @@ export default async function SearchPage({
         });
     }
 
+    const subscriptions = await db.subscription.findMany({
+        where: {
+            userId: session.user.id,
+            status: "ACTIVE",
+            endsAt: { gt: new Date() },
+        },
+        select: {
+            status: true,
+            endsAt: true,
+            grade: true,
+            division: true,
+        },
+    });
+
     const coursesWithProgress = await Promise.all(
         courses.map(async (course) => {
             if (course.courseType === "HIERARCHICAL") {
@@ -268,8 +282,18 @@ export default async function SearchPage({
                 {/* Course Grid */}
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
                     {coursesWithProgress.map((course) => {
-                        const enrolled = hasActivePurchase(course.purchases);
-                        const { href, label } = getCourseLink(course);
+                        const enrolled = canAccessCourseContent(
+                            course.price,
+                            course.purchases,
+                            {
+                                subscriptions,
+                                course: {
+                                    grade: course.grade,
+                                    divisions: course.divisions,
+                                },
+                            }
+                        );
+                        const { href, label } = getCourseLink(course, { subscriptions });
 
                         return (
                         <div

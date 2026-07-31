@@ -31,6 +31,8 @@ export async function GET(
           select: {
             userId: true,
             price: true,
+            grade: true,
+            divisions: true,
             purchases: {
               where: { userId },
             },
@@ -54,11 +56,36 @@ export async function GET(
     }
 
     const staff = isStaff(session.user.role);
+    const subscriptions = staff
+      ? []
+      : (
+          await db.subscription.findMany({
+            where: {
+              userId,
+              status: "ACTIVE",
+              endsAt: { gt: new Date() },
+            },
+            select: {
+              status: true,
+              endsAt: true,
+              grade: true,
+              division: true,
+            },
+          })
+        );
+
     const hasAccess = canAccessChapter(
       chapter.course.price,
       chapter.course.purchases,
       chapter.isFree,
-      staff
+      staff,
+      {
+        subscriptions,
+        course: {
+          grade: chapter.course.grade,
+          divisions: chapter.course.divisions,
+        },
+      }
     );
 
     const [chapters, quizzes] = await db.$transaction([

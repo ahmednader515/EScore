@@ -1,6 +1,7 @@
 import { db } from "@/lib/db";
 import { auth } from "@/lib/auth";
 import { NextResponse } from "next/server";
+import { userHasCourseAccess } from "@/lib/user-course-access";
 
 export async function GET(
     req: Request,
@@ -72,41 +73,19 @@ export async function GET(
         // (they already completed it, so they had access at that time)
         // OR if quiz is free, allow access
         if (!existingQuizResult && !quiz.isFree) {
-            // Only check purchase if user hasn't completed the quiz yet and quiz is not free
-            const purchase = await db.purchase.findUnique({
-                where: {
-                    userId_courseId: {
-                        userId,
-                        courseId: resolvedParams.courseId
-                    },
-                    status: "ACTIVE"
-                }
-            });
+            const hasAccess = await userHasCourseAccess(userId, resolvedParams.courseId);
 
-            console.log("[QUIZ_RESULT_GET] Purchase check:", {
+            console.log("[QUIZ_RESULT_GET] Access check:", {
                 userId,
                 courseId: resolvedParams.courseId,
-                hasPurchase: !!purchase
+                hasAccess
             });
 
-            if (!purchase) {
-                // Get course to check if it's free
-                const course = await db.course.findUnique({
-                    where: {
-                        id: resolvedParams.courseId
-                    },
-                    select: {
-                        price: true
-                    }
+            if (!hasAccess) {
+                return new NextResponse(JSON.stringify({ error: "Course access required" }), { 
+                    status: 403,
+                    headers: { "Content-Type": "application/json" }
                 });
-
-                // If course is not free, require purchase
-                if (!course || (course.price !== null && course.price !== 0)) {
-                    return new NextResponse(JSON.stringify({ error: "Course access required" }), { 
-                        status: 403,
-                        headers: { "Content-Type": "application/json" }
-                    });
-                }
             }
         }
 

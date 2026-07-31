@@ -1,6 +1,7 @@
 import { auth } from "@/lib/auth";
 import { NextResponse } from "next/server";
 import { db } from "@/lib/db";
+import { userHasCourseAccess } from "@/lib/user-course-access";
 
 export async function GET(
     req: Request,
@@ -37,13 +38,7 @@ export async function GET(
         }
 
         // Check if user has access to the course
-        const hasAccess = await db.purchase.findFirst({
-            where: {
-                userId,
-                courseId: resolvedParams.courseId,
-                status: "ACTIVE"
-            }
-        });
+        const hasAccess = await userHasCourseAccess(userId, resolvedParams.courseId);
 
         const isCourseOwner = chapter.course.userId === userId;
         const isPublished = chapter.course.isPublished;

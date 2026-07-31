@@ -39,11 +39,29 @@ export default function PurchasePage({
     originalPrice: string;
     error?: string;
   } | null>(null);
+  const [coveredBySubscription, setCoveredBySubscription] = useState(false);
+  const [subscriptionEndsAt, setSubscriptionEndsAt] = useState<string | null>(null);
 
   useEffect(() => {
     fetchCourse();
     fetchUserBalance();
+    fetchCoverage();
   }, [courseId]);
+
+  const fetchCoverage = async () => {
+    try {
+      const response = await fetch(`/api/courses/${courseId}/subscription-coverage`);
+      if (response.ok) {
+        const data = await response.json();
+        if (data.coveredBySubscription) {
+          setCoveredBySubscription(true);
+          setSubscriptionEndsAt(data.subscription?.endsAt ?? null);
+        }
+      }
+    } catch (error) {
+      console.error("Error fetching subscription coverage:", error);
+    }
+  };
 
   const fetchCourse = async () => {
     try {
@@ -185,6 +203,56 @@ export default function PurchasePage({
           <Button asChild>
             <Link href="/dashboard">العودة إلى لوحة التحكم</Link>
           </Button>
+        </div>
+      </div>
+    );
+  }
+
+  if (coveredBySubscription) {
+    const endsLabel = subscriptionEndsAt
+      ? new Date(subscriptionEndsAt).toLocaleDateString("ar-EG", {
+          year: "numeric",
+          month: "long",
+          day: "numeric",
+        })
+      : null;
+
+    return (
+      <div className="min-h-screen bg-background">
+        <div className="container mx-auto px-4 py-8">
+          <div className="max-w-2xl mx-auto space-y-6">
+            <div className="flex items-center gap-4">
+              <Button
+                variant="ghost"
+                onClick={() => router.back()}
+                className="flex items-center gap-2"
+              >
+                <ArrowLeft className="h-4 w-4" />
+                رجوع
+              </Button>
+              <h1 className="text-2xl font-bold">شراء الكورس</h1>
+            </div>
+            <Card className="border-green-200 bg-green-50/50">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2 text-green-800">
+                  <CheckCircle className="h-5 w-5" />
+                  مشمول بالاشتراك
+                </CardTitle>
+                <CardDescription className="text-green-700">
+                  هذا الكورس متاح لك من خلال اشتراكك النشط
+                  {endsLabel ? ` حتى ${endsLabel}` : ""}. لا حاجة لشرائه بشكل منفصل.
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="flex flex-wrap gap-3">
+                <Button asChild className="bg-[#361e01] hover:bg-[#361e01]/90">
+                  <Link href={`/courses/${courseId}`}>الدخول للكورس</Link>
+                </Button>
+                <Button asChild variant="outline">
+                  <Link href="/dashboard/subscriptions">عرض الاشتراك</Link>
+                </Button>
+              </CardContent>
+            </Card>
+          </div>
         </div>
       </div>
     );

@@ -1,6 +1,6 @@
 "use client";
 
-import { BarChart, Compass, Layout, List, Wallet, Shield, Users, Eye, TrendingUp, BookOpen, FileText, Award, Key, Ticket, Video, Paintbrush, MessageCircle, Megaphone } from "lucide-react";
+import { BarChart, Compass, Layout, List, Wallet, Shield, Users, Eye, TrendingUp, BookOpen, FileText, Award, Key, Ticket, Video, Paintbrush, MessageCircle, Megaphone, CreditCard } from "lucide-react";
 import { SidebarItem } from "./sidebar-item";
 import { usePathname } from "next/navigation";
 
@@ -14,6 +14,11 @@ const guestRoutes = [
         icon: Compass,
         label: "الكورسات",
         href: "/dashboard/search",
+    },
+    {
+        icon: CreditCard,
+        label: "الاشتراكات",
+        href: "/dashboard/subscriptions",
     },
     {
         icon: Wallet,
@@ -74,6 +79,11 @@ const teacherRoutes = [
         href: "/dashboard/teacher/promocodes",
     },
     {
+        icon: CreditCard,
+        label: "الاشتراكات",
+        href: "/dashboard/teacher/subscriptions",
+    },
+    {
         icon: Video,
         label: "البث المباشر",
         href: "/dashboard/teacher/livestream",
@@ -110,6 +120,11 @@ const adminRoutes = [
         icon: List,
         label: "الكورسات",
         href: "/dashboard/admin/courses",
+    },
+    {
+        icon: CreditCard,
+        label: "الاشتراكات",
+        href: "/dashboard/admin/subscriptions",
     },
     {
         icon: FileText,
