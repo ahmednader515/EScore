@@ -35,6 +35,7 @@ type ContentItem = {
   videoUrl: string | null;
   videoType: string | null;
   youtubeVideoId: string | null;
+  imageUrl: string | null;
   fileUrl: string | null;
   fileName: string | null;
   quizId: string | null;
@@ -213,6 +214,14 @@ export default function UnitContentPage() {
                       <CheckCircle2 className="h-5 w-5 text-green-600 shrink-0" />
                     ) : (
                       <Circle className="h-5 w-5 text-muted-foreground shrink-0" />
+                    )}
+                    {item.imageUrl && (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img
+                        src={item.imageUrl}
+                        alt=""
+                        className="h-10 w-16 object-cover rounded shrink-0"
+                      />
                     )}
                     <span className="font-medium">{item.title}</span>
                     {item.isFree && (

@@ -281,7 +281,7 @@ export const UnitContentForm = ({
 
                       {item.type === "VIDEO" && (
                         <p className="text-xs text-muted-foreground mt-2">
-                          انقر على أيقونة التعديل لإعداد الفيديو (YouTube أو رفع) والوصف والمستندات
+                          انقر على أيقونة التعديل لإعداد الفيديو والصورة والوصف والمستندات
                         </p>
                       )}
 

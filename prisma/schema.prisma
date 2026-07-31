@@ -276,6 +276,7 @@ model ContentItem {
   videoUrl       String? @db.Text
   videoType      String? // UPLOAD | YOUTUBE
   youtubeVideoId String?
+  imageUrl       String? @db.Text
   fileUrl        String? @db.Text
   fileName       String?
   quizId         String?

@@ -10,8 +10,9 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } f
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Plus, Edit, Trash2, Search, Ticket, Copy, ChevronUp, ChevronDown } from "lucide-react";
+import { Plus, Edit, Trash2, Search, Ticket, Copy, ChevronUp, ChevronDown, FileSpreadsheet } from "lucide-react";
 import { toast } from "sonner";
+import { exportPromocodesToExcel } from "@/lib/export-promocodes";
 
 interface Course {
     id: string;
@@ -61,6 +62,9 @@ const TeacherPromoCodesPage = () => {
 
     // Copy form state
     const [copyCourseId, setCopyCourseId] = useState("all");
+    const [copyCount, setCopyCount] = useState("");
+    const [copyAvailability, setCopyAvailability] = useState("available");
+    const [copyDate, setCopyDate] = useState("");
 
     useEffect(() => {
         fetchPromocodes();
@@ -232,17 +236,41 @@ const TeacherPromoCodesPage = () => {
         }
     };
 
+    const getCodesToCopy = () => {
+        let codes = [...promocodes];
+
+        if (copyCourseId !== "all") {
+            codes = codes.filter((code) => code.courseId === copyCourseId);
+        }
+
+        if (copyAvailability === "available") {
+            codes = codes.filter((code) => code.isActive && code.usedCount === 0);
+        } else if (copyAvailability === "used") {
+            codes = codes.filter((code) => code.usedCount > 0);
+        }
+
+        if (copyDate) {
+            const dayStart = new Date(copyDate);
+            dayStart.setHours(0, 0, 0, 0);
+            const dayEnd = new Date(copyDate);
+            dayEnd.setHours(23, 59, 59, 999);
+            codes = codes.filter((code) => {
+                const created = new Date(code.createdAt);
+                return created >= dayStart && created <= dayEnd;
+            });
+        }
+
+        const count = parseInt(copyCount, 10);
+        if (!Number.isNaN(count) && count > 0) {
+            codes = codes.slice(0, count);
+        }
+
+        return codes;
+    };
+
     const handleCopyCodes = async () => {
         try {
-            // Filter codes based on selection
-            let codesToCopy = promocodes.filter(
-                (code) => code.isActive && code.usedCount === 0
-            );
-
-            if (copyCourseId !== "all") {
-                codesToCopy = codesToCopy.filter((code) => code.courseId === copyCourseId);
-            }
-
+            const codesToCopy = getCodesToCopy();
             const codesText = codesToCopy.map((code) => code.code).join("\n");
 
             if (codesText) {
@@ -250,11 +278,27 @@ const TeacherPromoCodesPage = () => {
                 toast.success(`تم نسخ ${codesToCopy.length} كود إلى الحافظة`);
                 setIsCopyPopoverOpen(false);
             } else {
-                toast.error("لا توجد أكواد متاحة للنسخ");
+                toast.error("لا توجد أكواد مطابقة للنسخ");
             }
         } catch (error) {
             console.error("Error copying codes:", error);
             toast.error("حدث خطأ أثناء النسخ");
+        }
+    };
+
+    const handleExportExcel = () => {
+        try {
+            const codes = getCodesToCopy();
+            if (codes.length === 0) {
+                toast.error("لا توجد أكواد مطابقة للتصدير");
+                return;
+            }
+            exportPromocodesToExcel(codes);
+            toast.success(`تم تصدير ${codes.length} كود إلى Excel`);
+            setIsCopyPopoverOpen(false);
+        } catch (error) {
+            console.error("Error exporting codes:", error);
+            toast.error("حدث خطأ أثناء التصدير");
         }
     };
 
@@ -307,7 +351,7 @@ const TeacherPromoCodesPage = () => {
                                     نسخ الأكواد المتاحة
                                 </Button>
                             </PopoverTrigger>
-                            <PopoverContent className="w-80">
+                            <PopoverContent className="w-80" align="end">
                                 <div className="space-y-4">
                                     <div className="space-y-2">
                                         <Label>الكورس</Label>
@@ -325,9 +369,50 @@ const TeacherPromoCodesPage = () => {
                                             </SelectContent>
                                         </Select>
                                     </div>
-                                    <Button onClick={handleCopyCodes} className="w-full bg-[#005bd3] hover:bg-[#005bd3]/90">
-                                        نسخ
-                                    </Button>
+                                    <div className="space-y-2">
+                                        <Label>حالة الاستخدام</Label>
+                                        <Select value={copyAvailability} onValueChange={setCopyAvailability}>
+                                            <SelectTrigger>
+                                                <SelectValue />
+                                            </SelectTrigger>
+                                            <SelectContent>
+                                                <SelectItem value="available">متاح</SelectItem>
+                                                <SelectItem value="used">مستخدم</SelectItem>
+                                                <SelectItem value="all">الكل</SelectItem>
+                                            </SelectContent>
+                                        </Select>
+                                    </div>
+                                    <div className="space-y-2">
+                                        <Label>العدد</Label>
+                                        <Input
+                                            type="number"
+                                            min="1"
+                                            placeholder="الكل"
+                                            value={copyCount}
+                                            onChange={(e) => setCopyCount(e.target.value)}
+                                        />
+                                    </div>
+                                    <div className="space-y-2">
+                                        <Label>تاريخ الإنشاء</Label>
+                                        <Input
+                                            type="date"
+                                            value={copyDate}
+                                            onChange={(e) => setCopyDate(e.target.value)}
+                                        />
+                                    </div>
+                                    <p className="text-xs text-muted-foreground text-center">
+                                        سيتم تصدير / نسخ {getCodesToCopy().length} كود
+                                    </p>
+                                    <div className="flex flex-col gap-2">
+                                        <Button onClick={handleCopyCodes} className="w-full bg-[#005bd3] hover:bg-[#005bd3]/90">
+                                            <Copy className="h-4 w-4 mr-2" />
+                                            نسخ
+                                        </Button>
+                                        <Button onClick={handleExportExcel} variant="outline" className="w-full">
+                                            <FileSpreadsheet className="h-4 w-4 mr-2" />
+                                            تصدير Excel
+                                        </Button>
+                                    </div>
                                 </div>
                             </PopoverContent>
                         </Popover>
