@@ -108,8 +108,8 @@ const AdminPromoCodesPage = () => {
         }
 
         const qty = parseInt(quantity);
-        if (qty < 1 || qty > 99) {
-            toast.error("الكمية يجب أن تكون بين 1 و 99");
+        if (!Number.isInteger(qty) || qty < 1) {
+            toast.error("الكمية يجب أن تكون رقمًا صحيحًا أكبر من أو يساوي 1");
             return;
         }
 
@@ -304,9 +304,7 @@ const AdminPromoCodesPage = () => {
 
     const incrementQuantity = () => {
         const qty = parseInt(quantity) || 1;
-        if (qty < 99) {
-            setQuantity((qty + 1).toString());
-        }
+        setQuantity((qty + 1).toString());
     };
 
     const decrementQuantity = () => {
@@ -531,7 +529,7 @@ const AdminPromoCodesPage = () => {
                             </Select>
                         </div>
                         <div className="space-y-2">
-                            <Label htmlFor="quantity">الكمية (1-99) *</Label>
+                            <Label htmlFor="quantity">الكمية *</Label>
                             <div className="flex items-center gap-2">
                                 <Button
                                     type="button"
@@ -546,11 +544,10 @@ const AdminPromoCodesPage = () => {
                                     id="quantity"
                                     type="number"
                                     min="1"
-                                    max="99"
                                     value={quantity}
                                     onChange={(e) => {
                                         const val = e.target.value;
-                                        if (val === "" || (parseInt(val) >= 1 && parseInt(val) <= 99)) {
+                                        if (val === "" || parseInt(val) >= 1) {
                                             setQuantity(val);
                                         }
                                     }}
@@ -561,7 +558,6 @@ const AdminPromoCodesPage = () => {
                                     variant="outline"
                                     size="icon"
                                     onClick={incrementQuantity}
-                                    disabled={parseInt(quantity) >= 99}
                                 >
                                     <ChevronUp className="h-4 w-4" />
                                 </Button>

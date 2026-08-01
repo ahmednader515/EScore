@@ -12,7 +12,7 @@ function generateCode(): string {
     return code;
 }
 
-// POST create bulk promocodes (1-99 codes)
+// POST create bulk promocodes
 export async function POST(req: NextRequest) {
     try {
         const { userId, user } = await auth();
@@ -37,9 +37,10 @@ export async function POST(req: NextRequest) {
             );
         }
 
-        if (!quantity || quantity < 1 || quantity > 99) {
+        const qty = typeof quantity === "number" ? quantity : parseInt(quantity, 10);
+        if (!Number.isInteger(qty) || qty < 1) {
             return new NextResponse(
-                JSON.stringify({ error: "الكمية يجب أن تكون بين 1 و 99" }),
+                JSON.stringify({ error: "الكمية يجب أن تكون رقمًا صحيحًا أكبر من أو يساوي 1" }),
                 { status: 400, headers: { "Content-Type": "application/json" } }
             );
         }
@@ -60,7 +61,7 @@ export async function POST(req: NextRequest) {
         const codes: string[] = [];
         const createdPromocodes = [];
 
-        for (let i = 0; i < quantity; i++) {
+        for (let i = 0; i < qty; i++) {
             let code: string;
             let attempts = 0;
             let isUnique = false;

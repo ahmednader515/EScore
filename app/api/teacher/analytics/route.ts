@@ -41,14 +41,23 @@ export async function GET() {
     const courseWhereClause: any = {
       isPublished: true,
     };
+
+    const analyticsSettings = await db.analyticsSettings.findUnique({
+      where: { id: "global" },
+      select: { lastResetAt: true },
+    });
+    const lastResetAt = analyticsSettings?.lastResetAt ?? null;
     
     console.log("[ANALYTICS] Showing all published courses for", user.role);
 
-    // Get all published courses
+    // Get all published courses (purchases after last analytics reset only)
     const courses = await db.course.findMany({
       where: courseWhereClause,
       include: {
         purchases: {
+          where: lastResetAt
+            ? { createdAt: { gt: lastResetAt } }
+            : undefined,
           include: {
             user: true,
           },

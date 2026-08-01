@@ -558,3 +558,12 @@ model GlobalNotification {
 
   @@index([isActive, createdAt])
 }
+
+/// Singleton settings for analytics (sales/revenue counted only after lastResetAt)
+model AnalyticsSettings {
+  id          String    @id @default("global")
+  lastResetAt DateTime?
+  resetById   String?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+}
