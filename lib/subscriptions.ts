@@ -26,14 +26,12 @@ export const SUBSCRIPTION_PLAN_SEEDS: {
   label: string;
   price: number;
 }[] = [
-  // اعدادي — same as الأول الثانوي: 1 month + full term (4 months)
   { grade: "الاول الاعدادي", durationMonths: 1, label: "شهر", price: 0 },
   { grade: "الاول الاعدادي", durationMonths: 4, label: "ترم كامل", price: 0 },
   { grade: "الثاني الاعدادي", durationMonths: 1, label: "شهر", price: 0 },
   { grade: "الثاني الاعدادي", durationMonths: 4, label: "ترم كامل", price: 0 },
   { grade: "الثالث الاعدادي", durationMonths: 1, label: "شهر", price: 0 },
   { grade: "الثالث الاعدادي", durationMonths: 4, label: "ترم كامل", price: 0 },
-  // ثانوي
   { grade: "الأول الثانوي", durationMonths: 1, label: "شهر", price: 0 },
   { grade: "الأول الثانوي", durationMonths: 4, label: "ترم كامل", price: 0 },
   { grade: "الثاني الثانوي", durationMonths: 1, label: "شهر", price: 0 },
@@ -42,7 +40,6 @@ export const SUBSCRIPTION_PLAN_SEEDS: {
   { grade: "الثالث الثانوي", durationMonths: 3, label: "3 أشهر", price: 0 },
 ];
 
-/** Map common aliases / typos to canonical grade values used in the DB */
 const GRADE_ALIASES: Record<string, SubscriptionGrade> = {
   "الأول الاعدادي": "الاول الاعدادي",
   "الصف الاول الاعدادي": "الاول الاعدادي",
@@ -101,7 +98,6 @@ export function addMonths(date: Date, months: number): Date {
   const result = new Date(date);
   const day = result.getDate();
   result.setMonth(result.getMonth() + months);
-  // Handle month-end overflow (e.g. Jan 31 + 1 month)
   if (result.getDate() < day) {
     result.setDate(0);
   }
@@ -112,12 +108,10 @@ export type SubscriptionLike = {
   status: string;
   endsAt: Date;
   grade: string;
-  division: string | null;
 };
 
 export type CourseForSubscription = {
   grade: string | null;
-  divisions: string[];
 };
 
 export function isSubscriptionCurrentlyActive(
@@ -127,11 +121,7 @@ export function isSubscriptionCurrentlyActive(
   return subscription.status === "ACTIVE" && subscription.endsAt > now;
 }
 
-/**
- * Whether an active subscription unlocks a course (current + future published).
- * - اعدادي: match grade only (no division)
- * - ثانوي: match grade + division when the course has divisions
- */
+/** Active subscription unlocks courses by matching grade (or grade === الكل). */
 export function subscriptionCoversCourse(
   subscription: SubscriptionLike,
   course: CourseForSubscription,
@@ -146,30 +136,14 @@ export function subscriptionCoversCourse(
   }
 
   const courseGrade = normalizeGrade(course.grade);
-  const subscriptionGrade = normalizeGrade(subscription.grade) ?? subscription.grade;
+  const subscriptionGrade =
+    normalizeGrade(subscription.grade) ?? subscription.grade;
 
   if (!courseGrade || !isSubscriptionGrade(courseGrade)) {
     return false;
   }
 
-  if (courseGrade !== subscriptionGrade) {
-    return false;
-  }
-
-  // اعدادي: grade match is enough
-  if (isIntermediateGrade(courseGrade)) {
-    return true;
-  }
-
-  // ثانوي: if course targets specific divisions, student division must match
-  if (course.divisions.length > 0) {
-    if (!subscription.division) {
-      return false;
-    }
-    return course.divisions.includes(subscription.division);
-  }
-
-  return true;
+  return courseGrade === subscriptionGrade;
 }
 
 export function hasActiveSubscriptionForCourse(
@@ -177,5 +151,7 @@ export function hasActiveSubscriptionForCourse(
   course: CourseForSubscription,
   now: Date = new Date()
 ): boolean {
-  return subscriptions.some((sub) => subscriptionCoversCourse(sub, course, now));
+  return subscriptions.some((sub) =>
+    subscriptionCoversCourse(sub, course, now)
+  );
 }

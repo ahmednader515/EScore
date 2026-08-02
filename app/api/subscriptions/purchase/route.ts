@@ -1,12 +1,13 @@
 import { NextResponse } from "next/server";
+import { cookies } from "next/headers";
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
 import {
   addMonths,
-  isSecondaryGrade,
   isSubscriptionGrade,
   normalizeGrade,
 } from "@/lib/subscriptions";
+import { isStudentViewEnabled } from "@/lib/student-view";
 
 export async function POST(req: Request) {
   try {
@@ -28,7 +29,6 @@ export async function POST(req: Request) {
       select: {
         id: true,
         grade: true,
-        division: true,
         balance: true,
         role: true,
       },
@@ -38,7 +38,11 @@ export async function POST(req: Request) {
       return new NextResponse("User not found", { status: 404 });
     }
 
-    if (user.role !== "USER") {
+    const cookieStore = await cookies();
+    const studentView = isStudentViewEnabled(cookieStore);
+    const isStaff = user.role === "TEACHER" || user.role === "ADMIN";
+
+    if (user.role !== "USER" && !(isStaff && studentView)) {
       return new NextResponse("Subscriptions are for students only", { status: 403 });
     }
 
@@ -49,11 +53,6 @@ export async function POST(req: Request) {
         "يجب تحديد الصف الدراسي في الملف الشخصي أولاً",
         { status: 400 }
       );
-    }
-
-    // Secondary students need a division; اعدادي does not
-    if (isSecondaryGrade(grade) && !user.division) {
-      return new NextResponse("يجب تحديد القسم في الملف الشخصي قبل الاشتراك", { status: 400 });
     }
 
     const plan = await db.subscriptionPlan.findUnique({
@@ -109,7 +108,6 @@ export async function POST(req: Request) {
           userId,
           planId: plan.id,
           grade,
-          division: user.division,
           durationMonths: plan.durationMonths,
           pricePaid: plan.price,
           status: "ACTIVE",

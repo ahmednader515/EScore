@@ -9,7 +9,6 @@ export async function POST(req: Request) {
       phoneNumber, 
       parentPhoneNumber, 
       grade,
-      division,
       studyType,
       governorate,
       password, 
@@ -107,10 +106,6 @@ export async function POST(req: Request) {
     // Hash password (no complexity requirements)
     const hashedPassword = await bcrypt.hash(password, 10);
     
-    // Check if grade is intermediate (doesn't require division)
-    const intermediateGrades = ["الاول الاعدادي", "الثاني الاعدادي", "الثالث الاعدادي"];
-    const isIntermediateGrade = grade && intermediateGrades.includes(grade);
-    
     // Create user directly without email verification
     await db.user.create({
       data: {
@@ -118,7 +113,6 @@ export async function POST(req: Request) {
         phoneNumber,
         parentPhoneNumber,
         grade,
-        division: isIntermediateGrade ? null : division, // Division is null for intermediate grades
         studyType,
         governorate,
         hashedPassword,
@@ -142,4 +136,4 @@ export async function POST(req: Request) {
     
     return new NextResponse("Internal Error", { status: 500 });
   }
-} 
+}

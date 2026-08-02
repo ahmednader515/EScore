@@ -1,4 +1,5 @@
 import { getServerSession } from "next-auth";
+import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { Suspense } from "react";
 import { db } from "@/lib/db";
@@ -12,6 +13,7 @@ import Link from "next/link";
 import { Course, Purchase } from "@prisma/client";
 import { getCourseLink, canAccessCourseContent, isFreeCourse } from "@/lib/course-access";
 import { getHierarchicalProgress } from "@/lib/course-hierarchy";
+import { isStudentViewEnabled } from "@/lib/student-view";
 
 type CourseWithDetails = Course & {
     chapters: { id: string }[];
@@ -40,21 +42,20 @@ export default async function SearchPage({
     const resolvedParams = await searchParams;
     const title = typeof resolvedParams.title === 'string' ? resolvedParams.title : '';
 
-    // Get user's grade and division for filtering
+    // Get user's grade for filtering
     const user = await db.user.findUnique({
         where: { id: session.user.id },
-        select: { grade: true, division: true, role: true }
+        select: { grade: true, role: true }
     });
 
     console.log("[SEARCH_PAGE] User data:", { 
         userId: session.user.id, 
         role: user?.role, 
         grade: user?.grade, 
-        division: user?.division,
         title 
     });
 
-    // Build where clause - filter by user's grade/division if they're a student
+    // Build where clause - filter by user's grade if they're a student
     let whereClause: any = {
         isPublished: true,
     };
@@ -67,48 +68,31 @@ export default async function SearchPage({
         };
     }
 
-    // Filter by student's grade and division if they're a regular user
-    // If user is teacher/admin, show all courses
-    if (user && user.role === "USER" && user.grade) {
-        const intermediateGrades = ["الاول الاعدادي", "الثاني الاعدادي", "الثالث الاعدادي"];
-        const isIntermediateGrade = intermediateGrades.includes(user.grade);
-        
+    const cookieStore = await cookies();
+    const studentView = isStudentViewEnabled(cookieStore);
+    const filterAsStudent =
+        !!user?.grade &&
+        (user.role === "USER" ||
+            (studentView && (user.role === "TEACHER" || user.role === "ADMIN")));
+
+    // Filter by grade for students (and staff in student-view mode)
+    if (filterAsStudent) {
         // Build the filter for courses:
         // 1. Courses with grade="الكل" - show to everyone
-        // 2. For intermediate grades: match by grade only (no division needed)
-        // 3. For high school grades: match by grade AND student's division in the divisions array
-        const gradeDivisionFilter = {
+        // 2. Match by student's grade
+        // 3. Old courses: no grade set yet (backward compatibility)
+        const gradeFilter = {
             OR: [
-                // Courses for all grades
                 { grade: "الكل" },
-                // For intermediate grades: match by grade only
-                ...(isIntermediateGrade ? [
-                    { grade: user.grade }
-                ] : []),
-                // For high school grades: match by grade and division (if division exists)
-                ...(!isIntermediateGrade && user.division ? [
-                    {
-                        AND: [
-                            { grade: user.grade },
-                            {
-                                divisions: {
-                                    has: user.division
-                                }
-                            }
-                        ]
-                    }
-                ] : []),
-                // Old courses: no grade set yet (backward compatibility)
-                {
-                    grade: null
-                }
+                { grade: user!.grade },
+                { grade: null },
             ]
         };
 
-        // Build AND clause to combine isPublished, title (if exists), and grade/division filter
+        // Build AND clause to combine isPublished, title (if exists), and grade filter
         const andConditions: any[] = [
             { isPublished: true },
-            gradeDivisionFilter
+            gradeFilter
         ];
 
         if (title) {
@@ -175,7 +159,6 @@ export default async function SearchPage({
             id: courses[0].id,
             title: courses[0].title,
             grade: courses[0].grade,
-            division: courses[0].division,
             isPublished: courses[0].isPublished
         });
     }
@@ -190,7 +173,6 @@ export default async function SearchPage({
             status: true,
             endsAt: true,
             grade: true,
-            division: true,
         },
     });
 
@@ -289,7 +271,6 @@ export default async function SearchPage({
                                 subscriptions,
                                 course: {
                                     grade: course.grade,
-                                    divisions: course.divisions,
                                 },
                             }
                         );
@@ -386,14 +367,8 @@ export default async function SearchPage({
                             <p className="text-muted-foreground mb-6">
                                 {title 
                                     ? "جرب البحث بكلمات مختلفة أو تصفح جميع الكورسات"
-                                    : user && user.role === "USER" && user.grade && user.division
-                                        ? (() => {
-                                            const intermediateGrades = ["الاول الاعدادي", "الثاني الاعدادي", "الثالث الاعدادي"];
-                                            const isIntermediateGrade = intermediateGrades.includes(user.grade);
-                                            return isIntermediateGrade 
-                                                ? `لا توجد كورسات متاحة للصف "${user.grade}" حالياً`
-                                                : `لا توجد كورسات متاحة للصف "${user.grade}" ${user.division ? `والقسم "${user.division}"` : ''} حالياً`;
-                                          })()
+                                    : user && user.role === "USER" && user.grade
+                                        ? `لا توجد كورسات متاحة للصف "${user.grade}" حالياً`
                                         : "سيتم إضافة كورسات جديدة قريباً"
                                 }
                             </p>

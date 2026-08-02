@@ -1,5 +1,6 @@
 import { withAuth } from "next-auth/middleware";
 import { NextResponse } from "next/server";
+import { STUDENT_VIEW_COOKIE } from "@/lib/student-view";
 
 // Helper function to get dashboard URL by role
 function getDashboardUrlByRole(role: string): string {
@@ -12,6 +13,10 @@ function getDashboardUrlByRole(role: string): string {
     default:
       return "/dashboard";
   }
+}
+
+function hasStudentViewCookie(req: { cookies: { get: (name: string) => { value: string } | undefined } }) {
+  return req.cookies.get(STUDENT_VIEW_COOKIE)?.value === "1";
 }
 
 export default withAuth(
@@ -79,13 +84,13 @@ export default withAuth(
       return NextResponse.redirect(new URL("/dashboard", req.url));
     }
 
-    // If user accesses main dashboard, redirect to role-specific dashboard
+    // If staff accesses main student dashboard without student-view mode, send them to their dashboard
     if (req.nextUrl.pathname === "/dashboard" && req.nextauth.token) {
       const userRole = req.nextauth.token?.role || "USER";
       const dashboardUrl = getDashboardUrlByRole(userRole);
-      
-      // Only redirect if the user's role-specific dashboard is different from the main dashboard
-      if (userRole !== "USER") {
+      const studentView = hasStudentViewCookie(req);
+
+      if (userRole !== "USER" && !studentView) {
         return NextResponse.redirect(new URL(dashboardUrl, req.url));
       }
     }

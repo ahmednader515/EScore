@@ -40,11 +40,11 @@ export async function GET(req: Request) {
       const authResult = await auth();
       userId = authResult.userId;
       
-      // Get student's grade and division for filtering
+      // Get student's grade for filtering
       if (userId) {
         student = await db.user.findUnique({
           where: { id: userId },
-          select: { grade: true, division: true, role: true }
+          select: { grade: true, role: true }
         });
       }
     } catch (error) {
@@ -53,42 +53,21 @@ export async function GET(req: Request) {
     }
 
     // Build where clause for course filtering
-    // If user is a student, filter by grade/division
-    // If course has no grade/division (old courses), show to everyone (backward compatibility)
+    // If user is a student, filter by grade
+    // If course has no grade (old courses), show to everyone (backward compatibility)
     // If user is teacher/admin or not authenticated, show all published courses
     const whereClause: any = {
       isPublished: true,
     };
 
-    // Filter by student's grade and division if they're a regular user
+    // Filter by student's grade if they're a regular user
     if (student && student.role === "USER" && student.grade) {
-      const intermediateGrades = ["الاول الاعدادي", "الثاني الاعدادي", "الثالث الاعدادي"];
-      const isIntermediateGrade = intermediateGrades.includes(student.grade);
-      
       whereClause.OR = [
         // Courses for all grades (الكل)
         { grade: "الكل" },
-        // For intermediate grades: match by grade only (no division needed)
-        ...(isIntermediateGrade ? [
-          { grade: student.grade }
-        ] : []),
-        // For high school grades: match by grade and division (if division exists)
-        ...(!isIntermediateGrade && student.division ? [
-          {
-            AND: [
-              { grade: student.grade },
-              {
-                divisions: {
-                  has: student.division
-                }
-              }
-            ]
-          }
-        ] : []),
+        { grade: student.grade },
         // Old courses: no grade set yet (backward compatibility)
-        {
-          grade: null
-        }
+        { grade: null },
       ];
     }
 

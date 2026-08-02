@@ -73,21 +73,8 @@ export default async function CourseIdPage({
         return redirect("/dashboard/admin/courses");
     }
 
-    // Check if grade/division is set
-    // Intermediate grades don't require divisions
-    const intermediateGrades = ["الاول الاعدادي", "الثاني الاعدادي", "الثالث الاعدادي"];
-    const isIntermediateGrade = course.grade && intermediateGrades.includes(course.grade);
-    
-    // Ensure divisions is an array (could be null or undefined)
-    const divisions = course.divisions || [];
-    
-    // Grade is complete if:
-    // - grade is "الكل" OR
-    // - grade is an intermediate grade (no division needed) OR
-    // - grade is set AND divisions array has at least one item (for high school grades)
-    const hasGradeDivision = course.grade === "الكل" || 
-        isIntermediateGrade ||
-        (course.grade && divisions.length > 0);
+    // Grade is complete if set (including "الكل")
+    const hasGrade = !!course.grade;
 
     const isHierarchical = course.courseType === "HIERARCHICAL";
 
@@ -110,7 +97,7 @@ export default async function CourseIdPage({
         isHierarchical
             ? hasPublishedHierarchicalContent
             : course.chapters.some((chapter) => chapter.isPublished),
-        hasGradeDivision,
+        hasGrade,
     ];
 
     const totalFields = requiredFields.length;
@@ -129,7 +116,7 @@ export default async function CourseIdPage({
         publishedChapters: isHierarchical
             ? hasPublishedHierarchicalContent
             : course.chapters.some((chapter) => chapter.isPublished),
-        gradeDivision: hasGradeDivision
+        grade: hasGrade
     };
 
     return (
@@ -172,9 +159,9 @@ export default async function CourseIdPage({
                                         <span>{completionStatus.publishedChapters ? '✓' : '✗'}</span>
                                         <span>{isHierarchical ? "محتوى منشور" : "فصل منشور"}</span>
                                     </div>
-                                    <div className={`flex items-center gap-1 ${completionStatus.gradeDivision ? 'text-green-600' : 'text-red-600'}`}>
-                                        <span>{completionStatus.gradeDivision ? '✓' : '✗'}</span>
-                                        <span>الصف الدراسي والقسم</span>
+                                    <div className={`flex items-center gap-1 ${completionStatus.grade ? 'text-green-600' : 'text-red-600'}`}>
+                                        <span>{completionStatus.grade ? '✓' : '✗'}</span>
+                                        <span>الصف الدراسي</span>
                                     </div>
                                 </div>
                             </div>

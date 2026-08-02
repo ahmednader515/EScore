@@ -9,9 +9,8 @@ import { z } from "zod";
 import toast from "react-hot-toast";
 import axios from "axios";
 import { Button } from "@/components/ui/button";
-import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage, FormDescription } from "@/components/ui/form";
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Checkbox } from "@/components/ui/checkbox";
 import {
     Dialog,
     DialogContent,
@@ -22,140 +21,56 @@ import {
     DialogTrigger,
 } from "@/components/ui/dialog";
 import { GraduationCap } from "lucide-react";
-import { Label } from "@/components/ui/label";
 
 const formSchema = z.object({
     grade: z.string().optional(),
-    divisions: z.array(z.string()).optional(),
 });
 
 interface EditGradeDivisionDialogProps {
-    course: Course & { divisions?: string[] };
+    course: Course;
 }
-
-// Get division options based on selected grade
-const getDivisionOptions = (grade: string | null | undefined) => {
-    if (!grade || grade === "الكل") return [];
-    
-    switch (grade) {
-        case "الأول الثانوي":
-            return [
-                { value: "بكالوريا", label: "بكالوريا" },
-                { value: "عام", label: "عام" },
-            ];
-        case "الثاني الثانوي":
-            return [
-                { value: "علمي", label: "علمي" },
-                { value: "أدبي", label: "أدبي" },
-            ];
-        case "الثالث الثانوي":
-            return [
-                { value: "علمي رياضة", label: "علمي رياضة" },
-                { value: "أدبي", label: "أدبي" },
-            ];
-        // Intermediate grades don't have divisions
-        case "الاول الاعدادي":
-        case "الثاني الاعدادي":
-        case "الثالث الاعدادي":
-            return [];
-        default:
-            return [];
-    }
-};
-
-// Check if the selected grade should show division field
-const shouldShowDivision = (grade: string | null | undefined) => {
-    if (!grade || grade === "الكل") return false;
-    const intermediateGrades = ["الاول الاعدادي", "الثاني الاعدادي", "الثالث الاعدادي"];
-    return !intermediateGrades.includes(grade);
-};
 
 export const EditGradeDivisionDialog = ({ course }: EditGradeDivisionDialogProps) => {
     const router = useRouter();
     const [open, setOpen] = useState(false);
     const [isLoading, setIsLoading] = useState(false);
-    const [selectedGrade, setSelectedGrade] = useState<string | null>(course.grade || null);
-
-    // Handle legacy division field (string) and new divisions field (array)
-    const initialDivisions = course.divisions && course.divisions.length > 0 
-        ? course.divisions 
-        : (course as any).division 
-            ? [(course as any).division]
-            : [];
 
     const form = useForm<z.infer<typeof formSchema>>({
         resolver: zodResolver(formSchema),
         defaultValues: {
             grade: course.grade || "",
-            divisions: initialDivisions,
         },
     });
-
-    // Reset divisions when grade changes
-    const gradeValue = form.watch("grade");
-    useEffect(() => {
-        if (gradeValue !== selectedGrade) {
-            setSelectedGrade(gradeValue || null);
-            if (open && gradeValue !== "الكل") {
-                form.setValue("divisions", []); // Reset divisions when grade changes
-            } else if (gradeValue === "الكل") {
-                form.setValue("divisions", []); // Clear divisions if "الكل" is selected
-            }
-        }
-    }, [gradeValue, selectedGrade, form, open]);
 
     // Reset form when dialog opens/closes
     useEffect(() => {
         if (open) {
-            const divisions = course.divisions && course.divisions.length > 0 
-                ? course.divisions 
-                : (course as any).division 
-                    ? [(course as any).division]
-                    : [];
-            
             form.reset({
                 grade: course.grade || "",
-                divisions: divisions,
             });
-            setSelectedGrade(course.grade || null);
         }
     }, [open, course, form]);
 
     const onSubmit = async (values: z.infer<typeof formSchema>) => {
         try {
             setIsLoading(true);
-            
-            // Prepare data
-            const updateData: { grade?: string | null; divisions?: string[] } = {};
-            
-            const intermediateGrades = ["الاول الاعدادي", "الثاني الاعدادي", "الثالث الاعدادي"];
-            const isIntermediateGrade = values.grade && intermediateGrades.includes(values.grade);
-            
-            if (values.grade && values.grade.trim() !== "" && values.grade !== "الكل") {
-                updateData.grade = values.grade.trim();
-                // Intermediate grades don't have divisions, so always set to empty array
-                updateData.divisions = isIntermediateGrade ? [] : (values.divisions || []);
-            } else if (values.grade === "الكل") {
-                updateData.grade = "الكل";
-                updateData.divisions = []; // No divisions needed for "الكل"
-            } else {
-                updateData.grade = null;
-                updateData.divisions = [];
+
+            let grade: string | null = null;
+            if (values.grade && values.grade.trim() !== "") {
+                grade = values.grade.trim();
             }
-            
-            console.log("Submitting grade/division update:", updateData);
-            
-            const response = await axios.patch(`/api/courses/${course.id}`, updateData);
-            
+
+            const response = await axios.patch(`/api/courses/${course.id}`, { grade });
+
             if (response.status === 200) {
-                toast.success("تم تحديث الصف الدراسي والقسم");
+                toast.success("تم تحديث الصف الدراسي");
                 setOpen(false);
                 router.refresh();
             }
         } catch (error: any) {
-            console.error("Error updating course grade/division:", error);
+            console.error("Error updating course grade:", error);
             let errorMessage = "حدث خطأ ما";
-            
+
             if (error?.response?.data) {
                 if (typeof error.response.data === 'string') {
                     errorMessage = error.response.data;
@@ -167,37 +82,25 @@ export const EditGradeDivisionDialog = ({ course }: EditGradeDivisionDialogProps
             } else if (error?.message) {
                 errorMessage = error.message;
             }
-            
+
             toast.error(errorMessage);
         } finally {
             setIsLoading(false);
         }
     };
 
-    const divisionOptions = getDivisionOptions(selectedGrade);
-    const selectedDivisions = form.watch("divisions") || [];
-
-    const handleDivisionToggle = (divisionValue: string, checked: boolean) => {
-        const currentDivisions = form.getValues("divisions") || [];
-        if (checked) {
-            form.setValue("divisions", [...currentDivisions, divisionValue]);
-        } else {
-            form.setValue("divisions", currentDivisions.filter((d) => d !== divisionValue));
-        }
-    };
-
     return (
         <Dialog open={open} onOpenChange={setOpen}>
             <DialogTrigger asChild>
-                <Button variant="ghost" size="icon" title="تعديل الصف الدراسي والقسم">
+                <Button variant="ghost" size="icon" title="تعديل الصف الدراسي">
                     <GraduationCap className="h-4 w-4" />
                 </Button>
             </DialogTrigger>
             <DialogContent>
                 <DialogHeader>
-                    <DialogTitle>تعديل الصف الدراسي والقسم</DialogTitle>
+                    <DialogTitle>تعديل الصف الدراسي</DialogTitle>
                     <DialogDescription>
-                        حدد الصف الدراسي والقسم لهذا الكورس لعرضه للطلاب المناسبين. يمكنك اختيار "الكل" لعرض الكورس لجميع الصفوف، أو اختيار أكثر من قسم.
+                        حدد الصف الدراسي لهذا الكورس لعرضه للطلاب المناسبين. يمكنك اختيار &quot;الكل&quot; لعرض الكورس لجميع الصفوف.
                     </DialogDescription>
                 </DialogHeader>
                 <Form {...form}>
@@ -209,15 +112,7 @@ export const EditGradeDivisionDialog = ({ course }: EditGradeDivisionDialogProps
                                 <FormItem>
                                     <FormLabel>الصف الدراسي</FormLabel>
                                     <Select
-                                        onValueChange={(value) => {
-                                            field.onChange(value);
-                                            setSelectedGrade(value);
-                                            if (value === "الكل") {
-                                                form.setValue("divisions", []);
-                                            } else {
-                                                form.setValue("divisions", []);
-                                            }
-                                        }}
+                                        onValueChange={field.onChange}
                                         value={field.value}
                                         disabled={isLoading}
                                     >
@@ -241,46 +136,9 @@ export const EditGradeDivisionDialog = ({ course }: EditGradeDivisionDialogProps
                             )}
                         />
 
-                        {/* Show division checkboxes only if grade is selected and not "الكل" and not intermediate grade */}
-                        {selectedGrade && selectedGrade !== "الكل" && shouldShowDivision(selectedGrade) && divisionOptions.length > 0 && (
-                            <FormField
-                                control={form.control}
-                                name="divisions"
-                                render={() => (
-                                    <FormItem>
-                                        <div className="mb-2">
-                                            <FormLabel>القسم (يمكن اختيار أكثر من قسم)</FormLabel>
-                                        </div>
-                                        <div className="space-y-2">
-                                            {divisionOptions.map((option) => (
-                                                <div key={option.value} className="flex items-center space-x-2 space-x-reverse">
-                                                    <Checkbox
-                                                        id={`division-${option.value}`}
-                                                        checked={selectedDivisions.includes(option.value)}
-                                                        onCheckedChange={(checked) => {
-                                                            handleDivisionToggle(option.value, checked as boolean);
-                                                        }}
-                                                        disabled={isLoading}
-                                                    />
-                                                    <Label
-                                                        htmlFor={`division-${option.value}`}
-                                                        className="text-sm font-normal cursor-pointer"
-                                                    >
-                                                        {option.label}
-                                                    </Label>
-                                                </div>
-                                            ))}
-                                        </div>
-                                        <FormMessage />
-                                    </FormItem>
-                                )}
-                            />
-                        )}
-
-                        {/* Show info message when "الكل" is selected */}
-                        {selectedGrade === "الكل" && (
+                        {form.watch("grade") === "الكل" && (
                             <div className="text-sm text-muted-foreground bg-blue-50 p-3 rounded-md border border-blue-200">
-                                ℹ️ عند اختيار "الكل"، سيظهر هذا الكورس لجميع الطلاب بغض النظر عن صفوفهم وأقسامهم.
+                                عند اختيار &quot;الكل&quot;، سيظهر هذا الكورس لجميع الطلاب بغض النظر عن صفوفهم.
                             </div>
                         )}
 
@@ -293,10 +151,7 @@ export const EditGradeDivisionDialog = ({ course }: EditGradeDivisionDialogProps
                             >
                                 إلغاء
                             </Button>
-                            <Button
-                                type="submit"
-                                disabled={isLoading || (selectedGrade && selectedGrade !== "الكل" && shouldShowDivision(selectedGrade) && selectedDivisions.length === 0)}
-                            >
+                            <Button type="submit" disabled={isLoading}>
                                 حفظ
                             </Button>
                         </DialogFooter>

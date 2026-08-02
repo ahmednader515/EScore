@@ -45,7 +45,6 @@ export function getCourseLink(
     price: number | null;
     courseType?: CourseType;
     grade?: string | null;
-    divisions?: string[];
     chapters: { id: string }[];
     purchases: Pick<Purchase, "status">[];
     courseTeachers?: {
@@ -62,7 +61,6 @@ export function getCourseLink(
     !!options?.subscriptions &&
     hasActiveSubscriptionForCourse(options.subscriptions, {
       grade: course.grade ?? null,
-      divisions: course.divisions ?? [],
     });
   const enrolled = hasActivePurchase(course.purchases) || subscribed;
   const free = isFreeCourse(course.price);

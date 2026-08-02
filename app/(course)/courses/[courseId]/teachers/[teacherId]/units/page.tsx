@@ -50,7 +50,6 @@ export default async function TeacherUnitsPage({
       status: true,
       endsAt: true,
       grade: true,
-      division: true,
     },
   });
 
@@ -61,7 +60,6 @@ export default async function TeacherUnitsPage({
       subscriptions,
       course: {
         grade: teacher.course.grade,
-        divisions: teacher.course.divisions,
       },
     }
   );

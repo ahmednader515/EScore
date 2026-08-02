@@ -27,7 +27,6 @@ export async function GET(
             title: true,
             price: true,
             grade: true,
-            divisions: true,
             courseType: true,
             purchases: {
               where: { userId },
@@ -85,7 +84,6 @@ export async function GET(
               status: true,
               endsAt: true,
               grade: true,
-              division: true,
             },
           })
         );
@@ -96,7 +94,6 @@ export async function GET(
         subscriptions,
         course: {
           grade: unit.course.grade,
-          divisions: unit.course.divisions,
         },
       });
 

@@ -8,6 +8,8 @@ import {
 } from "@/lib/subscriptions";
 import { ensureSubscriptionPlansExist } from "@/lib/subscription-plans-admin";
 import { getActiveSubscriptionsForUser } from "@/lib/user-course-access";
+import { cookies } from "next/headers";
+import { isStudentViewEnabled } from "@/lib/student-view";
 
 export async function GET() {
   try {
@@ -23,7 +25,6 @@ export async function GET() {
       where: { id: userId },
       select: {
         grade: true,
-        division: true,
         balance: true,
         role: true,
       },
@@ -39,13 +40,15 @@ export async function GET() {
     const eligible = isSubscriptionGrade(grade);
     const activeSubscriptions = await getActiveSubscriptionsForUser(userId);
     const isStaff = user.role === "TEACHER" || user.role === "ADMIN";
+    const cookieStore = await cookies();
+    const studentView = isStudentViewEnabled(cookieStore);
 
-    if (isStaff) {
+    // Staff outside student-view should manage plans in admin/teacher UI
+    if (isStaff && !studentView) {
       return NextResponse.json({
         eligible: false,
         isSecondary: false,
         grade: grade ?? user.grade ?? null,
-        division: user.division,
         balance: user.balance,
         plans: [],
         activeSubscription: null,
@@ -59,7 +62,6 @@ export async function GET() {
         eligible: false,
         isSecondary: false,
         grade: grade ?? user.grade ?? null,
-        division: user.division,
         balance: user.balance,
         plans: [],
         activeSubscription: activeSubscriptions[0] ?? null,
@@ -88,7 +90,6 @@ export async function GET() {
       eligible: true,
       isSecondary: true,
       grade,
-      division: user.division,
       balance: user.balance,
       plans,
       activeSubscription: activeSubscriptions[0] ?? null,

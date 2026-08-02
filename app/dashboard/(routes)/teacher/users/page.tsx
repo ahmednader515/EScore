@@ -56,7 +56,6 @@ interface User {
     role: string;
     balance: number;
     grade?: string | null;
-    division?: string | null;
     studyType?: string | null;
     governorate?: string | null;
     createdAt: string;
@@ -232,10 +231,6 @@ const UsersPage = () => {
             <div>
                 <span className="text-foreground font-medium">الصف: </span>
                 {user.grade || "غير محدد"}
-            </div>
-            <div>
-                <span className="text-foreground font-medium">القسم: </span>
-                {user.division || "غير محدد"}
             </div>
             <div>
                 <span className="text-foreground font-medium">نوع الدراسة: </span>

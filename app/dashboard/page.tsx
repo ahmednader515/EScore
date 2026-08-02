@@ -1,4 +1,5 @@
 import { getServerSession } from "next-auth";
+import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { Course, Purchase } from "@prisma/client";
 import { db } from "@/lib/db";
@@ -13,7 +14,9 @@ import Image from "next/image";
 import { getCourseLink } from "@/lib/course-access";
 import { getHierarchicalProgress } from "@/lib/course-hierarchy";
 import { StudentReelsFab } from "@/components/student-reels-fab";
+import { RedeemPromocodeCard } from "@/components/redeem-promocode-card";
 import { subscriptionCoversCourse } from "@/lib/subscriptions";
+import { isStudentViewEnabled } from "@/lib/student-view";
 
 type CourseWithProgress = Course & {
   chapters: { id: string }[];
@@ -42,16 +45,19 @@ const CoursesPage = async () => {
     return redirect("/");
   }
 
-  // Redirect non-students to their role-specific dashboard
+  // Redirect staff to their dashboard unless student-view mode is enabled
   if (session.user.role !== "USER") {
-    const dashboardUrl = getDashboardUrlByRole(session.user.role);
-    return redirect(dashboardUrl);
+    const cookieStore = await cookies();
+    if (!isStudentViewEnabled(cookieStore)) {
+      const dashboardUrl = getDashboardUrlByRole(session.user.role);
+      return redirect(dashboardUrl);
+    }
   }
 
   // Get user's current balance
   const user = await db.user.findUnique({
     where: { id: session.user.id },
-    select: { balance: true, grade: true, division: true }
+    select: { balance: true, grade: true }
   });
 
   const activeSubscriptions = await db.subscription.findMany({
@@ -64,7 +70,6 @@ const CoursesPage = async () => {
       status: true,
       endsAt: true,
       grade: true,
-      division: true,
     },
   });
 
@@ -213,16 +218,9 @@ const CoursesPage = async () => {
               {
                 OR: [
                   { grade: "الكل" },
-                  ...activeSubscriptions.flatMap((sub) => [
-                    {
-                      AND: [
-                        { grade: sub.grade },
-                        ...(sub.division
-                          ? [{ divisions: { has: sub.division } }]
-                          : [{ divisions: { isEmpty: true } }]),
-                      ],
-                    },
-                  ]),
+                  ...activeSubscriptions.map((sub) => ({
+                    grade: sub.grade,
+                  })),
                 ],
               },
             ]
@@ -271,14 +269,13 @@ const CoursesPage = async () => {
     }
   });
 
-  // Filter subscription matches precisely (division rules)
+  // Filter subscription matches by grade
   const accessibleCourses = courses.filter((course) => {
     const purchased = course.purchases.some((p) => p.status === "ACTIVE");
     if (purchased) return true;
     return activeSubscriptions.some((sub) =>
       subscriptionCoversCourse(sub, {
         grade: course.grade,
-        divisions: course.divisions,
       })
     );
   });
@@ -508,6 +505,8 @@ const CoursesPage = async () => {
               {studentStats.completedQuizzes} من {studentStats.totalQuizzes} مكتمل
             </p>
           </div>
+
+          <RedeemPromocodeCard />
         </div>
       </div>
 

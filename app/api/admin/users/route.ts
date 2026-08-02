@@ -36,7 +36,6 @@ export async function GET(req: NextRequest) {
                     role: true,
                     balance: true,
                     grade: true,
-                    division: true,
                     studyType: true,
                     governorate: true,
                     createdAt: true,

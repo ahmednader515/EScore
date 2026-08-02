@@ -14,7 +14,6 @@ export async function userHasCourseAccess(
     select: {
       price: true,
       grade: true,
-      divisions: true,
       purchases: {
         where: { userId },
         select: { status: true },
@@ -55,13 +54,12 @@ export async function userHasCourseAccess(
       status: true,
       endsAt: true,
       grade: true,
-      division: true,
     },
   });
 
   return canAccessCourseContent(course.price, course.purchases, {
     subscriptions,
-    course: { grade: course.grade, divisions: course.divisions },
+    course: { grade: course.grade },
   });
 }
 
@@ -89,7 +87,6 @@ export async function getActiveSubscriptionsForUser(userId: string) {
       endsAt: true,
       startsAt: true,
       grade: true,
-      division: true,
       durationMonths: true,
       pricePaid: true,
       planId: true,

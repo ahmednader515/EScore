@@ -2,13 +2,23 @@
 
 import { motion } from "framer-motion";
 import { Button } from "@/components/ui/button";
-import { ArrowRight, ArrowLeft, Star, Users, BookOpen, Award, ChevronDown, Facebook, Lightbulb, Heart, Check, ChevronRight, PlayCircle, UserCheck } from "lucide-react";
+import { ArrowRight, ArrowLeft, Star, Users, BookOpen, Award, ChevronDown, Facebook, Lightbulb, Heart, Check, ChevronRight, PlayCircle, UserCheck, CreditCard, Calendar } from "lucide-react";
 import Link from "next/link";
 import { Navbar } from "@/components/navbar";
 import { ScrollProgress } from "@/components/scroll-progress";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useSession } from "next-auth/react";
 import { HOMEPAGE_SETTINGS_DEFAULTS, type HomepageSettingsPayload } from "@/lib/homepage-settings";
+import { formatPrice } from "@/lib/format";
+import { SUBSCRIPTION_GRADES } from "@/lib/subscriptions";
+
+type PublicSubscriptionPlan = {
+  id: string;
+  grade: string;
+  durationMonths: number;
+  price: number;
+  label: string | null;
+};
 
 // Define types based on Prisma schema
 type Course = {
@@ -52,10 +62,35 @@ export default function HomePage() {
   const { data: session, status } = useSession();
   const [courses, setCourses] = useState<CourseWithProgress[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [subscriptionPlans, setSubscriptionPlans] = useState<PublicSubscriptionPlan[]>([]);
+  const [isLoadingPlans, setIsLoadingPlans] = useState(true);
   const [showScrollIndicator, setShowScrollIndicator] = useState(true);
   const [homepageSettings, setHomepageSettings] = useState<HomepageSettingsPayload>(HOMEPAGE_SETTINGS_DEFAULTS);
   const [studentStats, setStudentStats] = useState({ totalStudents: 0, activeStudents: 0 });
   const isLoggedIn = status === "authenticated" && !!session;
+
+  const plansByGrade = useMemo(() => {
+    const gradeOrder = SUBSCRIPTION_GRADES as readonly string[];
+    const grouped: { grade: string; plans: PublicSubscriptionPlan[] }[] = [];
+    for (const grade of gradeOrder) {
+      const plans = subscriptionPlans.filter((p) => p.grade === grade);
+      if (plans.length > 0) grouped.push({ grade, plans });
+    }
+    // Any unexpected grades at the end
+    for (const plan of subscriptionPlans) {
+      if (!gradeOrder.includes(plan.grade) && !grouped.some((g) => g.grade === plan.grade)) {
+        grouped.push({
+          grade: plan.grade,
+          plans: subscriptionPlans.filter((p) => p.grade === plan.grade),
+        });
+      }
+    }
+    return grouped;
+  }, [subscriptionPlans]);
+
+  const subscribeHref = isLoggedIn
+    ? "/dashboard/subscriptions"
+    : `/sign-in?callbackUrl=${encodeURIComponent("/dashboard/subscriptions")}`;
 
   useEffect(() => {
     const fetchCourses = async () => {
@@ -80,6 +115,24 @@ export default function HomePage() {
     };
 
     fetchCourses();
+  }, []);
+
+  useEffect(() => {
+    const fetchSubscriptionPlans = async () => {
+      try {
+        setIsLoadingPlans(true);
+        const response = await fetch("/api/subscriptions/public");
+        if (!response.ok) return;
+        const data = await response.json();
+        setSubscriptionPlans(Array.isArray(data) ? data : []);
+      } catch (error) {
+        console.error("Error fetching subscription plans:", error);
+      } finally {
+        setIsLoadingPlans(false);
+      }
+    };
+
+    fetchSubscriptionPlans();
   }, []);
 
   useEffect(() => {
@@ -848,6 +901,116 @@ export default function HomePage() {
               )
             )}
           </motion.div>
+        </motion.div>
+      </section>
+
+      {/* Subscription Packages Section */}
+      <section id="subscriptions-section" className="py-20 bg-[#fcfaed]/40">
+        <motion.div
+          initial={{ opacity: 0, y: 50 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={{ once: true, margin: "-100px" }}
+          transition={{ duration: 0.8 }}
+          className="container mx-auto px-4"
+        >
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true, margin: "-100px" }}
+            transition={{ duration: 0.8, delay: 0.2 }}
+            className="text-center mb-12"
+          >
+            <h2 className="text-3xl font-bold mb-4" style={{ color: "#361e01" }}>
+              باقات الاشتراك
+            </h2>
+            <p className="text-muted-foreground max-w-2xl mx-auto">
+              اشترك في باقة صفك للوصول إلى جميع الكورسات طوال مدة الاشتراك، بما في ذلك الكورسات الجديدة.
+            </p>
+          </motion.div>
+
+          {isLoadingPlans ? (
+            <div className="flex flex-wrap justify-center gap-6">
+              {Array.from({ length: 4 }).map((_, index) => (
+                <div
+                  key={index}
+                  className="w-full sm:w-72 bg-white rounded-xl border border-[#361e01]/20 p-6 animate-pulse"
+                >
+                  <div className="h-5 bg-muted rounded w-1/2 mb-4" />
+                  <div className="h-8 bg-muted rounded w-2/3 mb-3" />
+                  <div className="h-4 bg-muted rounded w-full mb-6" />
+                  <div className="h-10 bg-muted rounded w-full" />
+                </div>
+              ))}
+            </div>
+          ) : plansByGrade.length === 0 ? (
+            <div className="text-center py-8 text-muted-foreground">
+              باقات الاشتراك غير متاحة حالياً.
+            </div>
+          ) : (
+            <div className="space-y-12">
+              {plansByGrade.map((group, groupIndex) => (
+                <motion.div
+                  key={group.grade}
+                  initial={{ opacity: 0, y: 24 }}
+                  whileInView={{ opacity: 1, y: 0 }}
+                  viewport={{ once: true, margin: "-80px" }}
+                  transition={{ duration: 0.6, delay: groupIndex * 0.08 }}
+                >
+                  <h3
+                    className="text-xl font-bold mb-5 text-center"
+                    style={{ color: "#361e01" }}
+                  >
+                    {group.grade}
+                  </h3>
+                  <div className="flex flex-wrap justify-center gap-6">
+                    {group.plans.map((plan) => (
+                      <div
+                        key={plan.id}
+                        className="w-full sm:w-72 bg-white rounded-xl border border-[#361e01] p-6 shadow-sm hover:shadow-md transition-all flex flex-col"
+                      >
+                        <div className="flex items-center justify-between gap-2 mb-3">
+                          <span className="text-lg font-semibold" style={{ color: "#361e01" }}>
+                            {plan.label || `${plan.durationMonths} شهر`}
+                          </span>
+                          <span className="inline-flex items-center gap-1 text-xs text-muted-foreground bg-[#fcfaed] px-2 py-1 rounded">
+                            <Calendar className="h-3.5 w-3.5" />
+                            {plan.durationMonths}{" "}
+                            {plan.durationMonths === 1 ? "شهر" : "أشهر"}
+                          </span>
+                        </div>
+                        <div className="text-3xl font-bold mb-4" style={{ color: "#361e01" }}>
+                          {formatPrice(plan.price)}
+                        </div>
+                        <ul className="text-sm text-muted-foreground space-y-2 mb-6 flex-1">
+                          <li className="flex items-start gap-2">
+                            <Check className="h-4 w-4 mt-0.5 shrink-0 text-[#ab8302]" />
+                            الوصول لجميع كورسات الصف
+                          </li>
+                          <li className="flex items-start gap-2">
+                            <Check className="h-4 w-4 mt-0.5 shrink-0 text-[#ab8302]" />
+                            يشمل الكورسات الحالية والمستقبلية
+                          </li>
+                          <li className="flex items-start gap-2">
+                            <Check className="h-4 w-4 mt-0.5 shrink-0 text-[#ab8302]" />
+                            ينتهي تلقائياً بعد المدة المحددة
+                          </li>
+                        </ul>
+                        <Button
+                          className="w-full bg-[#361e01] hover:bg-[#361e01]/90 text-white"
+                          asChild
+                        >
+                          <Link href={subscribeHref}>
+                            <CreditCard className="h-4 w-4 ml-2" />
+                            اشترك الآن
+                          </Link>
+                        </Button>
+                      </div>
+                    ))}
+                  </div>
+                </motion.div>
+              ))}
+            </div>
+          )}
         </motion.div>
       </section>
 

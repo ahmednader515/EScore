@@ -25,7 +25,6 @@ model User {
   role                    String    @default("USER")
   balance                 Float     @default(0)
   grade                   String?   // الصف: الأول، الثاني، الثالث
-  division                String?   // القسم: عام، أدبي، علمي، علمي رياضة
   studyType               String?   // نوع الدراسة: سنتر، أون لاين
   governorate             String?   // المحافظة
   createdAt               DateTime  @default(now())
@@ -73,7 +72,6 @@ model Course {
   price Float?
   isPublished Boolean @default(false)
   grade String? // الصف الدراسي: الأول الثانوي، الثاني الثانوي، الثالث الثانوي، الكل (لجميع الصفوف)
-  divisions String[] @default([]) // القسم: يمكن اختيار أكثر من قسم (عام، أدبي، علمي، علمي رياضة، بكالوريا)
   courseType CourseType @default(FLAT)
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
@@ -197,7 +195,6 @@ model Subscription {
   userId         String
   planId         String
   grade          String           // snapshot of student grade at purchase
-  division       String?          // snapshot of student division
   durationMonths Int
   pricePaid      Float
   status         String           @default("ACTIVE") // ACTIVE | EXPIRED

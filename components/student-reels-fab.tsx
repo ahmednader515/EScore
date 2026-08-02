@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 
 export function StudentReelsFab() {
   return (
-    <div className="fixed bottom-6 right-6 z-50 md:bottom-8 md:right-8">
+    <div className="fixed bottom-[calc(4.5rem+env(safe-area-inset-bottom,0px))] right-6 z-40 md:bottom-8 md:right-8">
       <Button
         asChild
         size="lg"

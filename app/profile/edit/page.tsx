@@ -22,7 +22,6 @@ export default function EditProfilePage() {
   const [isFetching, setIsFetching] = useState(true);
   const [formData, setFormData] = useState({
     grade: "",
-    division: "",
   });
 
   // Fetch current user profile
@@ -34,7 +33,6 @@ export default function EditProfilePage() {
         const user = response.data;
         setFormData({
           grade: user.grade || "",
-          division: user.division || "",
         });
       } catch (error) {
         console.error("Error fetching profile:", error);
@@ -48,54 +46,11 @@ export default function EditProfilePage() {
     fetchProfile();
   }, [router]);
 
-  // Get division options based on selected grade
-  const getDivisionOptions = () => {
-    switch (formData.grade) {
-      case "الأول الثانوي":
-        return [
-          { value: "بكالوريا", label: "بكالوريا" },
-          { value: "عام", label: "عام" },
-        ];
-      case "الثاني الثانوي":
-        return [
-          { value: "علمي", label: "علمي" },
-          { value: "أدبي", label: "أدبي" },
-        ];
-      case "الثالث الثانوي":
-        return [
-          { value: "علمي رياضة", label: "علمي رياضة" },
-          { value: "أدبي", label: "أدبي" },
-        ];
-      // Intermediate grades don't have divisions
-      case "الاول الاعدادي":
-      case "الثاني الاعدادي":
-      case "الثالث الاعدادي":
-        return [];
-      default:
-        return [];
-    }
-  };
-
-  // Check if the selected grade should show division field
-  const shouldShowDivision = () => {
-    const intermediateGrades = ["الاول الاعدادي", "الثاني الاعدادي", "الثالث الاعدادي"];
-    return formData.grade && !intermediateGrades.includes(formData.grade);
-  };
-
   const handleSelectChange = (name: string, value: string) => {
-    if (name === "grade") {
-      // Reset division when grade changes
-      setFormData((prev) => ({
-        ...prev,
-        grade: value,
-        division: "", // Reset division when grade changes
-      }));
-    } else {
-      setFormData((prev) => ({
-        ...prev,
-        [name]: value,
-      }));
-    }
+    setFormData((prev) => ({
+      ...prev,
+      [name]: value,
+    }));
   };
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
@@ -103,9 +58,8 @@ export default function EditProfilePage() {
     setIsLoading(true);
 
     try {
-      const response = await axios.patch("/api/profile", {
+      await axios.patch("/api/profile", {
         grade: formData.grade || null,
-        division: formData.division || null,
       });
 
       toast.success("تم تحديث الملف الشخصي بنجاح");
@@ -157,7 +111,7 @@ export default function EditProfilePage() {
           </Link>
           <h1 className="text-3xl font-bold tracking-tight">تعديل الملف الشخصي</h1>
           <p className="text-sm text-muted-foreground mt-2">
-            قم بتحديث الصف الدراسي والقسم الخاص بك
+            قم بتحديث الصف الدراسي الخاص بك
           </p>
         </div>
 
@@ -186,29 +140,6 @@ export default function EditProfilePage() {
               </Select>
             </div>
 
-            {/* Only show division field when a grade is selected and it's not an intermediate grade */}
-            {formData.grade && shouldShowDivision() && (
-              <div className="space-y-2">
-                <Label htmlFor="division">القسم</Label>
-                <Select
-                  value={formData.division}
-                  onValueChange={(value) => handleSelectChange("division", value)}
-                  disabled={isLoading}
-                >
-                  <SelectTrigger className="h-10">
-                    <SelectValue placeholder="اختر القسم" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {getDivisionOptions().map((option) => (
-                      <SelectItem key={option.value} value={option.value}>
-                        {option.label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-            )}
-
             <div className="flex gap-4 pt-4">
               <Button
                 type="button"
@@ -236,4 +167,3 @@ export default function EditProfilePage() {
     </div>
   );
 }
-

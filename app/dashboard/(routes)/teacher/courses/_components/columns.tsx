@@ -15,7 +15,6 @@ export type Course = {
     isPublished: boolean;
     createdAt: Date;
     grade?: string | null;
-    divisions?: string[];
     courseType?: "FLAT" | "HIERARCHICAL";
 }
 
@@ -106,24 +105,11 @@ export const columns: ColumnDef<Course>[] = [
         },
     },
     {
-        id: "gradeDivision",
-        header: "الصف والقسم",
+        id: "grade",
+        header: "الصف",
         cell: ({ row }) => {
             const grade = row.original.grade;
-            const divisions = (row.original as any).divisions || [];
-            const legacyDivision = (row.original as any).division;
-            
-            // Check if grade is intermediate (doesn't require divisions)
-            const intermediateGrades = ["الاول الاعدادي", "الثاني الاعدادي", "الثالث الاعدادي"];
-            const isIntermediateGrade = grade && intermediateGrades.includes(grade);
-            
-            // Handle legacy single division field
-            const displayDivisions = divisions.length > 0 
-                ? divisions 
-                : legacyDivision 
-                    ? [legacyDivision]
-                    : [];
-            
+
             if (!grade) {
                 return (
                     <Badge variant="secondary" className="text-xs">
@@ -131,7 +117,7 @@ export const columns: ColumnDef<Course>[] = [
                     </Badge>
                 );
             }
-            
+
             if (grade === "الكل") {
                 return (
                     <div className="text-sm">
@@ -139,24 +125,10 @@ export const columns: ColumnDef<Course>[] = [
                     </div>
                 );
             }
-            
+
             return (
                 <div className="text-sm">
                     <div className="font-medium">{grade}</div>
-                    {isIntermediateGrade ? (
-                        // Intermediate grades don't have divisions
-                        <div className="text-muted-foreground text-xs">
-                            متاح لجميع الطلاب
-                        </div>
-                    ) : displayDivisions.length > 0 ? (
-                        <div className="text-muted-foreground text-xs">
-                            {displayDivisions.join(", ")}
-                        </div>
-                    ) : (
-                        <Badge variant="secondary" className="text-xs mt-1">
-                            ⚠️ غير محدد
-                        </Badge>
-                    )}
                 </div>
             );
         },

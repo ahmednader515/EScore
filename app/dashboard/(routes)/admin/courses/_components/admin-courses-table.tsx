@@ -39,7 +39,6 @@ type Course = {
   isPublished: boolean;
   createdAt: string | Date;
   grade?: string | null;
-  division?: string | null;
 };
 
 export function AdminCoursesTable({ courses, onDeleted }: { courses: Course[]; onDeleted?: () => void }) {
@@ -88,7 +87,7 @@ export function AdminCoursesTable({ courses, onDeleted }: { courses: Course[]; o
               <TableHead className="text-right">السعر</TableHead>
               <TableHead className="text-right">الحالة</TableHead>
               <TableHead className="text-right">انشئ في</TableHead>
-              <TableHead className="text-right">الصف والقسم</TableHead>
+              <TableHead className="text-right">الصف</TableHead>
               <TableHead className="text-right">الإجراءات</TableHead>
             </TableRow>
           </TableHeader>
@@ -117,40 +116,6 @@ export function AdminCoursesTable({ courses, onDeleted }: { courses: Course[]; o
                       ) : (
                         <div className="text-sm">
                           <div className="font-medium">{course.grade}</div>
-                          {(() => {
-                            // Check if grade is intermediate (doesn't require divisions)
-                            const intermediateGrades = ["الاول الاعدادي", "الثاني الاعدادي", "الثالث الاعدادي"];
-                            const isIntermediateGrade = intermediateGrades.includes(course.grade!);
-                            
-                            if (isIntermediateGrade) {
-                              // Intermediate grades don't have divisions
-                              return (
-                                <div className="text-muted-foreground text-xs">
-                                  متاح لجميع الطلاب
-                                </div>
-                              );
-                            }
-                            
-                            if ((course as any).divisions && (course as any).divisions.length > 0) {
-                              return (
-                                <div className="text-muted-foreground text-xs">
-                                  {(course as any).divisions.join(", ")}
-                                </div>
-                              );
-                            }
-                            
-                            if ((course as any).division) {
-                              return (
-                                <div className="text-muted-foreground text-xs">{(course as any).division}</div>
-                              );
-                            }
-                            
-                            return (
-                              <Badge variant="secondary" className="text-xs mt-1">
-                                ⚠️ غير محدد
-                              </Badge>
-                            );
-                          })()}
                         </div>
                       )
                     ) : (

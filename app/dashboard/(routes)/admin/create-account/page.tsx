@@ -36,7 +36,6 @@ export default function CreateAccountPage() {
     phoneNumber: "",
     parentPhoneNumber: "",
     grade: "",
-    division: "",
     studyType: "",
     governorate: "",
     password: "",
@@ -51,54 +50,11 @@ export default function CreateAccountPage() {
     }));
   };
 
-  // Get division options based on selected grade
-  const getDivisionOptions = () => {
-    switch (formData.grade) {
-      case "الأول الثانوي":
-        return [
-          { value: "بكالوريا", label: "بكالوريا" },
-          { value: "عام", label: "عام" },
-        ];
-      case "الثاني الثانوي":
-        return [
-          { value: "علمي", label: "علمي" },
-          { value: "أدبي", label: "أدبي" },
-        ];
-      case "الثالث الثانوي":
-        return [
-          { value: "علمي رياضة", label: "علمي رياضة" },
-          { value: "أدبي", label: "أدبي" },
-        ];
-      // Intermediate grades don't have divisions
-      case "الاول الاعدادي":
-      case "الثاني الاعدادي":
-      case "الثالث الاعدادي":
-        return [];
-      default:
-        return [];
-    }
-  };
-  
-  // Check if the selected grade should show division field
-  const shouldShowDivision = () => {
-    const intermediateGrades = ["الاول الاعدادي", "الثاني الاعدادي", "الثالث الاعدادي"];
-    return formData.grade && !intermediateGrades.includes(formData.grade);
-  };
-
-  const handleSelectChange = (name: "grade" | "division" | "studyType" | "governorate", value: string) => {
-    if (name === "grade") {
-      // Reset division when grade changes
-      setFormData((prev) => ({
-        ...prev,
-        grade: value,
-        division: "", // Reset division when grade changes
-      }));
-    } else {
-      setFormData((prev) => ({
-        ...prev,
-        [name]: value,
-      }));
-    }
+  const handleSelectChange = (name: "grade" | "studyType" | "governorate", value: string) => {
+    setFormData((prev) => ({
+      ...prev,
+      [name]: value,
+    }));
   };
 
   const validatePasswords = () => {
@@ -120,11 +76,7 @@ export default function CreateAccountPage() {
       return;
     }
 
-    const intermediateGrades = ["الاول الاعدادي", "الثاني الاعدادي", "الثالث الاعدادي"];
-    const isIntermediateGrade = intermediateGrades.includes(formData.grade);
-    const requiresDivision = formData.grade && !isIntermediateGrade;
-    
-    if (!formData.grade || !formData.studyType || !formData.governorate || (requiresDivision && !formData.division)) {
+    if (!formData.grade || !formData.studyType || !formData.governorate) {
       toast.error("برجاء استكمال بيانات التسجيل");
       setIsLoading(false);
       return;
@@ -142,7 +94,6 @@ export default function CreateAccountPage() {
           phoneNumber: "",
           parentPhoneNumber: "",
           grade: "",
-          division: "",
           studyType: "",
           governorate: "",
           password: "",
@@ -178,7 +129,6 @@ export default function CreateAccountPage() {
       phoneNumber: "",
       parentPhoneNumber: "",
       grade: "",
-      division: "",
       studyType: "",
       governorate: "",
       password: "",
@@ -286,50 +236,25 @@ export default function CreateAccountPage() {
                   />
                 </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="grade">الصف الدراسي *</Label>
-                    <Select
-                      value={formData.grade}
-                      onValueChange={(value) => handleSelectChange("grade", value)}
-                      disabled={isLoading}
-                    >
-                      <SelectTrigger className="h-10">
-                        <SelectValue placeholder="اختر الصف" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="الاول الاعدادي">الاول الاعدادي</SelectItem>
-                        <SelectItem value="الثاني الاعدادي">الثاني الاعدادي</SelectItem>
-                        <SelectItem value="الثالث الاعدادي">الثالث الاعدادي</SelectItem>
-                        <SelectItem value="الأول الثانوي">الأول الثانوي</SelectItem>
-                        <SelectItem value="الثاني الثانوي">الثاني الثانوي</SelectItem>
-                        <SelectItem value="الثالث الثانوي">الثالث الثانوي</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-
-                  {/* Only show division field when a grade is selected and it's not an intermediate grade */}
-                  {formData.grade && shouldShowDivision() && (
-                    <div className="space-y-2">
-                      <Label htmlFor="division">القسم *</Label>
-                      <Select
-                        value={formData.division}
-                        onValueChange={(value) => handleSelectChange("division", value)}
-                        disabled={isLoading}
-                      >
-                        <SelectTrigger className="h-10">
-                          <SelectValue placeholder="اختر القسم" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {getDivisionOptions().map((option) => (
-                            <SelectItem key={option.value} value={option.value}>
-                              {option.label}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-                  )}
+                <div className="space-y-2">
+                  <Label htmlFor="grade">الصف الدراسي *</Label>
+                  <Select
+                    value={formData.grade}
+                    onValueChange={(value) => handleSelectChange("grade", value)}
+                    disabled={isLoading}
+                  >
+                    <SelectTrigger className="h-10">
+                      <SelectValue placeholder="اختر الصف" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="الاول الاعدادي">الاول الاعدادي</SelectItem>
+                      <SelectItem value="الثاني الاعدادي">الثاني الاعدادي</SelectItem>
+                      <SelectItem value="الثالث الاعدادي">الثالث الاعدادي</SelectItem>
+                      <SelectItem value="الأول الثانوي">الأول الثانوي</SelectItem>
+                      <SelectItem value="الثاني الثانوي">الثاني الثانوي</SelectItem>
+                      <SelectItem value="الثالث الثانوي">الثالث الثانوي</SelectItem>
+                    </SelectContent>
+                  </Select>
                 </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -490,4 +415,4 @@ export default function CreateAccountPage() {
       </div>
     </div>
   );
-} 
+}

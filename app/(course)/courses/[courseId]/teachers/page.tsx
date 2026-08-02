@@ -69,13 +69,12 @@ export default async function CourseTeachersPage({
       status: true,
       endsAt: true,
       grade: true,
-      division: true,
     },
   });
 
   const hasAccess = canAccessCourseContent(course.price, course.purchases, {
     subscriptions,
-    course: { grade: course.grade, divisions: course.divisions },
+    course: { grade: course.grade },
   });
 
   return (

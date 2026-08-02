@@ -23,7 +23,6 @@ export async function GET(req: NextRequest) {
                 parentPhoneNumber: true,
                 image: true,
                 grade: true,
-                division: true,
                 studyType: true,
                 governorate: true,
                 role: true,
@@ -41,7 +40,7 @@ export async function GET(req: NextRequest) {
     }
 }
 
-// PATCH update current user profile (grade and division only)
+// PATCH update current user profile (grade only)
 export async function PATCH(req: NextRequest) {
     try {
         const session = await getServerSession(authOptions);
@@ -50,11 +49,10 @@ export async function PATCH(req: NextRequest) {
             return new NextResponse("Unauthorized", { status: 401 });
         }
 
-        const { grade, division } = await req.json();
+        const { grade } = await req.json();
 
-        // Validate that only grade and division are being updated
-        // Users can only update their own grade and division
-        const updateData: { grade?: string | null; division?: string | null } = {};
+        // Validate that only grade is being updated
+        const updateData: { grade?: string | null } = {};
 
         if (grade !== undefined) {
             // Validate grade value
@@ -74,49 +72,6 @@ export async function PATCH(req: NextRequest) {
             updateData.grade = grade || null;
         }
 
-        if (division !== undefined) {
-            // Validate division value based on grade
-            const user = await db.user.findUnique({
-                where: { id: session.user.id },
-                select: { grade: true },
-            });
-
-            const currentGrade = grade || user?.grade;
-
-            if (currentGrade) {
-                const validDivisions: Record<string, string[]> = {
-                    "الأول الثانوي": ["بكالوريا", "عام"],
-                    "الثاني الثانوي": ["علمي", "أدبي"],
-                    "الثالث الثانوي": ["علمي رياضة", "أدبي"],
-                };
-
-                const intermediateGrades = ["الاول الاعدادي", "الثاني الاعدادي", "الثالث الاعدادي"];
-
-                if (intermediateGrades.includes(currentGrade)) {
-                    // Intermediate grades don't have divisions
-                    if (division) {
-                        return new NextResponse("Division not allowed for intermediate grades", { status: 400 });
-                    }
-                    updateData.division = null;
-                } else if (validDivisions[currentGrade]) {
-                    if (division && !validDivisions[currentGrade].includes(division)) {
-                        return new NextResponse("Invalid division for selected grade", { status: 400 });
-                    }
-                    updateData.division = division || null;
-                }
-            } else {
-                updateData.division = division || null;
-            }
-        }
-
-        // If grade is being changed, reset division if needed
-        if (grade !== undefined && updateData.grade) {
-            const intermediateGrades = ["الاول الاعدادي", "الثاني الاعدادي", "الثالث الاعدادي"];
-            if (intermediateGrades.includes(updateData.grade)) {
-                updateData.division = null;
-            }
-        }
-
         // Update user
         const updatedUser = await db.user.update({
             where: {
@@ -127,7 +82,6 @@ export async function PATCH(req: NextRequest) {
                 id: true,
                 fullName: true,
                 grade: true,
-                division: true,
             },
         });
 
@@ -137,4 +91,3 @@ export async function PATCH(req: NextRequest) {
         return new NextResponse("Internal Error", { status: 500 });
     }
 }
-

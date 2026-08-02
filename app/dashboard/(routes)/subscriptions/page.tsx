@@ -8,8 +8,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
 import { formatPrice } from "@/lib/format";
-import { Calendar, CheckCircle, CreditCard, Wallet, AlertCircle } from "lucide-react";
-import { isSecondaryGrade } from "@/lib/subscriptions";
+import { Calendar, CheckCircle, CreditCard, Wallet } from "lucide-react";
 
 interface Plan {
   id: string;
@@ -25,7 +24,6 @@ interface ActiveSubscription {
   endsAt: string;
   startsAt: string;
   grade: string;
-  division: string | null;
   durationMonths: number;
   pricePaid: number;
 }
@@ -34,7 +32,6 @@ interface PlansResponse {
   eligible?: boolean;
   isSecondary: boolean;
   grade: string | null;
-  division: string | null;
   balance: number;
   plans: Plan[];
   activeSubscription: ActiveSubscription | null;
@@ -101,7 +98,6 @@ export default function StudentSubscriptionsPage() {
                   startsAt: result.startsAt,
                   endsAt: result.endsAt,
                   grade: prev.grade || "",
-                  division: prev.division,
                   durationMonths: prev.plans.find((p) => p.id === planId)?.durationMonths || 0,
                   pricePaid: result.pricePaid,
                 },
@@ -168,8 +164,6 @@ export default function StudentSubscriptionsPage() {
     );
   }
 
-  const needsDivision = isSecondaryGrade(data.grade);
-  const hasDivisionReady = !needsDivision || !!data.division;
   const hasActive = !!data.activeSubscription;
   const endsAtFormatted = data.activeSubscription
     ? new Date(data.activeSubscription.endsAt).toLocaleDateString("ar-EG", {
@@ -184,8 +178,7 @@ export default function StudentSubscriptionsPage() {
       <div>
         <h1 className="text-3xl font-bold mb-2">الاشتراكات</h1>
         <p className="text-muted-foreground">
-          اشترك للوصول إلى جميع كورسات صفك ({data.grade}
-          {data.division ? ` — ${data.division}` : ""}) طوال مدة الاشتراك، بما في ذلك الكورسات الجديدة.
+          اشترك للوصول إلى جميع كورسات صفك ({data.grade}) طوال مدة الاشتراك، بما في ذلك الكورسات الجديدة.
         </p>
       </div>
 
@@ -220,28 +213,13 @@ export default function StudentSubscriptionsPage() {
               {data.activeSubscription.durationMonths === 1 ? "شهر" : "أشهر"}
             </span>
             <span>الصف: {data.activeSubscription.grade}</span>
-            {data.activeSubscription.division && (
-              <span>القسم: {data.activeSubscription.division}</span>
-            )}
-          </CardContent>
-        </Card>
-      )}
-
-      {needsDivision && !data.division && (
-        <Card className="border-amber-200 bg-amber-50/50">
-          <CardContent className="pt-6 flex items-start gap-2 text-amber-900 text-sm">
-            <AlertCircle className="h-5 w-5 shrink-0 mt-0.5" />
-            <p>
-              يجب تحديد القسم في ملفك الشخصي قبل الاشتراك حتى نطابق كورسات قسمك.
-            </p>
           </CardContent>
         </Card>
       )}
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         {data.plans.map((plan) => {
-          const canBuy =
-            !hasActive && hasDivisionReady && data.balance >= plan.price;
+          const canBuy = !hasActive && data.balance >= plan.price;
           const needsBalance = !hasActive && data.balance < plan.price;
 
           return (
@@ -261,7 +239,7 @@ export default function StudentSubscriptionsPage() {
                   {formatPrice(plan.price)}
                 </div>
                 <ul className="text-sm text-muted-foreground space-y-1">
-                  <li>• الوصول لجميع كورسات صفك وقسمك</li>
+                  <li>• الوصول لجميع كورسات صفك</li>
                   <li>• يشمل الكورسات المنشورة حالياً والمستقبلية</li>
                   <li>• ينتهي تلقائياً بعد المدة المحددة</li>
                 </ul>

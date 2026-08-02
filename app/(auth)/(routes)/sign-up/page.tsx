@@ -9,7 +9,6 @@ import { toast } from "sonner";
 import Link from "next/link";
 import axios, { AxiosError } from "axios";
 import { Check, X, Eye, EyeOff, ChevronLeft } from "lucide-react";
-import Image from "next/image";
 import {
   Select,
   SelectContent,
@@ -28,7 +27,6 @@ export default function SignUpPage() {
     phoneNumber: "",
     parentPhoneNumber: "",
     grade: "",
-    division: "",
     studyType: "",
     governorate: "",
     password: "",
@@ -43,54 +41,11 @@ export default function SignUpPage() {
     }));
   };
 
-  // Get division options based on selected grade
-  const getDivisionOptions = () => {
-    switch (formData.grade) {
-      case "الأول الثانوي":
-        return [
-          { value: "بكالوريا", label: "بكالوريا" },
-          { value: "عام", label: "عام" },
-        ];
-      case "الثاني الثانوي":
-        return [
-          { value: "علمي", label: "علمي" },
-          { value: "أدبي", label: "أدبي" },
-        ];
-      case "الثالث الثانوي":
-        return [
-          { value: "علمي رياضة", label: "علمي رياضة" },
-          { value: "أدبي", label: "أدبي" },
-        ];
-      // Intermediate grades don't have divisions
-      case "الاول الاعدادي":
-      case "الثاني الاعدادي":
-      case "الثالث الاعدادي":
-        return [];
-      default:
-        return [];
-    }
-  };
-  
-  // Check if the selected grade should show division field
-  const shouldShowDivision = () => {
-    const intermediateGrades = ["الاول الاعدادي", "الثاني الاعدادي", "الثالث الاعدادي"];
-    return formData.grade && !intermediateGrades.includes(formData.grade);
-  };
-
   const handleSelectChange = (name: string, value: string) => {
-    if (name === "grade") {
-      // Reset division when grade changes
-      setFormData((prev) => ({
-        ...prev,
-        grade: value,
-        division: "", // Reset division when grade changes
-      }));
-    } else {
-      setFormData((prev) => ({
-        ...prev,
-        [name]: value,
-      }));
-    }
+    setFormData((prev) => ({
+      ...prev,
+      [name]: value,
+    }));
   };
 
   const validatePasswords = () => {
@@ -265,29 +220,6 @@ export default function SignUpPage() {
               </Select>
             </div>
 
-            {/* Only show division field when a grade is selected and it's not an intermediate grade */}
-            {formData.grade && shouldShowDivision() && (
-              <div className="space-y-2">
-                <Label htmlFor="division">القسم</Label>
-                <Select
-                  value={formData.division}
-                  onValueChange={(value) => handleSelectChange("division", value)}
-                  disabled={isLoading}
-                >
-                  <SelectTrigger className="h-10">
-                    <SelectValue placeholder="اختر القسم" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {getDivisionOptions().map((option) => (
-                      <SelectItem key={option.value} value={option.value}>
-                        {option.label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-            )}
-
             <div className="space-y-2">
               <Label htmlFor="studyType">نوع الدراسة</Label>
               <Select
@@ -439,4 +371,4 @@ export default function SignUpPage() {
       </div>
     </div>
   );
-} 
+}
