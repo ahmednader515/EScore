@@ -8,13 +8,14 @@ import { getDashboardUrlByRole } from "@/lib/utils";
 import { Progress } from "@/components/ui/progress";
 import { Button } from "@/components/ui/button";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { BookOpen, Play, Clock, Trophy, Wallet, TrendingUp, BookOpen as BookOpenIcon } from "lucide-react";
+import { Play, Clock, Trophy, Wallet, TrendingUp, BookOpen as BookOpenIcon } from "lucide-react";
 import Link from "next/link";
 import Image from "next/image";
 import { getCourseLink } from "@/lib/course-access";
 import { getHierarchicalProgress } from "@/lib/course-hierarchy";
 import { StudentReelsFab } from "@/components/student-reels-fab";
 import { RedeemPromocodeCard } from "@/components/redeem-promocode-card";
+import { StudentMyCourses } from "@/components/student-my-courses";
 import { subscriptionCoversCourse } from "@/lib/subscriptions";
 import { isStudentViewEnabled } from "@/lib/student-view";
 
@@ -336,6 +337,16 @@ const CoursesPage = async () => {
     })
   );
 
+  const myCourses = coursesWithProgress.map((course) => ({
+    id: course.id,
+    title: course.title,
+    imageUrl: course.imageUrl,
+    progress: course.progress,
+    chaptersCount: course.chapters.length,
+    quizzesCount: course.quizzes.length,
+    href: getCourseLink(course, { subscriptions: activeSubscriptions }).href,
+  }));
+
   return (
     <div className="p-6 space-y-6">
       <StudentReelsFab />
@@ -363,6 +374,9 @@ const CoursesPage = async () => {
           </div>
         </Alert>
       )}
+
+      {/* My Courses — top */}
+      <StudentMyCourses courses={myCourses} />
 
       {/* Stats and Balance Row */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
@@ -508,98 +522,6 @@ const CoursesPage = async () => {
 
           <RedeemPromocodeCard />
         </div>
-      </div>
-
-            {/* My Courses Section */}
-      <div>
-        <h2 className="text-xl font-semibold mb-6">كورساتي</h2>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-          {coursesWithProgress.map((course) => (
-            <div
-              key={course.id}
-              className="group bg-card rounded-2xl overflow-hidden border shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-[1.02]"
-            >
-              <div className="relative w-full aspect-[16/9]">
-                <Image
-                  src={course.imageUrl || "/placeholder.png"}
-                  alt={course.title}
-                  fill
-                  className="object-cover group-hover:scale-105 transition-transform duration-300"
-                />
-                <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-black/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
-                <div className="absolute top-4 right-4">
-                  <div className="bg-white/90 backdrop-blur-sm rounded-full px-3 py-1 text-sm font-medium text-gray-800">
-                    {Math.round(course.progress)}%
-                  </div>
-                </div>
-              </div>
-              <div className="p-6">
-                <div className="mb-4">
-                  <h3 className="text-xl font-bold mb-3 line-clamp-2 min-h-[3rem] text-gray-900">
-                    {course.title}
-                  </h3>
-                  <div className="flex items-center gap-3 text-sm text-muted-foreground mb-4">
-                    <div className="flex items-center gap-1">
-                      <BookOpen className="h-4 w-4" />
-                      <span>
-                        {course.chapters.length} {course.chapters.length === 1 ? "فصل" : "فصول"}
-                      </span>
-                    </div>
-                    {course.quizzes.length > 0 && (
-                      <div className="flex items-center gap-1">
-                        <span className="w-1 h-1 bg-muted-foreground rounded-full"></span>
-                        <span>
-                          {course.quizzes.length} {course.quizzes.length === 1 ? "اختبار" : "اختبارات"}
-                        </span>
-                      </div>
-                    )}
-                  </div>
-                </div>
-                
-                <div className="space-y-4">
-                  <div className="space-y-2">
-                    <div className="flex items-center justify-between text-sm">
-                      <span className="text-muted-foreground font-medium">التقدم</span>
-                      <span className="font-bold text-[#361e01]">{Math.round(course.progress)}%</span>
-                    </div>
-                    <div className="relative">
-                      <div className="w-full bg-gray-200 rounded-full h-3">
-                        <div 
-                          className="bg-gradient-to-r from-[#361e01] to-[#361e01]/80 h-3 rounded-full transition-all duration-300"
-                          style={{ width: `${course.progress}%` }}
-                        ></div>
-                      </div>
-                    </div>
-                  </div>
-                  
-                  <Button 
-                    className="w-full bg-[#361e01] hover:bg-[#361e01]/90 text-white font-semibold py-3 text-base transition-all duration-200 hover:scale-105" 
-                    variant="default"
-                    asChild
-                  >
-                    <Link href={getCourseLink(course, { subscriptions: activeSubscriptions }).href}>
-                      متابعة التعلم
-                    </Link>
-                  </Button>
-                </div>
-              </div>
-            </div>
-          ))}
-        </div>
-        {coursesWithProgress.length === 0 && (
-          <div className="text-center py-16">
-            <div className="bg-muted/50 rounded-2xl p-8 max-w-md mx-auto">
-              <BookOpen className="h-16 w-16 text-muted-foreground mx-auto mb-4" />
-              <h3 className="text-lg font-semibold mb-2">لم تقم بشراء أي كورسات بعد</h3>
-              <p className="text-muted-foreground mb-6">ابدأ رحلة التعلم بشراء أول كورس لك</p>
-              <Button asChild className="bg-[#361e01] hover:bg-[#361e01]/90 text-white font-semibold">
-                <Link href="/dashboard/search">
-                  استكشف الكورسات المتاحة
-                </Link>
-              </Button>
-            </div>
-          </div>
-        )}
       </div>
     </div>
   );

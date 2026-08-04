@@ -32,13 +32,8 @@ export const Actions = ({
         try {
             setIsLoading(true);
 
-            if (isPublished) {
-                await axios.patch(`/api/courses/${courseId}/unpublish`);
-                toast.success("تم إلغاء النشر");
-            } else {
-                await axios.patch(`/api/courses/${courseId}/publish`);
-                toast.success("تم نشر الكورس");
-            }
+            await axios.patch(`/api/courses/${courseId}/publish`);
+            toast.success(isPublished ? "تم إلغاء النشر" : "تم نشر الكورس");
 
             router.refresh();
         } catch {
