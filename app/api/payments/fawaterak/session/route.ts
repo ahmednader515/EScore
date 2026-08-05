@@ -83,6 +83,7 @@ export async function POST(req: NextRequest) {
     const requestBody = {
       cartTotal: amountStr,
       currency: "EGP",
+      lang: "ar",
       customer: buildFawaterakCustomer(user),
       redirectionUrls: {
         successUrl: `${origin}${FAWATERAK_BALANCE_RETURN_PATHS.success}`,

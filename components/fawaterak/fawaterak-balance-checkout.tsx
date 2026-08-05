@@ -145,7 +145,11 @@ export function FawaterakBalanceCheckout({
         hashKey: checkoutPayload.hashKey,
         style: checkoutPayload.style,
         version: checkoutPayload.version,
-        requestBody: checkoutPayload.requestBody,
+        lang: "ar",
+        requestBody: {
+          ...checkoutPayload.requestBody,
+          lang: "ar",
+        },
         redirectOutIframe: checkoutPayload.redirectOutIframe !== false,
       };
 
