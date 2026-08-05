@@ -1,27 +1,15 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Eye, Loader2, X } from "lucide-react";
-import { STUDENT_VIEW_COOKIE } from "@/lib/student-view";
-
-function hasStudentViewCookie() {
-  if (typeof document === "undefined") return false;
-  return document.cookie
-    .split(";")
-    .map((part) => part.trim())
-    .some((part) => part === `${STUDENT_VIEW_COOKIE}=1`);
-}
+import { useStudentView } from "@/lib/contexts/student-view-context";
 
 export function StudentViewBanner() {
   const router = useRouter();
-  const [visible, setVisible] = useState(false);
+  const { showBanner, setStudentView } = useStudentView();
   const [exiting, setExiting] = useState(false);
-
-  useEffect(() => {
-    setVisible(hasStudentViewCookie());
-  }, []);
 
   const exitStudentView = async () => {
     setExiting(true);
@@ -32,7 +20,7 @@ export function StudentViewBanner() {
         body: JSON.stringify({ mode: "staff" }),
       });
       const data = await res.json().catch(() => ({}));
-      setVisible(false);
+      setStudentView(false);
       router.push(data.redirectTo || "/dashboard");
       router.refresh();
     } catch {
@@ -40,7 +28,7 @@ export function StudentViewBanner() {
     }
   };
 
-  if (!visible) return null;
+  if (!showBanner) return null;
 
   return (
     <div className="sticky top-[80px] z-30 border-b border-amber-300 bg-amber-50 px-3 py-1.5 md:px-4 md:py-2.5">

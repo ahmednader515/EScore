@@ -95,6 +95,17 @@ export default withAuth(
       }
     }
 
+    // Leaving student-view when opening teacher/admin pages — clear the cookie
+    if ((isTeacherRoute || isAdminRoute) && hasStudentViewCookie(req)) {
+      const response = NextResponse.next();
+      response.cookies.set(STUDENT_VIEW_COOKIE, "", {
+        path: "/",
+        sameSite: "lax",
+        maxAge: 0,
+      });
+      return response;
+    }
+
     // Handle POST requests to payment status page
     if (isPaymentStatusPage && req.method === "POST") {
       // Convert POST to GET by redirecting to the same URL

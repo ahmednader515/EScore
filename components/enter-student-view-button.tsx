@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Eye, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
+import { useStudentView } from "@/lib/contexts/student-view-context";
 
 export function EnterStudentViewButton({
   className,
@@ -15,6 +16,7 @@ export function EnterStudentViewButton({
   compact?: boolean;
 }) {
   const router = useRouter();
+  const { setStudentView } = useStudentView();
   const [loading, setLoading] = useState(false);
 
   const enter = async () => {
@@ -32,6 +34,7 @@ export function EnterStudentViewButton({
       }
 
       const data = await res.json();
+      setStudentView(true);
       router.push(data.redirectTo || "/dashboard");
       router.refresh();
     } catch {

@@ -18,10 +18,14 @@ import { RedeemPromocodeCard } from "@/components/redeem-promocode-card";
 import { StudentMyCourses } from "@/components/student-my-courses";
 import { subscriptionCoversCourse } from "@/lib/subscriptions";
 import { isStudentViewEnabled } from "@/lib/student-view";
+import {
+  getCourseReleaseAt,
+  isCourseReleasedForStudyType,
+} from "@/lib/course-availability";
 
 type CourseWithProgress = Course & {
   chapters: { id: string }[];
-  quizzes: { id: string }[];
+  quizzes: { id: string; unitId: string | null }[];
   purchases: Purchase[];
   progress: number;
   courseTeachers?: {
@@ -58,7 +62,7 @@ const CoursesPage = async () => {
   // Get user's current balance
   const user = await db.user.findUnique({
     where: { id: session.user.id },
-    select: { balance: true, grade: true }
+    select: { balance: true, grade: true, studyType: true }
   });
 
   const activeSubscriptions = await db.subscription.findMany({
@@ -243,6 +247,7 @@ const CoursesPage = async () => {
         },
         select: {
           id: true,
+          unitId: true,
         }
       },
       purchases: {
@@ -337,15 +342,45 @@ const CoursesPage = async () => {
     })
   );
 
-  const myCourses = coursesWithProgress.map((course) => ({
-    id: course.id,
-    title: course.title,
-    imageUrl: course.imageUrl,
-    progress: course.progress,
-    chaptersCount: course.chapters.length,
-    quizzesCount: course.quizzes.length,
-    href: getCourseLink(course, { subscriptions: activeSubscriptions }).href,
-  }));
+  const myCourses = coursesWithProgress.map((course) => {
+    const isHierarchical = course.courseType === "HIERARCHICAL";
+    const lessonsCount = isHierarchical
+      ? (course.courseTeachers ?? []).reduce(
+          (sum, teacher) =>
+            sum +
+            teacher.units.reduce(
+              (unitSum, unit) => unitSum + unit.contentItems.length,
+              0
+            ),
+          0
+        )
+      : course.chapters.length;
+
+    // Hierarchical: shared exams only (unitId null). Unit quizzes are content items.
+    const quizzesCount = isHierarchical
+      ? course.quizzes.filter((quiz) => quiz.unitId == null).length
+      : course.quizzes.length;
+
+    const released = isCourseReleasedForStudyType(course, user?.studyType);
+    const availableAt = released
+      ? null
+      : getCourseReleaseAt(course, user?.studyType);
+
+    return {
+      id: course.id,
+      title: course.title,
+      imageUrl: course.imageUrl,
+      progress: course.progress,
+      lessonsCount,
+      lessonsLabel: isHierarchical
+        ? (lessonsCount === 1 ? "درس" : "دروس")
+        : (lessonsCount === 1 ? "فصل" : "فصول"),
+      quizzesCount,
+      href: getCourseLink(course, { subscriptions: activeSubscriptions }).href,
+      isLocked: !released,
+      availableAt: availableAt ? availableAt.toISOString() : null,
+    };
+  });
 
   return (
     <div className="p-6 space-y-6">

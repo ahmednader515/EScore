@@ -137,11 +137,22 @@ export async function PATCH(
         // ADMIN can update any course, TEACHER can only update their own (already verified)
         console.log("[COURSE_ID_PATCH] Updating course with data:", values);
 
+        // Normalize availability datetimes (allow clearing with null)
+        const data = { ...values };
+        if ("centerAvailableAt" in data) {
+          data.centerAvailableAt = data.centerAvailableAt
+            ? new Date(data.centerAvailableAt)
+            : null;
+        }
+        if ("onlineAvailableAt" in data) {
+          data.onlineAvailableAt = data.onlineAvailableAt
+            ? new Date(data.onlineAvailableAt)
+            : null;
+        }
+
         const course = await db.course.update({
             where: { id: resolvedParams.courseId },
-            data: {
-                ...values,
-            }
+            data,
         });
 
         console.log("[COURSE_ID_PATCH] Course updated successfully");

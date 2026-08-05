@@ -1,35 +1,41 @@
 import { db } from "@/lib/db";
-import { canAccessCourseContent, isFreeCourse } from "@/lib/course-access";
+import { canAccessCourseContent } from "@/lib/course-access";
+import { isCourseReleasedForStudyType } from "@/lib/course-availability";
 
 /**
  * Server-side check: does this user have access to the given course
- * via free price, ACTIVE purchase, or ACTIVE grade subscription?
+ * via free price, ACTIVE purchase, or ACTIVE grade subscription,
+ * and has the course been released for their study type?
  */
 export async function userHasCourseAccess(
   userId: string,
   courseId: string
 ): Promise<boolean> {
-  const course = await db.course.findUnique({
-    where: { id: courseId },
-    select: {
-      price: true,
-      grade: true,
-      purchases: {
-        where: { userId },
-        select: { status: true },
+  const [course, user] = await Promise.all([
+    db.course.findUnique({
+      where: { id: courseId },
+      select: {
+        price: true,
+        grade: true,
+        centerAvailableAt: true,
+        onlineAvailableAt: true,
+        purchases: {
+          where: { userId },
+          select: { status: true },
+        },
       },
-    },
-  });
+    }),
+    db.user.findUnique({
+      where: { id: userId },
+      select: { studyType: true, role: true },
+    }),
+  ]);
 
   if (!course) {
     return false;
   }
 
-  if (isFreeCourse(course.price)) {
-    return true;
-  }
-
-  if (course.purchases.some((p) => p.status === "ACTIVE")) {
+  if (user?.role === "ADMIN" || user?.role === "TEACHER") {
     return true;
   }
 
@@ -57,10 +63,16 @@ export async function userHasCourseAccess(
     },
   });
 
-  return canAccessCourseContent(course.price, course.purchases, {
+  const entitled = canAccessCourseContent(course.price, course.purchases, {
     subscriptions,
     course: { grade: course.grade },
   });
+
+  if (!entitled) {
+    return false;
+  }
+
+  return isCourseReleasedForStudyType(course, user?.studyType, now);
 }
 
 export async function getActiveSubscriptionsForUser(userId: string) {

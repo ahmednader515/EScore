@@ -96,12 +96,9 @@ export default function QuizPage({
                 setTimeLeft(timerInSeconds);
             } else {
                 const errorText = await response.text();
-                if (
-                    errorText.includes("Maximum attempts reached") ||
-                    errorText.includes("Quiz attempt already started")
-                ) {
-                    toast.error("لا يمكنك فتح هذا الاختبار مرة أخرى.");
-                    // Set flag to redirect to result page when no attempts remaining
+                // Only send to results when attempts are exhausted (a result should exist)
+                if (errorText.includes("Maximum attempts reached")) {
+                    toast.error("لقد استنفدت محاولات هذا الاختبار. جاري عرض النتيجة...");
                     setRedirectToResult(true);
                 } else {
                     toast.error("حدث خطأ أثناء تحميل الاختبار");

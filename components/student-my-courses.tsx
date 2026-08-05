@@ -1,20 +1,25 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
-import { BookOpen, Search } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { BookOpen, Clock, Lock, Search } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { formatCourseReleaseAt } from "@/lib/course-availability";
 
 export type StudentCourseCard = {
   id: string;
   title: string;
   imageUrl: string | null;
   progress: number;
-  chaptersCount: number;
+  lessonsCount: number;
+  lessonsLabel: string;
   quizzesCount: number;
   href: string;
+  isLocked?: boolean;
+  availableAt?: string | null;
 };
 
 type StudentMyCoursesProps = {
@@ -22,6 +27,7 @@ type StudentMyCoursesProps = {
 };
 
 export function StudentMyCourses({ courses }: StudentMyCoursesProps) {
+  const router = useRouter();
   const [query, setQuery] = useState("");
 
   const filtered = useMemo(() => {
@@ -29,6 +35,24 @@ export function StudentMyCourses({ courses }: StudentMyCoursesProps) {
     if (!q) return courses;
     return courses.filter((course) => course.title.toLowerCase().includes(q));
   }, [courses, query]);
+
+  // Auto-unlock: refresh when the nearest release time arrives
+  useEffect(() => {
+    const upcoming = courses
+      .filter((c) => c.isLocked && c.availableAt)
+      .map((c) => new Date(c.availableAt!).getTime())
+      .filter((t) => t > Date.now())
+      .sort((a, b) => a - b);
+
+    if (upcoming.length === 0) return;
+
+    const delay = Math.min(upcoming[0] - Date.now() + 500, 2_147_000_000);
+    const timer = setTimeout(() => {
+      router.refresh();
+    }, delay);
+
+    return () => clearTimeout(timer);
+  }, [courses, router]);
 
   return (
     <div>
@@ -82,9 +106,17 @@ export function StudentMyCourses({ courses }: StudentMyCoursesProps) {
                   src={course.imageUrl || "/placeholder.png"}
                   alt={course.title}
                   fill
-                  className="object-cover transition-transform duration-300 group-hover:scale-105"
+                  className={`object-cover transition-transform duration-300 group-hover:scale-105 ${
+                    course.isLocked ? "brightness-75" : ""
+                  }`}
                 />
-                <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-black/20 to-transparent opacity-0 transition-opacity duration-300 group-hover:opacity-100" />
+                {course.isLocked && (
+                  <div className="absolute inset-0 flex items-center justify-center bg-black/35">
+                    <div className="rounded-full bg-white/95 p-3 shadow">
+                      <Lock className="h-6 w-6 text-[#361e01]" />
+                    </div>
+                  </div>
+                )}
                 <div className="absolute top-4 right-4">
                   <div className="rounded-full bg-white/90 px-3 py-1 text-sm font-medium text-gray-800 backdrop-blur-sm">
                     {Math.round(course.progress)}%
@@ -100,8 +132,7 @@ export function StudentMyCourses({ courses }: StudentMyCoursesProps) {
                     <div className="flex items-center gap-1">
                       <BookOpen className="h-4 w-4" />
                       <span>
-                        {course.chaptersCount}{" "}
-                        {course.chaptersCount === 1 ? "فصل" : "فصول"}
+                        {course.lessonsCount} {course.lessonsLabel}
                       </span>
                     </div>
                     {course.quizzesCount > 0 && (
@@ -117,30 +148,47 @@ export function StudentMyCourses({ courses }: StudentMyCoursesProps) {
                 </div>
 
                 <div className="space-y-4">
-                  <div className="space-y-2">
-                    <div className="flex items-center justify-between text-sm">
-                      <span className="font-medium text-muted-foreground">
-                        التقدم
-                      </span>
-                      <span className="font-bold text-[#361e01]">
-                        {Math.round(course.progress)}%
-                      </span>
+                  {course.isLocked && course.availableAt ? (
+                    <div className="rounded-xl border border-amber-300 bg-amber-50 p-4 text-amber-950">
+                      <div className="mb-1 flex items-center gap-2 font-semibold">
+                        <Clock className="h-4 w-4 shrink-0" />
+                        الكورس غير متاح بعد
+                      </div>
+                      <p className="text-sm leading-relaxed">
+                        سيكون متاحاً في{" "}
+                        <span className="font-bold">
+                          {formatCourseReleaseAt(course.availableAt)}
+                        </span>
+                      </p>
                     </div>
-                    <div className="h-3 w-full rounded-full bg-gray-200">
-                      <div
-                        className="h-3 rounded-full bg-gradient-to-r from-[#361e01] to-[#361e01]/80 transition-all duration-300"
-                        style={{ width: `${course.progress}%` }}
-                      />
-                    </div>
-                  </div>
+                  ) : (
+                    <>
+                      <div className="space-y-2">
+                        <div className="flex items-center justify-between text-sm">
+                          <span className="font-medium text-muted-foreground">
+                            التقدم
+                          </span>
+                          <span className="font-bold text-[#361e01]">
+                            {Math.round(course.progress)}%
+                          </span>
+                        </div>
+                        <div className="h-3 w-full rounded-full bg-gray-200">
+                          <div
+                            className="h-3 rounded-full bg-gradient-to-r from-[#361e01] to-[#361e01]/80 transition-all duration-300"
+                            style={{ width: `${course.progress}%` }}
+                          />
+                        </div>
+                      </div>
 
-                  <Button
-                    className="w-full bg-[#361e01] py-3 text-base font-semibold text-white transition-all duration-200 hover:scale-105 hover:bg-[#361e01]/90"
-                    variant="default"
-                    asChild
-                  >
-                    <Link href={course.href}>متابعة التعلم</Link>
-                  </Button>
+                      <Button
+                        className="w-full bg-[#361e01] py-3 text-base font-semibold text-white transition-all duration-200 hover:scale-105 hover:bg-[#361e01]/90"
+                        variant="default"
+                        asChild
+                      >
+                        <Link href={course.href}>متابعة التعلم</Link>
+                      </Button>
+                    </>
+                  )}
                 </div>
               </div>
             </div>

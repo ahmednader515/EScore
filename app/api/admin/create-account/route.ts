@@ -32,23 +32,13 @@ export async function POST(req: Request) {
       return new NextResponse("Phone number cannot be the same as parent phone number", { status: 400 });
     }
 
-    // Check if user already exists
+    // Student phone must be unique; parent phone may be shared across siblings
     const existingUser = await db.user.findFirst({
-      where: {
-        OR: [
-          { phoneNumber },
-          { parentPhoneNumber }
-        ]
-      },
+      where: { phoneNumber },
     });
 
     if (existingUser) {
-      if (existingUser.phoneNumber === phoneNumber) {
-        return new NextResponse("Phone number already exists", { status: 400 });
-      }
-      if (existingUser.parentPhoneNumber === parentPhoneNumber) {
-        return new NextResponse("Parent phone number already exists", { status: 400 });
-      }
+      return new NextResponse("Phone number already exists", { status: 400 });
     }
 
     // Hash password

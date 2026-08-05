@@ -38,15 +38,13 @@ import {
     SelectValue,
 } from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
+import {
+    GOVERNORATES,
+    STUDENT_GRADES,
+    STUDY_TYPES,
+} from "@/lib/registration-options";
 
-const GRADE_ORDER = [
-    "الاول الاعدادي",
-    "الثاني الاعدادي",
-    "الثالث الاعدادي",
-    "الأول الثانوي",
-    "الثاني الثانوي",
-    "الثالث الثانوي",
-] as const;
+const GRADE_ORDER = STUDENT_GRADES;
 
 interface User {
     id: string;
@@ -72,6 +70,9 @@ interface EditUserData {
     phoneNumber: string;
     parentPhoneNumber: string;
     role: string;
+    grade: string;
+    studyType: string;
+    governorate: string;
 }
 
 const UsersPage = () => {
@@ -86,7 +87,10 @@ const UsersPage = () => {
         fullName: "",
         phoneNumber: "",
         parentPhoneNumber: "",
-        role: ""
+        role: "",
+        grade: "",
+        studyType: "",
+        governorate: "",
     });
     const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
     const [isDeleting, setIsDeleting] = useState(false);
@@ -124,7 +128,10 @@ const UsersPage = () => {
             fullName: user.fullName,
             phoneNumber: user.phoneNumber,
             parentPhoneNumber: user.parentPhoneNumber,
-            role: user.role
+            role: user.role,
+            grade: user.grade || "",
+            studyType: user.studyType || "",
+            governorate: user.governorate || "",
         });
         setIsEditDialogOpen(true);
     };
@@ -599,11 +606,11 @@ const UsersPage = () => {
                                                             <Edit className="h-4 w-4" />
                                                         </Button>
                                                     </DialogTrigger>
-                                                    <DialogContent>
+                                                    <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-lg">
                                                         <DialogHeader>
                                                             <DialogTitle>تعديل بيانات الطالب</DialogTitle>
                                                             <DialogDescription>
-                                                                قم بتعديل معلومات الطالب
+                                                                قم بتعديل بيانات التسجيل للطالب
                                                             </DialogDescription>
                                                         </DialogHeader>
                                                         <div className="grid gap-4 py-4">
@@ -639,6 +646,78 @@ const UsersPage = () => {
                                                                     onChange={(e) => setEditData({...editData, parentPhoneNumber: e.target.value})}
                                                                     className="col-span-3"
                                                                 />
+                                                            </div>
+                                                            <div className="grid grid-cols-4 items-center gap-4">
+                                                                <Label className="text-right">الصف الدراسي</Label>
+                                                                <Select
+                                                                    value={editData.grade || "__none__"}
+                                                                    onValueChange={(value) =>
+                                                                        setEditData({
+                                                                            ...editData,
+                                                                            grade: value === "__none__" ? "" : value,
+                                                                        })
+                                                                    }
+                                                                >
+                                                                    <SelectTrigger className="col-span-3">
+                                                                        <SelectValue placeholder="اختر الصف" />
+                                                                    </SelectTrigger>
+                                                                    <SelectContent>
+                                                                        <SelectItem value="__none__">غير محدد</SelectItem>
+                                                                        {STUDENT_GRADES.map((grade) => (
+                                                                            <SelectItem key={grade} value={grade}>
+                                                                                {grade}
+                                                                            </SelectItem>
+                                                                        ))}
+                                                                    </SelectContent>
+                                                                </Select>
+                                                            </div>
+                                                            <div className="grid grid-cols-4 items-center gap-4">
+                                                                <Label className="text-right">نوع الدراسة</Label>
+                                                                <Select
+                                                                    value={editData.studyType || "__none__"}
+                                                                    onValueChange={(value) =>
+                                                                        setEditData({
+                                                                            ...editData,
+                                                                            studyType: value === "__none__" ? "" : value,
+                                                                        })
+                                                                    }
+                                                                >
+                                                                    <SelectTrigger className="col-span-3">
+                                                                        <SelectValue placeholder="اختر نوع الدراسة" />
+                                                                    </SelectTrigger>
+                                                                    <SelectContent>
+                                                                        <SelectItem value="__none__">غير محدد</SelectItem>
+                                                                        {STUDY_TYPES.map((type) => (
+                                                                            <SelectItem key={type} value={type}>
+                                                                                {type}
+                                                                            </SelectItem>
+                                                                        ))}
+                                                                    </SelectContent>
+                                                                </Select>
+                                                            </div>
+                                                            <div className="grid grid-cols-4 items-center gap-4">
+                                                                <Label className="text-right">المحافظة</Label>
+                                                                <Select
+                                                                    value={editData.governorate || "__none__"}
+                                                                    onValueChange={(value) =>
+                                                                        setEditData({
+                                                                            ...editData,
+                                                                            governorate: value === "__none__" ? "" : value,
+                                                                        })
+                                                                    }
+                                                                >
+                                                                    <SelectTrigger className="col-span-3">
+                                                                        <SelectValue placeholder="اختر المحافظة" />
+                                                                    </SelectTrigger>
+                                                                    <SelectContent>
+                                                                        <SelectItem value="__none__">غير محدد</SelectItem>
+                                                                        {GOVERNORATES.map((gov) => (
+                                                                            <SelectItem key={gov} value={gov}>
+                                                                                {gov}
+                                                                            </SelectItem>
+                                                                        ))}
+                                                                    </SelectContent>
+                                                                </Select>
                                                             </div>
                                                             <div className="grid grid-cols-4 items-center gap-4">
                                                                 <Label htmlFor="role" className="text-right">

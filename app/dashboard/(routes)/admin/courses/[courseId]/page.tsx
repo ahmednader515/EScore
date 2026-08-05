@@ -14,6 +14,7 @@ import { Actions } from "@/app/dashboard/(routes)/teacher/courses/[courseId]/_co
 import { CourseTypeForm } from "@/app/dashboard/_components/course-type-form";
 import { HierarchicalCourseBuilder } from "@/app/dashboard/_components/hierarchical-course-builder";
 import { SharedQuizzesForm } from "@/app/dashboard/_components/shared-quizzes-form";
+import { CourseAvailabilityForm } from "@/components/course-availability-form";
 
 const isStaff = (role?: string | null) => role === "ADMIN" || role === "TEACHER";
 
@@ -201,6 +202,13 @@ export default async function CourseIdPage({
                             initialData={course}
                             courseId={course.id}
                             hasContent={hasContent}
+                        />
+                        <CourseAvailabilityForm
+                            courseId={course.id}
+                            initialData={{
+                                centerAvailableAt: course.centerAvailableAt,
+                                onlineAvailableAt: course.onlineAvailableAt,
+                            }}
                         />
                     </div>
                     <div className="space-y-6">

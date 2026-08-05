@@ -1,0 +1,3 @@
+-- AlterTable
+ALTER TABLE "Course" ADD COLUMN IF NOT EXISTS "centerAvailableAt" TIMESTAMP(3);
+ALTER TABLE "Course" ADD COLUMN IF NOT EXISTS "onlineAvailableAt" TIMESTAMP(3);

@@ -4,9 +4,11 @@ import { redirect } from "next/navigation";
 import Image from "next/image";
 import Link from "next/link";
 import { CourseBreadcrumbs } from "@/components/course-breadcrumbs";
-import { ClipboardList, Lock } from "lucide-react";
+import { ClipboardList, Clock, Lock } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { canAccessCourseContent } from "@/lib/course-access";
+import { getCourseReleaseStatus } from "@/lib/course-release-status";
+import { formatCourseReleaseAt } from "@/lib/course-availability";
 
 export default async function CourseTeachersPage({
   params,
@@ -76,6 +78,37 @@ export default async function CourseTeachersPage({
     subscriptions,
     course: { grade: course.grade },
   });
+
+  const release = await getCourseReleaseStatus(userId, courseId);
+
+  if (hasAccess && !release.available) {
+    return (
+      <div className="py-6">
+        <CourseBreadcrumbs
+          items={[
+            { label: "الكورسات", href: "/dashboard" },
+            { label: course.title },
+          ]}
+        />
+        <div className="mx-auto mt-10 max-w-lg rounded-2xl border border-amber-300 bg-amber-50 p-8 text-center text-amber-950">
+          <Clock className="mx-auto mb-4 h-10 w-10" />
+          <h1 className="mb-2 text-2xl font-bold">{course.title}</h1>
+          <p className="mb-4 text-muted-foreground">الكورس غير متاح بعد</p>
+          {release.availableAt && (
+            <p className="text-base">
+              سيكون متاحاً في{" "}
+              <span className="font-bold">
+                {formatCourseReleaseAt(release.availableAt)}
+              </span>
+            </p>
+          )}
+          <Button asChild className="mt-6 bg-[#361e01] text-white hover:bg-[#361e01]/90">
+            <Link href="/dashboard">العودة للوحة التحكم</Link>
+          </Button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="py-6">

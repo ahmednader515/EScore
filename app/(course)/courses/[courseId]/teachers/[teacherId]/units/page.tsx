@@ -6,6 +6,7 @@ import { CourseBreadcrumbs } from "@/components/course-breadcrumbs";
 import { ChevronLeft, Lock } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { canAccessCourseContent } from "@/lib/course-access";
+import { getCourseReleaseStatus } from "@/lib/course-release-status";
 
 export default async function TeacherUnitsPage({
   params,
@@ -16,6 +17,11 @@ export default async function TeacherUnitsPage({
   const { userId } = await auth();
 
   if (!userId) return redirect("/sign-in");
+
+  const release = await getCourseReleaseStatus(userId, courseId);
+  if (!release.available) {
+    return redirect(`/courses/${courseId}/teachers`);
+  }
 
   const teacher = await db.courseTeacher.findUnique({
     where: { id: teacherId, courseId },

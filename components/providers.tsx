@@ -6,6 +6,7 @@ import { ToastProvider } from "@/components/providers/toaster-provider";
 import { Toaster } from "sonner";
 import { RTLProvider } from "@/components/providers/rtl-provider";
 import { NavigationProvider } from "@/lib/contexts/navigation-context";
+import { StudentViewProvider } from "@/lib/contexts/student-view-context";
 import { NavigationLoading } from "@/components/navigation-loading";
 import { useEffect, Suspense } from "react";
 import { HOMEPAGE_SETTINGS_DEFAULTS } from "@/lib/homepage-settings";
@@ -83,6 +84,7 @@ export const Providers = ({ children }: { children: React.ReactNode }) => {
     >
       <SessionHandler>
         <NavigationProvider>
+          <StudentViewProvider>
           <RTLProvider>
             <ThemeProvider
               attribute="class"
@@ -100,6 +102,7 @@ export const Providers = ({ children }: { children: React.ReactNode }) => {
               <Toaster />
             </ThemeProvider>
           </RTLProvider>
+          </StudentViewProvider>
         </NavigationProvider>
       </SessionHandler>
     </SessionProvider>

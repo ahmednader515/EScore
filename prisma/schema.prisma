@@ -25,6 +25,7 @@ model User {
   role                    String    @default("USER")
   balance                 Float     @default(0)
   grade                   String?   // الصف: الأول، الثاني، الثالث
+  division                String?   // legacy — kept to preserve existing DB data
   studyType               String?   // نوع الدراسة: سنتر، أون لاين
   governorate             String?   // المحافظة
   createdAt               DateTime  @default(now())
@@ -72,7 +73,12 @@ model Course {
   price Float?
   isPublished Boolean @default(false)
   grade String? // الصف الدراسي: الأول الثانوي، الثاني الثانوي، الثالث الثانوي، الكل (لجميع الصفوف)
+  divisions String[] // legacy — kept to preserve existing DB data
   courseType CourseType @default(FLAT)
+  /// متى يظهر الكورس لطلاب السنتر (null = متاح فوراً)
+  centerAvailableAt DateTime?
+  /// متى يظهر الكورس لطلاب الأون لاين (null = متاح فوراً)
+  onlineAvailableAt DateTime?
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 

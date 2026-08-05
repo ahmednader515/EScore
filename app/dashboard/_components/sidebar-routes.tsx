@@ -1,11 +1,10 @@
 "use client";
 
-import { useEffect, useState } from "react";
 import { BarChart, List, Wallet, Shield, Users, Eye, TrendingUp, BookOpen, FileText, Award, Key, Ticket, Video, Paintbrush, MessageCircle, Megaphone, CreditCard } from "lucide-react";
 import { SidebarItem } from "./sidebar-item";
 import { usePathname } from "next/navigation";
 import { EnterStudentViewButton } from "@/components/enter-student-view-button";
-import { STUDENT_VIEW_COOKIE } from "@/lib/student-view";
+import { useStudentView } from "@/lib/contexts/student-view-context";
 import { studentNavRoutes } from "@/lib/student-nav-routes";
 
 const guestRoutes = studentNavRoutes;
@@ -161,27 +160,15 @@ const adminRoutes = [
     },
 ];
 
-function hasStudentViewCookie() {
-    if (typeof document === "undefined") return false;
-    return document.cookie
-        .split(";")
-        .map((part) => part.trim())
-        .some((part) => part === `${STUDENT_VIEW_COOKIE}=1`);
-}
-
 export const SidebarRoutes = ({ closeOnClick = false }: { closeOnClick?: boolean }) => {
     const pathName = usePathname();
-    const [studentView, setStudentView] = useState(false);
-
-    useEffect(() => {
-        setStudentView(hasStudentViewCookie());
-    }, [pathName]);
+    const { isStudentView, showEnterButton } = useStudentView();
 
     const isTeacherPage = pathName?.includes("/dashboard/teacher");
     const isAdminPage = pathName?.includes("/dashboard/admin");
 
     // In student-view mode, show student nav unless staff navigates back into staff pages
-    const useStudentNav = studentView && !isTeacherPage && !isAdminPage;
+    const useStudentNav = isStudentView && !isTeacherPage && !isAdminPage;
     const routes = useStudentNav
         ? guestRoutes
         : isAdminPage
@@ -189,8 +176,6 @@ export const SidebarRoutes = ({ closeOnClick = false }: { closeOnClick?: boolean
           : isTeacherPage
             ? teacherRoutes
             : guestRoutes;
-
-    const showEnterStudentView = (isTeacherPage || isAdminPage) && !studentView;
 
     return (
         <div className="flex flex-col w-full pt-0">
@@ -203,7 +188,7 @@ export const SidebarRoutes = ({ closeOnClick = false }: { closeOnClick?: boolean
                   closeOnClick={closeOnClick}
                 />
             ))}
-            {showEnterStudentView && (
+            {showEnterButton && (
                 <div className="mt-2 border-t pt-2 px-2">
                     <EnterStudentViewButton compact />
                 </div>

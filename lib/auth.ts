@@ -37,7 +37,7 @@ export const authOptions: AuthOptions = {
       },
       async authorize(credentials) {
         if (!credentials?.phoneNumber || !credentials?.password) {
-          throw new Error("Missing credentials");
+          return null;
         }
 
         const user = await db.user.findUnique({
@@ -47,7 +47,7 @@ export const authOptions: AuthOptions = {
         });
 
         if (!user || !user.hashedPassword) {
-          throw new Error("Invalid credentials");
+          return null;
         }
 
         const isPasswordValid = await bcrypt.compare(
@@ -56,7 +56,7 @@ export const authOptions: AuthOptions = {
         );
 
         if (!isPasswordValid) {
-          throw new Error("Invalid credentials");
+          return null;
         }
 
         return {

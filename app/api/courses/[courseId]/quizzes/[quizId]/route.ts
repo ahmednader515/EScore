@@ -82,42 +82,44 @@ export async function GET(
             }
         });
 
-        // If there's an existing attempt
-        if (existingAttempt) {
-            // If the attempt is completed, allow retry by deleting it and creating a new one
-            if (existingAttempt.completedAt) {
-                console.log(`[QUIZ_GET] Found completed attempt, deleting and creating new one for retry`);
-                // Delete the completed attempt
-                await db.quizAttempt.delete({
-                    where: {
-                        studentId_quizId: {
-                            studentId: userId,
-                            quizId: resolvedParams.quizId
-                        }
-                    }
-                });
-                // Create a new attempt for retry
-                await db.quizAttempt.create({
-                    data: {
+        if (existingAttempt?.completedAt) {
+            // Completed attempt: clear it and start a fresh one for the next try
+            await db.quizAttempt.delete({
+                where: {
+                    studentId_quizId: {
                         studentId: userId,
                         quizId: resolvedParams.quizId
                     }
-                });
-            } else {
-                // If attempt is not completed, block access
-                console.log(`[QUIZ_GET] Found incomplete attempt, blocking access`);
-                return new NextResponse("Quiz attempt already started and cannot be reopened", { status: 400 });
-            }
-        } else {
-            // No existing attempt, create a new one
-            console.log(`[QUIZ_GET] No existing attempt, creating new one`);
+                }
+            });
             await db.quizAttempt.create({
                 data: {
                     studentId: userId,
                     quizId: resolvedParams.quizId
                 }
             });
+        } else if (!existingAttempt) {
+            // Create, but ignore unique races from Strict Mode double-fetch
+            try {
+                await db.quizAttempt.create({
+                    data: {
+                        studentId: userId,
+                        quizId: resolvedParams.quizId
+                    }
+                });
+            } catch (createError: unknown) {
+                const code =
+                    createError &&
+                    typeof createError === "object" &&
+                    "code" in createError
+                        ? (createError as { code?: string }).code
+                        : undefined;
+                if (code !== "P2002") {
+                    throw createError;
+                }
+            }
         }
+        // Incomplete attempt: allow resume (do not block)
 
         // Add attempt information to the quiz response
         const quizWithAttemptInfo = {

@@ -5,10 +5,11 @@ import { db } from "@/lib/db";
 
 export async function PATCH(
     req: NextRequest,
-    { params }: { params: { userId: string } }
+    { params }: { params: Promise<{ userId: string }> }
 ) {
     try {
         const session = await getServerSession(authOptions);
+        const { userId } = await params;
 
         if (!session?.user) {
             return new NextResponse("Unauthorized", { status: 401 });
@@ -18,25 +19,26 @@ export async function PATCH(
             return new NextResponse("Forbidden", { status: 403 });
         }
 
-        const { fullName, phoneNumber, parentPhoneNumber } = await req.json();
+        const {
+            fullName,
+            phoneNumber,
+            parentPhoneNumber,
+            grade,
+            studyType,
+            governorate,
+        } = await req.json();
 
-        // Check if user exists
         const existingUser = await db.user.findUnique({
-            where: {
-                id: params.userId
-            }
+            where: { id: userId },
         });
 
         if (!existingUser) {
             return new NextResponse("User not found", { status: 404 });
         }
 
-        // Check if phone number is already taken by another user
         if (phoneNumber && phoneNumber !== existingUser.phoneNumber) {
             const phoneExists = await db.user.findUnique({
-                where: {
-                    phoneNumber: phoneNumber
-                }
+                where: { phoneNumber },
             });
 
             if (phoneExists) {
@@ -44,33 +46,30 @@ export async function PATCH(
             }
         }
 
-        // Check if parent phone number is already taken by another user
-        if (parentPhoneNumber && parentPhoneNumber !== existingUser.parentPhoneNumber) {
-            const parentPhoneExists = await db.user.findFirst({
-                where: {
-                    parentPhoneNumber: parentPhoneNumber,
-                    id: {
-                        not: params.userId
-                    }
-                }
-            });
-
-            if (parentPhoneExists) {
-                return new NextResponse("Parent phone number already exists", { status: 400 });
-            }
+        if (
+            phoneNumber &&
+            parentPhoneNumber &&
+            phoneNumber === parentPhoneNumber
+        ) {
+            return new NextResponse(
+                "Phone number cannot be the same as parent phone number",
+                { status: 400 }
+            );
         }
 
-        // Update user - Admin cannot change roles (only TEACHER can)
+        // Admin cannot change roles (only TEACHER can)
         const updatedUser = await db.user.update({
-            where: {
-                id: params.userId
-            },
+            where: { id: userId },
             data: {
-                ...(fullName && { fullName }),
-                ...(phoneNumber && { phoneNumber }),
-                ...(parentPhoneNumber && { parentPhoneNumber }),
-                // Role change not allowed for ADMIN
-            }
+                ...(fullName !== undefined && { fullName }),
+                ...(phoneNumber !== undefined && { phoneNumber }),
+                ...(parentPhoneNumber !== undefined && { parentPhoneNumber }),
+                ...(grade !== undefined && { grade: grade || null }),
+                ...(studyType !== undefined && { studyType: studyType || null }),
+                ...(governorate !== undefined && {
+                    governorate: governorate || null,
+                }),
+            },
         });
 
         return NextResponse.json(updatedUser);
@@ -82,10 +81,11 @@ export async function PATCH(
 
 export async function DELETE(
     req: NextRequest,
-    { params }: { params: { userId: string } }
+    { params }: { params: Promise<{ userId: string }> }
 ) {
     try {
         const session = await getServerSession(authOptions);
+        const { userId } = await params;
 
         if (!session?.user) {
             return new NextResponse("Unauthorized", { status: 401 });
@@ -95,27 +95,20 @@ export async function DELETE(
             return new NextResponse("Forbidden", { status: 403 });
         }
 
-        // Check if user exists
         const existingUser = await db.user.findUnique({
-            where: {
-                id: params.userId
-            }
+            where: { id: userId },
         });
 
         if (!existingUser) {
             return new NextResponse("User not found", { status: 404 });
         }
 
-        // Prevent admin from deleting themselves
-        if (params.userId === session.user.id) {
+        if (userId === session.user.id) {
             return new NextResponse("Cannot delete your own account", { status: 400 });
         }
 
-        // Delete user (this will cascade delete related data due to Prisma relations)
         await db.user.delete({
-            where: {
-                id: params.userId
-            }
+            where: { id: userId },
         });
 
         return NextResponse.json({ message: "User deleted successfully" });

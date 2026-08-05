@@ -97,21 +97,20 @@ export default function QuizResultPage({
                     const errorText = await response.text();
                     errorMessage = errorText || errorMessage;
                 }
-                console.error("Error fetching result:", response.status, errorMessage);
-                toast.error(errorMessage);
-                // Redirect to quiz page if result not found
+                // Avoid console.error here — Next.js dev overlays treat it as an unhandled error
                 if (response.status === 404) {
-                    setTimeout(() => {
-                        router.push(`/courses/${courseId}/quizzes/${quizId}`);
-                    }, 2000);
+                    toast.error("لا توجد نتيجة بعد. جاري فتح الاختبار...");
+                    router.replace(`/courses/${courseId}/quizzes/${quizId}`);
                 } else if (response.status === 403) {
+                    toast.error(errorMessage);
                     setTimeout(() => {
                         router.push(`/courses/${courseId}`);
-                    }, 2000);
+                    }, 1500);
+                } else {
+                    toast.error(errorMessage);
                 }
             }
         } catch (error) {
-            console.error("Error fetching result:", error);
             const errorMessage = error instanceof Error ? error.message : "حدث خطأ غير معروف";
             toast.error(`حدث خطأ أثناء تحميل النتيجة: ${errorMessage}`);
         } finally {
