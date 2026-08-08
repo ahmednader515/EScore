@@ -4,11 +4,12 @@ import { useEffect, useState, useCallback, useMemo, useRef } from "react";
 import { useRouter, useParams } from "next/navigation";
 import axios, { AxiosError } from "axios";
 import { Button } from "@/components/ui/button";
-import { ChevronLeft, ChevronRight, CheckCircle2, Circle, Lock, FileText, Download, MessageCircle, Send } from "lucide-react";
+import { ChevronLeft, ChevronRight, CheckCircle2, Circle, Lock, FileText, Download, MessageCircle, Send, Clock } from "lucide-react";
 import { Progress } from "@/components/ui/progress";
 import { toast } from "sonner";
 import { PlyrVideoPlayer } from "@/components/plyr-video-player";
 import { Input } from "@/components/ui/input";
+import { formatCourseReleaseAt } from "@/lib/course-availability";
 
 interface Chapter {
   id: string;
@@ -20,6 +21,8 @@ interface Chapter {
   youtubeVideoId: string | null;
   documentUrl: string | null;
   documentName: string | null;
+  releaseLocked?: boolean;
+  availableAt?: string | null;
   nextChapterId?: string;
   previousChapterId?: string;
   nextContentType?: 'chapter' | 'quiz' | null;
@@ -342,6 +345,24 @@ const ChapterPage = () => {
     return (
       <div className="h-full flex items-center justify-center">
         <div className="text-muted-foreground">لم يتم العثور على الفصل</div>
+      </div>
+    );
+  }
+
+  if (chapter.releaseLocked) {
+    return (
+      <div className="h-full flex items-center justify-center">
+        <div className="text-center space-y-4 max-w-md px-4">
+          <Clock className="h-8 w-8 mx-auto text-muted-foreground" />
+          <h2 className="text-2xl font-semibold">هذا الفصل غير متاح بعد</h2>
+          {chapter.availableAt ? (
+            <p className="text-muted-foreground">
+              متاح في {formatCourseReleaseAt(chapter.availableAt)}
+            </p>
+          ) : (
+            <p className="text-muted-foreground">سيظهر في الموعد المحدد لنوع دراستك</p>
+          )}
+        </div>
       </div>
     );
   }

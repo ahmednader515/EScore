@@ -1,0 +1,7 @@
+-- AlterTable
+ALTER TABLE "Unit" ADD COLUMN IF NOT EXISTS "centerAvailableAt" TIMESTAMP(3);
+ALTER TABLE "Unit" ADD COLUMN IF NOT EXISTS "onlineAvailableAt" TIMESTAMP(3);
+
+-- AlterTable
+ALTER TABLE "ContentItem" ADD COLUMN IF NOT EXISTS "centerAvailableAt" TIMESTAMP(3);
+ALTER TABLE "ContentItem" ADD COLUMN IF NOT EXISTS "onlineAvailableAt" TIMESTAMP(3);

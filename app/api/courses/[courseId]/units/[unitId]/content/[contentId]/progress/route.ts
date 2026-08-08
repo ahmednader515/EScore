@@ -1,17 +1,67 @@
 import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
+import { isEffectivelyReleased } from "@/lib/course-availability";
+import { isStaff } from "@/lib/course-staff";
 
 export async function PUT(
   _req: Request,
   { params }: { params: Promise<{ courseId: string; unitId: string; contentId: string }> }
 ) {
   try {
-    const { userId } = await auth();
-    const { contentId } = await params;
+    const { userId, user } = await auth();
+    const { courseId, unitId, contentId } = await params;
 
     if (!userId) {
       return new NextResponse("Unauthorized", { status: 401 });
+    }
+
+    if (!isStaff(user?.role)) {
+      const [item, dbUser] = await Promise.all([
+        db.contentItem.findFirst({
+          where: { id: contentId, unitId, unit: { courseId } },
+          select: {
+            centerAvailableAt: true,
+            onlineAvailableAt: true,
+            unit: {
+              select: {
+                centerAvailableAt: true,
+                onlineAvailableAt: true,
+                course: {
+                  select: {
+                    centerAvailableAt: true,
+                    onlineAvailableAt: true,
+                  },
+                },
+              },
+            },
+          },
+        }),
+        db.user.findUnique({
+          where: { id: userId },
+          select: { studyType: true },
+        }),
+      ]);
+
+      if (!item) {
+        return new NextResponse("Not found", { status: 404 });
+      }
+
+      const released = isEffectivelyReleased(
+        [
+          item.unit.course,
+          item.unit,
+          {
+            centerAvailableAt: item.centerAvailableAt,
+            onlineAvailableAt: item.onlineAvailableAt,
+          },
+        ],
+        dbUser?.studyType
+      );
+
+      if (!released) {
+        return new NextResponse("المحتوى غير متاح بعد", { status: 403 });
+      }
     }
 
     const progress = await db.contentProgress.upsert({

@@ -18,6 +18,7 @@ import { RedeemPromocodeCard } from "@/components/redeem-promocode-card";
 import { StudentMyCourses } from "@/components/student-my-courses";
 import { subscriptionCoversCourse } from "@/lib/subscriptions";
 import { isStudentViewEnabled } from "@/lib/student-view";
+import { linkifyText } from "@/lib/linkify-text";
 import {
   getCourseReleaseAt,
   isCourseReleasedForStudyType,
@@ -403,7 +404,7 @@ const CoursesPage = async () => {
                 {globalNotification.title}
               </AlertTitle>
               <AlertDescription className="text-base md:text-lg text-[#361e01]/90 whitespace-pre-line">
-                {globalNotification.message}
+                {linkifyText(globalNotification.message)}
               </AlertDescription>
             </div>
           </div>

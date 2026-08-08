@@ -16,8 +16,10 @@ import {
   Download,
   ClipboardList,
   Video,
+  Clock,
 } from "lucide-react";
 import { toast } from "sonner";
+import { formatCourseReleaseAt } from "@/lib/course-availability";
 
 type Attachment = {
   id: string;
@@ -40,6 +42,8 @@ type ContentItem = {
   fileName: string | null;
   quizId: string | null;
   locked?: boolean;
+  releaseLocked?: boolean;
+  availableAt?: string | null;
   attachments?: Attachment[];
   contentProgress?: { isCompleted: boolean }[];
   quiz?: { id: string; title: string; isFree: boolean } | null;
@@ -49,6 +53,8 @@ type UnitData = {
   id: string;
   title: string;
   hasAccess: boolean;
+  locked?: boolean;
+  availableAt?: string | null;
   course: { id: string; title: string; price: number | null };
   teacher: { id: string; name: string } | null;
   contentItems: ContentItem[];
@@ -64,7 +70,8 @@ export default function UnitContentPage() {
   const loadUnit = async () => {
     try {
       const res = await axios.get(
-        `/api/courses/${params.courseId}/units/${params.unitId}`
+        `/api/courses/${params.courseId}/units/${params.unitId}`,
+        { validateStatus: (s) => (s >= 200 && s < 300) || s === 403 }
       );
       setUnit(res.data);
     } catch {
@@ -83,6 +90,7 @@ export default function UnitContentPage() {
   }, [params.courseId, params.unitId]);
 
   const toggleComplete = async (item: ContentItem) => {
+    if (item.locked || item.releaseLocked) return;
     const isCompleted = item.contentProgress?.[0]?.isCompleted;
     try {
       if (isCompleted) {
@@ -127,15 +135,75 @@ export default function UnitContentPage() {
     );
   }
 
-  const renderLock = (item: ContentItem) =>
-    item.locked && !item.isFree ? (
-      <Button asChild size="sm" variant="outline">
-        <Link href={`/courses/${params.courseId}/purchase`}>
-          <Lock className="h-4 w-4 mr-1" />
-          شراء للوصول
-        </Link>
-      </Button>
-    ) : null;
+  if (unit.locked) {
+    return (
+      <div className="py-6">
+        <CourseBreadcrumbs
+          items={[
+            { label: "الكورسات", href: "/dashboard" },
+            {
+              label: unit.course.title,
+              href: `/courses/${params.courseId}/teachers`,
+            },
+            ...(unit.teacher
+              ? [
+                  {
+                    label: unit.teacher.name,
+                    href: `/courses/${params.courseId}/teachers/${unit.teacher.id}/units`,
+                  },
+                ]
+              : []),
+            { label: unit.title },
+          ]}
+        />
+        <div className="mt-10 max-w-lg mx-auto text-center border rounded-lg p-8 bg-muted/20">
+          <Clock className="h-10 w-10 mx-auto mb-3 text-muted-foreground" />
+          <h1 className="text-xl font-bold mb-2">{unit.title}</h1>
+          <p className="text-muted-foreground mb-1">الوحدة غير متاحة بعد</p>
+          {unit.availableAt && (
+            <p className="text-sm font-medium">
+              متاح في {formatCourseReleaseAt(unit.availableAt)}
+            </p>
+          )}
+          {unit.teacher && (
+            <Button asChild variant="outline" className="mt-6">
+              <Link
+                href={`/courses/${params.courseId}/teachers/${unit.teacher.id}/units`}
+              >
+                العودة للوحدات
+              </Link>
+            </Button>
+          )}
+        </div>
+      </div>
+    );
+  }
+
+  const renderLock = (item: ContentItem) => {
+    if (item.releaseLocked) {
+      return (
+        <div className="text-xs text-muted-foreground flex items-center gap-1 max-w-[14rem] text-left">
+          <Clock className="h-3.5 w-3.5 shrink-0" />
+          <span>
+            {item.availableAt
+              ? `متاح في ${formatCourseReleaseAt(item.availableAt)}`
+              : "غير متاح بعد"}
+          </span>
+        </div>
+      );
+    }
+    if (item.locked && !item.isFree) {
+      return (
+        <Button asChild size="sm" variant="outline">
+          <Link href={`/courses/${params.courseId}/purchase`}>
+            <Lock className="h-4 w-4 mr-1" />
+            شراء للوصول
+          </Link>
+        </Button>
+      );
+    }
+    return null;
+  };
 
   const getVideoPlayerKey = (item: ContentItem) => {
     if (item.videoType === "YOUTUBE" && item.youtubeVideoId) {
@@ -212,6 +280,8 @@ export default function UnitContentPage() {
                   >
                     {item.contentProgress?.[0]?.isCompleted ? (
                       <CheckCircle2 className="h-5 w-5 text-green-600 shrink-0" />
+                    ) : item.releaseLocked ? (
+                      <Lock className="h-5 w-5 text-muted-foreground shrink-0" />
                     ) : (
                       <Circle className="h-5 w-5 text-muted-foreground shrink-0" />
                     )}
@@ -230,7 +300,7 @@ export default function UnitContentPage() {
                       </span>
                     )}
                   </button>
-                  <div className="flex gap-2">
+                  <div className="flex gap-2 items-center">
                     {!item.locked && (
                       <Button
                         variant="ghost"

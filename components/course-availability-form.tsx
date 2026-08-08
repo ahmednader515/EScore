@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import axios from "axios";
 import { useRouter } from "next/navigation";
 import toast from "react-hot-toast";
@@ -14,16 +14,20 @@ import {
 } from "@/lib/course-availability";
 
 type AvailabilityFormProps = {
-  courseId: string;
+  patchUrl: string;
+  entityLabel: string;
   initialData: {
     centerAvailableAt: Date | string | null;
     onlineAvailableAt: Date | string | null;
   };
+  className?: string;
 };
 
-export function CourseAvailabilityForm({
-  courseId,
+export function EntityAvailabilityForm({
+  patchUrl,
+  entityLabel,
   initialData,
+  className,
 }: AvailabilityFormProps) {
   const router = useRouter();
   const [isEditing, setIsEditing] = useState(false);
@@ -35,6 +39,11 @@ export function CourseAvailabilityForm({
     toDateTimeLocalValue(initialData.onlineAvailableAt)
   );
 
+  useEffect(() => {
+    setCenterAvailableAt(toDateTimeLocalValue(initialData.centerAvailableAt));
+    setOnlineAvailableAt(toDateTimeLocalValue(initialData.onlineAvailableAt));
+  }, [initialData.centerAvailableAt, initialData.onlineAvailableAt]);
+
   const toggleEdit = () => {
     setCenterAvailableAt(toDateTimeLocalValue(initialData.centerAvailableAt));
     setOnlineAvailableAt(toDateTimeLocalValue(initialData.onlineAvailableAt));
@@ -45,7 +54,7 @@ export function CourseAvailabilityForm({
     e.preventDefault();
     setIsSubmitting(true);
     try {
-      await axios.patch(`/api/courses/${courseId}`, {
+      await axios.patch(patchUrl, {
         centerAvailableAt: centerAvailableAt
           ? new Date(centerAvailableAt).toISOString()
           : null,
@@ -53,7 +62,7 @@ export function CourseAvailabilityForm({
           ? new Date(onlineAvailableAt).toISOString()
           : null,
       });
-      toast.success("تم تحديث مواعيد ظهور الكورس");
+      toast.success(`تم تحديث مواعيد ظهور ${entityLabel}`);
       setIsEditing(false);
       router.refresh();
     } catch {
@@ -69,11 +78,11 @@ export function CourseAvailabilityForm({
   };
 
   return (
-    <div className="mt-6 rounded-md border bg-card p-4">
+    <div className={`mt-6 rounded-md border bg-card p-4 ${className ?? ""}`}>
       <div className="flex items-center justify-between font-medium">
         <span className="flex items-center gap-2">
           <Clock className="h-4 w-4" />
-          مواعيد ظهور الكورس
+          مواعيد ظهور {entityLabel}
         </span>
         <Button onClick={toggleEdit} variant="ghost" type="button">
           {isEditing ? (
@@ -102,7 +111,8 @@ export function CourseAvailabilityForm({
               : "متاح فوراً"}
           </p>
           <p className="text-xs">
-            اترك الحقل فارغاً ليظهر الكورس فوراً لهذا النوع من الطلاب.
+            اترك الحقل فارغاً ليظهر {entityLabel} فوراً لهذا النوع من الطلاب (بعد
+            فتح المستوى الأعلى إن وُجد).
           </p>
         </div>
       )}
@@ -110,10 +120,12 @@ export function CourseAvailabilityForm({
       {isEditing && (
         <form onSubmit={onSubmit} className="mt-4 space-y-4">
           <div className="space-y-2">
-            <Label htmlFor="centerAvailableAt">موعد ظهور كورس السنتر</Label>
+            <Label htmlFor={`centerAvailableAt-${patchUrl}`}>
+              موعد ظهور سنتر — {entityLabel}
+            </Label>
             <div className="flex gap-2">
               <Input
-                id="centerAvailableAt"
+                id={`centerAvailableAt-${patchUrl}`}
                 type="datetime-local"
                 value={centerAvailableAt}
                 onChange={(e) => setCenterAvailableAt(e.target.value)}
@@ -130,10 +142,12 @@ export function CourseAvailabilityForm({
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="onlineAvailableAt">موعد ظهور كورس الأون لاين</Label>
+            <Label htmlFor={`onlineAvailableAt-${patchUrl}`}>
+              موعد ظهور أون لاين — {entityLabel}
+            </Label>
             <div className="flex gap-2">
               <Input
-                id="onlineAvailableAt"
+                id={`onlineAvailableAt-${patchUrl}`}
                 type="datetime-local"
                 value={onlineAvailableAt}
                 onChange={(e) => setOnlineAvailableAt(e.target.value)}
@@ -159,5 +173,25 @@ export function CourseAvailabilityForm({
         </form>
       )}
     </div>
+  );
+}
+
+/** Back-compat wrapper for course pages */
+export function CourseAvailabilityForm({
+  courseId,
+  initialData,
+}: {
+  courseId: string;
+  initialData: {
+    centerAvailableAt: Date | string | null;
+    onlineAvailableAt: Date | string | null;
+  };
+}) {
+  return (
+    <EntityAvailabilityForm
+      patchUrl={`/api/courses/${courseId}`}
+      entityLabel="الكورس"
+      initialData={initialData}
+    />
   );
 }

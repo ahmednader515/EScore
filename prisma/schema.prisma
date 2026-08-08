@@ -123,6 +123,10 @@ model Chapter {
   position Int
   isPublished Boolean @default(false)
   isFree Boolean @default(false)
+  /// متى يظهر الفصل لطلاب السنتر (null = متاح فوراً بعد فتح الكورس)
+  centerAvailableAt DateTime?
+  /// متى يظهر الفصل لطلاب الأون لاين (null = متاح فوراً بعد فتح الكورس)
+  onlineAvailableAt DateTime?
 
   courseId String
   course Course @relation(fields: [courseId], references: [id], onDelete: Cascade)
@@ -255,6 +259,10 @@ model Unit {
   title       String  @db.Text
   position    Int
   isPublished Boolean @default(false)
+  /// متى تظهر الوحدة لطلاب السنتر (null = متاح فوراً بعد فتح الكورس)
+  centerAvailableAt DateTime?
+  /// متى تظهر الوحدة لطلاب الأون لاين (null = متاح فوراً بعد فتح الكورس)
+  onlineAvailableAt DateTime?
 
   course       Course         @relation(fields: [courseId], references: [id], onDelete: Cascade)
   teacher      CourseTeacher? @relation(fields: [teacherId], references: [id], onDelete: Cascade)
@@ -276,6 +284,10 @@ model ContentItem {
   position    Int
   isPublished Boolean @default(false)
   isFree      Boolean @default(false)
+  /// متى يظهر الدرس لطلاب السنتر (null = متاح فوراً بعد فتح الوحدة)
+  centerAvailableAt DateTime?
+  /// متى يظهر الدرس لطلاب الأون لاين (null = متاح فوراً بعد فتح الوحدة)
+  onlineAvailableAt DateTime?
   videoUrl       String? @db.Text
   videoType      String? // UPLOAD | YOUTUBE
   youtubeVideoId String?

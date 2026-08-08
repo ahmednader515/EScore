@@ -13,6 +13,8 @@ import { toast } from "sonner";
 import { useRouter, useParams, usePathname } from "next/navigation";
 import { DragDropContext, Droppable, Draggable } from "@hello-pangea/dnd";
 import { UploadDropzone } from "@/lib/uploadthing";
+import { QuizDocxImportButton } from "@/components/quiz-docx-import-button";
+import type { ImportedQuizQuestion } from "@/lib/quiz-docx-import";
 
 interface Course {
     id: string;
@@ -413,6 +415,14 @@ const EditQuizPage = () => {
         setQuestions([...questions, newQuestion]);
     };
 
+    const importQuestionsFromDocx = (imported: ImportedQuizQuestion[]) => {
+        const stamped = imported.map((q, i) => ({
+            ...q,
+            id: `temp-${Date.now()}-${i}-${Math.random().toString(36).substr(2, 9)}`,
+        }));
+        setQuestions((prev) => [...prev, ...stamped]);
+    };
+
     const updateQuestion = (index: number, field: keyof Question, value: any) => {
         const updatedQuestions = [...questions];
         updatedQuestions[index] = { ...updatedQuestions[index], [field]: value };
@@ -680,12 +690,27 @@ const EditQuizPage = () => {
                 </div>
 
                 <div className="space-y-4">
-                    <div className="flex items-center justify-between">
-                        <Label>الأسئلة</Label>
-                        <Button type="button" variant="outline" onClick={addQuestion}>
-                            <Plus className="h-4 w-4 mr-2" />
-                            إضافة سؤال
-                        </Button>
+                    <div className="flex items-center justify-between gap-3 flex-wrap">
+                        <div className="space-y-1">
+                            <Label>الأسئلة</Label>
+                            <p className="text-xs text-muted-foreground">
+                                يمكنك استيراد الأسئلة من ملف Word (.docx).{" "}
+                                <a
+                                    href="/samples/quiz-questions-sample.docx"
+                                    className="underline underline-offset-2 text-primary"
+                                    download
+                                >
+                                    تحميل نموذج الملف
+                                </a>
+                            </p>
+                        </div>
+                        <div className="flex items-center gap-2">
+                            <QuizDocxImportButton onImport={importQuestionsFromDocx} />
+                            <Button type="button" variant="outline" onClick={addQuestion}>
+                                <Plus className="h-4 w-4 mr-2" />
+                                إضافة سؤال
+                            </Button>
+                        </div>
                     </div>
 
                     {questions.map((question, index) => (

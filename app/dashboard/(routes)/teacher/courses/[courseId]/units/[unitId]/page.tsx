@@ -5,6 +5,7 @@ import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { UnitContentForm } from "@/app/dashboard/_components/unit-content-form";
+import { EntityAvailabilityForm } from "@/components/course-availability-form";
 
 const isStaff = (role?: string | null) => role === "ADMIN" || role === "TEACHER";
 
@@ -50,6 +51,15 @@ export default async function TeacherUnitPage({
       <p className="text-sm text-muted-foreground mb-6">
         المدرس: {unit.teacher?.name}
       </p>
+      <EntityAvailabilityForm
+        patchUrl={`/api/courses/${courseId}/units/${unitId}`}
+        entityLabel="الوحدة"
+        initialData={{
+          centerAvailableAt: unit.centerAvailableAt,
+          onlineAvailableAt: unit.onlineAvailableAt,
+        }}
+        className="mt-0 mb-6"
+      />
       <UnitContentForm
         courseId={courseId}
         unitId={unitId}

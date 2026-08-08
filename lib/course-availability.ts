@@ -1,10 +1,13 @@
 export const STUDY_TYPE_CENTER = "سنتر";
 export const STUDY_TYPE_ONLINE = "أون لاين";
 
-export type CourseAvailabilityFields = {
+export type AvailabilityFields = {
   centerAvailableAt?: Date | string | null;
   onlineAvailableAt?: Date | string | null;
 };
+
+/** @deprecated Prefer AvailabilityFields — kept for existing call sites */
+export type CourseAvailabilityFields = AvailabilityFields;
 
 function toDate(value: Date | string | null | undefined): Date | null {
   if (!value) return null;
@@ -28,28 +31,72 @@ function normalizeStudyType(studyType?: string | null): "center" | "online" | nu
 }
 
 /** Release datetime for this student's study type (null = available immediately). */
-export function getCourseReleaseAt(
-  course: CourseAvailabilityFields,
+export function getEntityReleaseAt(
+  entity: AvailabilityFields,
   studyType?: string | null
 ): Date | null {
   const kind = normalizeStudyType(studyType);
-  if (kind === "center") return toDate(course.centerAvailableAt);
-  if (kind === "online") return toDate(course.onlineAvailableAt);
+  if (kind === "center") return toDate(entity.centerAvailableAt);
+  if (kind === "online") return toDate(entity.onlineAvailableAt);
   // Unknown study type: use the later of the two if both set, else whichever exists
-  const center = toDate(course.centerAvailableAt);
-  const online = toDate(course.onlineAvailableAt);
+  const center = toDate(entity.centerAvailableAt);
+  const online = toDate(entity.onlineAvailableAt);
   if (center && online) {
     return center.getTime() > online.getTime() ? center : online;
   }
   return center ?? online;
 }
 
-export function isCourseReleasedForStudyType(
-  course: CourseAvailabilityFields,
+export function getCourseReleaseAt(
+  course: AvailabilityFields,
+  studyType?: string | null
+): Date | null {
+  return getEntityReleaseAt(course, studyType);
+}
+
+export function isEntityReleasedForStudyType(
+  entity: AvailabilityFields,
   studyType?: string | null,
   now: Date = new Date()
 ): boolean {
-  const releaseAt = getCourseReleaseAt(course, studyType);
+  const releaseAt = getEntityReleaseAt(entity, studyType);
+  if (!releaseAt) return true;
+  return now.getTime() >= releaseAt.getTime();
+}
+
+export function isCourseReleasedForStudyType(
+  course: AvailabilityFields,
+  studyType?: string | null,
+  now: Date = new Date()
+): boolean {
+  return isEntityReleasedForStudyType(course, studyType, now);
+}
+
+/**
+ * Effective release = latest of all non-null layer dates for this study type.
+ * Layers typically: [course, unit, contentItem]
+ */
+export function getEffectiveReleaseAt(
+  layers: AvailabilityFields[],
+  studyType?: string | null
+): Date | null {
+  let latest: Date | null = null;
+  for (const layer of layers) {
+    const at = getEntityReleaseAt(layer, studyType);
+    if (!at) continue;
+    if (!latest || at.getTime() > latest.getTime()) {
+      latest = at;
+    }
+  }
+  return latest;
+}
+
+export function isEffectivelyReleased(
+  layers: AvailabilityFields[],
+  studyType?: string | null,
+  now: Date = new Date()
+): boolean {
+  const releaseAt = getEffectiveReleaseAt(layers, studyType);
   if (!releaseAt) return true;
   return now.getTime() >= releaseAt.getTime();
 }
@@ -69,4 +116,22 @@ export function toDateTimeLocalValue(value: Date | string | null | undefined): s
   if (!d) return "";
   const pad = (n: number) => String(n).padStart(2, "0");
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+}
+
+/** Normalize PATCH body date fields to Date | null for Prisma */
+export function normalizeAvailabilityPatch(
+  body: Record<string, unknown>
+): { centerAvailableAt?: Date | null; onlineAvailableAt?: Date | null } {
+  const out: { centerAvailableAt?: Date | null; onlineAvailableAt?: Date | null } = {};
+  if ("centerAvailableAt" in body) {
+    out.centerAvailableAt = body.centerAvailableAt
+      ? new Date(body.centerAvailableAt as string)
+      : null;
+  }
+  if ("onlineAvailableAt" in body) {
+    out.onlineAvailableAt = body.onlineAvailableAt
+      ? new Date(body.onlineAvailableAt as string)
+      : null;
+  }
+  return out;
 }

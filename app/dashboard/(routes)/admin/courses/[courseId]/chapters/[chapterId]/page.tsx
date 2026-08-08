@@ -8,6 +8,7 @@ import Link from "next/link";
 import { ArrowLeft, Video, Files } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { IconBadge } from "@/components/icon-badge";
+import { EntityAvailabilityForm } from "@/components/course-availability-form";
 
 export default async function ChapterPage({
     params,
@@ -80,6 +81,14 @@ export default async function ChapterPage({
                         initialData={chapter}
                         courseId={courseId}
                         chapterId={chapterId}
+                    />
+                    <EntityAvailabilityForm
+                        patchUrl={`/api/courses/${courseId}/chapters/${chapterId}`}
+                        entityLabel="الفصل"
+                        initialData={{
+                            centerAvailableAt: chapter.centerAvailableAt,
+                            onlineAvailableAt: chapter.onlineAvailableAt,
+                        }}
                     />
                 </div>
                 <div className="space-y-6">

@@ -3,10 +3,16 @@ import { auth } from "@/lib/auth";
 import { redirect } from "next/navigation";
 import Link from "next/link";
 import { CourseBreadcrumbs } from "@/components/course-breadcrumbs";
-import { ChevronLeft, Lock } from "lucide-react";
+import { ChevronLeft, Lock, Clock } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { canAccessCourseContent } from "@/lib/course-access";
 import { getCourseReleaseStatus } from "@/lib/course-release-status";
+import {
+  formatCourseReleaseAt,
+  getEffectiveReleaseAt,
+  isEffectivelyReleased,
+} from "@/lib/course-availability";
+import { cn } from "@/lib/utils";
 
 export default async function TeacherUnitsPage({
   params,
@@ -23,26 +29,32 @@ export default async function TeacherUnitsPage({
     return redirect(`/courses/${courseId}/teachers`);
   }
 
-  const teacher = await db.courseTeacher.findUnique({
-    where: { id: teacherId, courseId },
-    include: {
-      course: {
-        include: {
-          purchases: { where: { userId } },
+  const [teacher, dbUser] = await Promise.all([
+    db.courseTeacher.findUnique({
+      where: { id: teacherId, courseId },
+      include: {
+        course: {
+          include: {
+            purchases: { where: { userId } },
+          },
         },
-      },
-      units: {
-        where: { isPublished: true },
-        orderBy: { position: "asc" },
-        include: {
-          contentItems: {
-            where: { isPublished: true },
-            select: { id: true },
+        units: {
+          where: { isPublished: true },
+          orderBy: { position: "asc" },
+          include: {
+            contentItems: {
+              where: { isPublished: true },
+              select: { id: true },
+            },
           },
         },
       },
-    },
-  });
+    }),
+    db.user.findUnique({
+      where: { id: userId },
+      select: { studyType: true, role: true },
+    }),
+  ]);
 
   if (!teacher) return redirect(`/courses/${courseId}/teachers`);
 
@@ -70,6 +82,27 @@ export default async function TeacherUnitsPage({
     }
   );
 
+  const isStaff =
+    dbUser?.role === "ADMIN" || dbUser?.role === "TEACHER";
+  const studyType = dbUser?.studyType ?? null;
+  const courseLayer = {
+    centerAvailableAt: teacher.course.centerAvailableAt,
+    onlineAvailableAt: teacher.course.onlineAvailableAt,
+  };
+
+  const unitsWithRelease = teacher.units.map((unit) => {
+    const unitLayer = {
+      centerAvailableAt: unit.centerAvailableAt,
+      onlineAvailableAt: unit.onlineAvailableAt,
+    };
+    const released =
+      isStaff || isEffectivelyReleased([courseLayer, unitLayer], studyType);
+    const availableAt = released
+      ? null
+      : getEffectiveReleaseAt([courseLayer, unitLayer], studyType);
+    return { ...unit, released, availableAt };
+  });
+
   return (
     <div className="py-6">
       <CourseBreadcrumbs
@@ -96,21 +129,51 @@ export default async function TeacherUnitsPage({
       )}
 
       <div className="space-y-3">
-        {teacher.units.map((unit) => (
-          <Link
-            key={unit.id}
-            href={`/courses/${courseId}/units/${unit.id}`}
-            className="flex items-center justify-between border rounded-lg p-4 hover:border-primary/50 hover:shadow-sm transition bg-card"
-          >
-            <div>
-              <h3 className="font-semibold">{unit.title}</h3>
-              <p className="text-xs text-muted-foreground mt-1">
-                {unit.contentItems.length} عنصر
-              </p>
+        {unitsWithRelease.map((unit) => {
+          const content = (
+            <div
+              className={cn(
+                "flex items-center justify-between border rounded-lg p-4 transition bg-card",
+                unit.released
+                  ? "hover:border-primary/50 hover:shadow-sm"
+                  : "opacity-80"
+              )}
+            >
+              <div>
+                <h3 className="font-semibold flex items-center gap-2">
+                  {!unit.released && <Lock className="h-4 w-4 shrink-0" />}
+                  {unit.title}
+                </h3>
+                <p className="text-xs text-muted-foreground mt-1">
+                  {unit.released
+                    ? `${unit.contentItems.length} عنصر`
+                    : unit.availableAt
+                      ? `متاح في ${formatCourseReleaseAt(unit.availableAt)}`
+                      : "غير متاح بعد"}
+                </p>
+              </div>
+              {unit.released ? (
+                <ChevronLeft className="h-5 w-5 text-muted-foreground rotate-180" />
+              ) : (
+                <Clock className="h-5 w-5 text-muted-foreground" />
+              )}
             </div>
-            <ChevronLeft className="h-5 w-5 text-muted-foreground rotate-180" />
-          </Link>
-        ))}
+          );
+
+          if (!unit.released) {
+            return (
+              <div key={unit.id} aria-disabled>
+                {content}
+              </div>
+            );
+          }
+
+          return (
+            <Link key={unit.id} href={`/courses/${courseId}/units/${unit.id}`}>
+              {content}
+            </Link>
+          );
+        })}
       </div>
 
       {teacher.units.length === 0 && (

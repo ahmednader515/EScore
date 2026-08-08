@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useCallback, use } from "react";
 import { useParams, usePathname, useRouter } from "next/navigation";
-import { CheckCircle, Circle, Video } from "lucide-react";
+import { CheckCircle, Circle, Video, Lock, Clock } from "lucide-react";
 import axios from "axios";
 import { cn } from "@/lib/utils";
 import Link from "next/link";
@@ -34,6 +34,8 @@ interface CourseContent {
   position: number;
   type: 'chapter' | 'quiz';
   isFree?: boolean;
+  releaseLocked?: boolean;
+  availableAt?: string | null;
   userProgress?: {
     isCompleted: boolean;
   }[];
@@ -165,6 +167,8 @@ export const CourseSidebar = ({ course }: CourseSidebarProps) => {
             >
               {isCompleted ? (
                 <CheckCircle className="h-4 w-4 text-emerald-600" />
+              ) : content.type === 'chapter' && content.releaseLocked ? (
+                <Clock className="h-4 w-4 text-muted-foreground" />
               ) : (
                 <Circle className="h-4 w-4" />
               )}
@@ -174,7 +178,10 @@ export const CourseSidebar = ({ course }: CourseSidebarProps) => {
                   <span className="ml-2 text-xs text-green-600">(اختبار)</span>
                 )}
               </span>
-              {content.type === 'chapter' && content.isFree && (
+              {content.type === 'chapter' && content.releaseLocked && (
+                <Lock className="h-3.5 w-3.5 text-muted-foreground ml-2 shrink-0" />
+              )}
+              {content.type === 'chapter' && content.isFree && !content.releaseLocked && (
                 <span className="ml-4 px-2 py-0.5 text-xs font-semibold bg-green-100 text-green-800 rounded-full">
                   مجاني
                 </span>

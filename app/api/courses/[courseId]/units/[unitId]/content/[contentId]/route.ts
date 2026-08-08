@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { assertCourseStaffAccess } from "@/lib/course-staff";
+import { normalizeAvailabilityPatch } from "@/lib/course-availability";
 
 export async function PATCH(
   req: Request,
@@ -29,7 +30,9 @@ export async function PATCH(
       return new NextResponse("Not found", { status: 404 });
     }
 
-    const data: Record<string, unknown> = {};
+    const data: Record<string, unknown> = {
+      ...normalizeAvailabilityPatch(body),
+    };
     const allowed = [
       "title",
       "description",

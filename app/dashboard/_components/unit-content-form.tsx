@@ -8,7 +8,7 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
-import { Grip, Pencil, PlusCircle, Trash2 } from "lucide-react";
+import { Grip, Pencil, PlusCircle, Trash2, Clock } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { FileUpload } from "@/components/file-upload";
 import {
@@ -18,6 +18,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { EntityAvailabilityForm } from "@/components/course-availability-form";
 
 type ContentItemData = {
   id: string;
@@ -26,6 +27,8 @@ type ContentItemData = {
   position: number;
   isPublished: boolean;
   isFree: boolean;
+  centerAvailableAt?: Date | string | null;
+  onlineAvailableAt?: Date | string | null;
   videoUrl: string | null;
   videoType: string | null;
   youtubeVideoId: string | null;
@@ -56,6 +59,7 @@ export const UnitContentForm = ({
   const [creating, setCreating] = useState(false);
   const [newType, setNewType] = useState("VIDEO");
   const [newTitle, setNewTitle] = useState("");
+  const [schedulingId, setSchedulingId] = useState<string | null>(null);
 
   const router = useRouter();
   const pathname = usePathname();
@@ -253,6 +257,18 @@ export const UnitContentForm = ({
                         <Button variant="ghost" size="sm" onClick={() => onToggleFree(item)}>
                           {item.isFree ? "مدفوع" : "مجاني"}
                         </Button>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() =>
+                            setSchedulingId(
+                              schedulingId === item.id ? null : item.id
+                            )
+                          }
+                          title="مواعيد الظهور"
+                        >
+                          <Clock className="h-4 w-4" />
+                        </Button>
                         {(item.type === "VIDEO" || item.type === "ASSIGNMENT") && (
                           <Pencil
                             className="h-4 w-4 cursor-pointer"
@@ -264,6 +280,18 @@ export const UnitContentForm = ({
                           onClick={() => onDelete(item.id)}
                         />
                       </div>
+
+                      {schedulingId === item.id && (
+                        <EntityAvailabilityForm
+                          patchUrl={`/api/courses/${courseId}/units/${unitId}/content/${item.id}`}
+                          entityLabel={typeLabels[item.type] || "المحتوى"}
+                          initialData={{
+                            centerAvailableAt: item.centerAvailableAt ?? null,
+                            onlineAvailableAt: item.onlineAvailableAt ?? null,
+                          }}
+                          className="mt-3"
+                        />
+                      )}
 
                       {item.type === "PDF" && (
                         <div className="mt-3">

@@ -9,6 +9,7 @@ import { ContentItemForm } from "@/app/dashboard/_components/content-item-form";
 import { ContentVideoForm } from "@/app/dashboard/_components/content-video-form";
 import { ContentAttachmentsForm } from "@/app/dashboard/_components/content-attachments-form";
 import { ContentImageForm } from "@/app/dashboard/_components/content-image-form";
+import { EntityAvailabilityForm } from "@/components/course-availability-form";
 
 export default async function ContentItemEditorPage({
   params,
@@ -73,6 +74,14 @@ export default async function ContentItemEditorPage({
             courseId={courseId}
             unitId={unitId}
             contentId={contentId}
+          />
+          <EntityAvailabilityForm
+            patchUrl={`/api/courses/${courseId}/units/${unitId}/content/${contentId}`}
+            entityLabel="الدرس"
+            initialData={{
+              centerAvailableAt: item.centerAvailableAt,
+              onlineAvailableAt: item.onlineAvailableAt,
+            }}
           />
           <div className="mt-6">
             <div className="flex items-center gap-x-2">
