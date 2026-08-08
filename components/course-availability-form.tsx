@@ -11,6 +11,7 @@ import { Label } from "@/components/ui/label";
 import {
   formatCourseReleaseAt,
   toDateTimeLocalValue,
+  parseDateTimeLocalAsAppTz,
 } from "@/lib/course-availability";
 
 type AvailabilityFormProps = {
@@ -56,10 +57,10 @@ export function EntityAvailabilityForm({
     try {
       await axios.patch(patchUrl, {
         centerAvailableAt: centerAvailableAt
-          ? new Date(centerAvailableAt).toISOString()
+          ? parseDateTimeLocalAsAppTz(centerAvailableAt).toISOString()
           : null,
         onlineAvailableAt: onlineAvailableAt
-          ? new Date(onlineAvailableAt).toISOString()
+          ? parseDateTimeLocalAsAppTz(onlineAvailableAt).toISOString()
           : null,
       });
       toast.success(`تم تحديث مواعيد ظهور ${entityLabel}`);

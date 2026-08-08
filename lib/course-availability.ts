@@ -1,6 +1,9 @@
 export const STUDY_TYPE_CENTER = "سنتر";
 export const STUDY_TYPE_ONLINE = "أون لاين";
 
+/** Business timezone for release schedules (Egypt). Avoids VPS UTC vs local mismatch. */
+export const APP_TIMEZONE = "Africa/Cairo";
+
 export type AvailabilityFields = {
   centerAvailableAt?: Date | string | null;
   onlineAvailableAt?: Date | string | null;
@@ -28,6 +31,58 @@ function normalizeStudyType(studyType?: string | null): "center" | "online" | nu
     return "online";
   }
   return null;
+}
+
+function getZonedParts(date: Date, timeZone: string) {
+  const parts = new Intl.DateTimeFormat("en-CA", {
+    timeZone,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
+    hourCycle: "h23",
+  }).formatToParts(date);
+
+  const get = (type: Intl.DateTimeFormatPartTypes) =>
+    parts.find((p) => p.type === type)?.value ?? "00";
+
+  return {
+    year: Number(get("year")),
+    month: Number(get("month")),
+    day: Number(get("day")),
+    hour: Number(get("hour") === "24" ? "0" : get("hour")),
+    minute: Number(get("minute")),
+    second: Number(get("second")),
+  };
+}
+
+/** Offset (ms) such that: zonedWallClockAsUTC - instant = offset */
+function getTimeZoneOffsetMs(date: Date, timeZone: string): number {
+  const z = getZonedParts(date, timeZone);
+  const asUTC = Date.UTC(z.year, z.month - 1, z.day, z.hour, z.minute, z.second);
+  return asUTC - date.getTime();
+}
+
+/**
+ * Parse `<input type="datetime-local" />` value as APP_TIMEZONE wall clock → UTC Date.
+ * Example: "2026-08-10T10:00" means 10:00 in Cairo, not the browser/VPS local zone.
+ */
+export function parseDateTimeLocalAsAppTz(value: string): Date {
+  const trimmed = value.trim();
+  const [datePart, timePart = "00:00"] = trimmed.split("T");
+  const [y, mo, d] = datePart.split("-").map(Number);
+  const [h, mi, s = 0] = timePart.split(":").map(Number);
+
+  // First guess treating the wall time as if it were UTC, then correct by Cairo offset
+  let utcMs = Date.UTC(y, mo - 1, d, h, mi, s || 0);
+  let offset = getTimeZoneOffsetMs(new Date(utcMs), APP_TIMEZONE);
+  utcMs = Date.UTC(y, mo - 1, d, h, mi, s || 0) - offset;
+
+  // Second pass handles DST transitions
+  offset = getTimeZoneOffsetMs(new Date(utcMs), APP_TIMEZONE);
+  return new Date(Date.UTC(y, mo - 1, d, h, mi, s || 0) - offset);
 }
 
 /** Release datetime for this student's study type (null = available immediately). */
@@ -101,21 +156,24 @@ export function isEffectivelyReleased(
   return now.getTime() >= releaseAt.getTime();
 }
 
+/** Always show times in Egypt (Africa/Cairo), including on a UTC VPS. */
 export function formatCourseReleaseAt(date: Date | string): string {
   const d = toDate(date);
   if (!d) return "";
   return new Intl.DateTimeFormat("ar-EG", {
     dateStyle: "full",
     timeStyle: "short",
+    timeZone: APP_TIMEZONE,
   }).format(d);
 }
 
-/** Value for `<input type="datetime-local" />` in the browser's local timezone */
+/** Value for `<input type="datetime-local" />` in APP_TIMEZONE (not browser/VPS local). */
 export function toDateTimeLocalValue(value: Date | string | null | undefined): string {
   const d = toDate(value);
   if (!d) return "";
+  const z = getZonedParts(d, APP_TIMEZONE);
   const pad = (n: number) => String(n).padStart(2, "0");
-  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+  return `${z.year}-${pad(z.month)}-${pad(z.day)}T${pad(z.hour)}:${pad(z.minute)}`;
 }
 
 /** Normalize PATCH body date fields to Date | null for Prisma */
