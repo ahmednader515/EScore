@@ -1,4 +1,4 @@
-import { Compass, CreditCard, Home, Wallet, type LucideIcon } from "lucide-react";
+import { Compass, CreditCard, Home, User, Wallet, type LucideIcon } from "lucide-react";
 
 export type StudentNavRoute = {
   icon: LucideIcon;
@@ -27,6 +27,11 @@ export const studentNavRoutes: StudentNavRoute[] = [
     icon: Wallet,
     label: "الرصيد",
     href: "/dashboard/balance",
+  },
+  {
+    icon: User,
+    label: "تعديل الملف الشخصي",
+    href: "/profile/edit",
   },
 ];
 

@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
 import { ChevronLeft, Loader2 } from "lucide-react";
@@ -15,13 +16,19 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { GOVERNORATES, STUDENT_GRADES, STUDY_TYPES } from "@/lib/registration-options";
 
 export default function EditProfilePage() {
   const router = useRouter();
   const [isLoading, setIsLoading] = useState(false);
   const [isFetching, setIsFetching] = useState(true);
   const [formData, setFormData] = useState({
+    fullName: "",
+    phoneNumber: "",
+    parentPhoneNumber: "",
     grade: "",
+    studyType: "",
+    governorate: "",
   });
 
   // Fetch current user profile
@@ -32,7 +39,12 @@ export default function EditProfilePage() {
         const response = await axios.get("/api/profile");
         const user = response.data;
         setFormData({
+          fullName: user.fullName || "",
+          phoneNumber: user.phoneNumber || "",
+          parentPhoneNumber: user.parentPhoneNumber || "",
           grade: user.grade || "",
+          studyType: user.studyType || "",
+          governorate: user.governorate || "",
         });
       } catch (error) {
         console.error("Error fetching profile:", error);
@@ -46,6 +58,14 @@ export default function EditProfilePage() {
     fetchProfile();
   }, [router]);
 
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const { name, value } = e.target;
+    setFormData((prev) => ({
+      ...prev,
+      [name]: value,
+    }));
+  };
+
   const handleSelectChange = (name: string, value: string) => {
     setFormData((prev) => ({
       ...prev,
@@ -55,18 +75,29 @@ export default function EditProfilePage() {
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
+
+    if (formData.phoneNumber === formData.parentPhoneNumber) {
+      toast.error("رقم الهاتف لا يمكن أن يكون نفس رقم هاتف الوالد");
+      return;
+    }
+
     setIsLoading(true);
 
     try {
       await axios.patch("/api/profile", {
+        fullName: formData.fullName,
+        phoneNumber: formData.phoneNumber,
+        parentPhoneNumber: formData.parentPhoneNumber,
         grade: formData.grade || null,
+        studyType: formData.studyType || null,
+        governorate: formData.governorate || null,
       });
 
       toast.success("تم تحديث الملف الشخصي بنجاح");
-      
+
       // Refresh the router to update server components with new data
       router.refresh();
-      
+
       // Redirect to dashboard/search to see updated courses
       // Use a small delay to ensure the refresh happens first
       setTimeout(() => {
@@ -76,11 +107,19 @@ export default function EditProfilePage() {
       console.error("Error updating profile:", error);
       if (axios.isAxiosError(error)) {
         const axiosError = error as AxiosError<{ message?: string }>;
-        const errorMessage =
+        const rawMessage =
           axiosError.response?.data?.message ||
+          (typeof axiosError.response?.data === "string" ? axiosError.response.data : "") ||
           axiosError.message ||
           "فشل تحديث الملف الشخصي";
-        toast.error(errorMessage);
+
+        if (rawMessage.includes("Phone number already exists")) {
+          toast.error("رقم الهاتف مسجل مسبقاً. يرجى استخدام رقم آخر");
+        } else if (rawMessage.includes("cannot be the same as parent")) {
+          toast.error("رقم الهاتف لا يمكن أن يكون نفس رقم هاتف الوالد");
+        } else {
+          toast.error(rawMessage);
+        }
       } else {
         toast.error("فشل تحديث الملف الشخصي");
       }
@@ -111,13 +150,61 @@ export default function EditProfilePage() {
           </Link>
           <h1 className="text-3xl font-bold tracking-tight">تعديل الملف الشخصي</h1>
           <p className="text-sm text-muted-foreground mt-2">
-            قم بتحديث الصف الدراسي الخاص بك
+            قم بتحديث بياناتك الشخصية
           </p>
         </div>
 
         {/* Form */}
         <div className="bg-white rounded-lg shadow-sm border p-6">
           <form onSubmit={handleSubmit} className="space-y-6">
+            <div className="space-y-2">
+              <Label htmlFor="fullName">الاسم الرباعي (باللغة العربية)</Label>
+              <Input
+                id="fullName"
+                name="fullName"
+                type="text"
+                autoComplete="name"
+                required
+                disabled={isLoading}
+                className="h-10"
+                value={formData.fullName}
+                onChange={handleInputChange}
+                placeholder="مثال: أحمد محمد علي حسن"
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="phoneNumber">رقم الطالب (مدعوم WhatsApp)</Label>
+              <Input
+                id="phoneNumber"
+                name="phoneNumber"
+                type="tel"
+                autoComplete="tel"
+                required
+                disabled={isLoading}
+                className="h-10"
+                value={formData.phoneNumber}
+                onChange={handleInputChange}
+                placeholder="+20XXXXXXXXXX"
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="parentPhoneNumber">رقم هاتف ولي الأمر</Label>
+              <Input
+                id="parentPhoneNumber"
+                name="parentPhoneNumber"
+                type="tel"
+                autoComplete="tel"
+                required
+                disabled={isLoading}
+                className="h-10"
+                value={formData.parentPhoneNumber}
+                onChange={handleInputChange}
+                placeholder="+20XXXXXXXXXX"
+              />
+            </div>
+
             <div className="space-y-2">
               <Label htmlFor="grade">الصف الدراسي</Label>
               <Select
@@ -130,12 +217,51 @@ export default function EditProfilePage() {
                   <SelectValue placeholder="اختر الصف" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="الاول الاعدادي">الاول الاعدادي</SelectItem>
-                  <SelectItem value="الثاني الاعدادي">الثاني الاعدادي</SelectItem>
-                  <SelectItem value="الثالث الاعدادي">الثالث الاعدادي</SelectItem>
-                  <SelectItem value="الأول الثانوي">الأول الثانوي</SelectItem>
-                  <SelectItem value="الثاني الثانوي">الثاني الثانوي</SelectItem>
-                  <SelectItem value="الثالث الثانوي">الثالث الثانوي</SelectItem>
+                  {STUDENT_GRADES.map((grade) => (
+                    <SelectItem key={grade} value={grade}>
+                      {grade}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="studyType">نوع الدراسة</Label>
+              <Select
+                value={formData.studyType}
+                onValueChange={(value) => handleSelectChange("studyType", value)}
+                disabled={isLoading}
+              >
+                <SelectTrigger className="h-10">
+                  <SelectValue placeholder="اختر نوع الدراسة" />
+                </SelectTrigger>
+                <SelectContent>
+                  {STUDY_TYPES.map((type) => (
+                    <SelectItem key={type} value={type}>
+                      {type}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="governorate">المحافظة</Label>
+              <Select
+                value={formData.governorate}
+                onValueChange={(value) => handleSelectChange("governorate", value)}
+                disabled={isLoading}
+              >
+                <SelectTrigger className="h-10">
+                  <SelectValue placeholder="اختر المحافظة" />
+                </SelectTrigger>
+                <SelectContent className="max-h-[300px] overflow-y-auto">
+                  {GOVERNORATES.map((gov) => (
+                    <SelectItem key={gov} value={gov}>
+                      {gov}
+                    </SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
             </div>

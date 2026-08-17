@@ -45,6 +45,21 @@ import {
 } from "@/lib/registration-options";
 
 const GRADE_ORDER = STUDENT_GRADES;
+const UNSPECIFIED_GRADE = "__unspecified_grade__";
+const UNSPECIFIED_STUDY_TYPE = "__unspecified_study_type__";
+
+const getGradeBucket = (user: { grade?: string | null }) => {
+    const grade = (user.grade || "").trim();
+    return grade && (STUDENT_GRADES as readonly string[]).includes(grade) ? grade : UNSPECIFIED_GRADE;
+};
+
+const getStudyTypeBucket = (user: { studyType?: string | null }) => {
+    const studyType = (user.studyType || "").trim();
+    return studyType && (STUDY_TYPES as readonly string[]).includes(studyType) ? studyType : UNSPECIFIED_STUDY_TYPE;
+};
+
+const gradeLabel = (g: string) => (g === UNSPECIFIED_GRADE ? "غير محدد" : g);
+const studyTypeLabel = (s: string) => (s === UNSPECIFIED_STUDY_TYPE ? "غير محدد" : s);
 
 interface User {
     id: string;
@@ -81,6 +96,7 @@ const UsersPage = () => {
     const [pendingSearchTerm, setPendingSearchTerm] = useState("");
     const [searchTerm, setSearchTerm] = useState("");
     const [selectedGrade, setSelectedGrade] = useState<string>("all");
+    const [selectedStudyType, setSelectedStudyType] = useState<string>("all");
     const [visibleStudentCount, setVisibleStudentCount] = useState(25);
     const [editingUser, setEditingUser] = useState<User | null>(null);
     const [editData, setEditData] = useState<EditUserData>({
@@ -209,12 +225,20 @@ const UsersPage = () => {
     };
 
     const gradeOptionsSet = new Set(
-        users
-            .filter(u => u.role === "USER")
-            .map(u => (u.grade || "").trim())
-            .filter(Boolean)
+        users.filter(u => u.role === "USER").map(getGradeBucket)
     );
-    const gradeOptions = GRADE_ORDER.filter(g => gradeOptionsSet.has(g));
+    const gradeOptions = [
+        ...GRADE_ORDER.filter(g => gradeOptionsSet.has(g)),
+        ...(gradeOptionsSet.has(UNSPECIFIED_GRADE) ? [UNSPECIFIED_GRADE] : []),
+    ];
+
+    const studyTypeOptionsSet = new Set(
+        users.filter(u => u.role === "USER").map(getStudyTypeBucket)
+    );
+    const studyTypeOptions = [
+        ...STUDY_TYPES.filter(s => studyTypeOptionsSet.has(s)),
+        ...(studyTypeOptionsSet.has(UNSPECIFIED_STUDY_TYPE) ? [UNSPECIFIED_STUDY_TYPE] : []),
+    ];
 
     const filteredUsers = users.filter(user =>
         user.fullName.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -222,13 +246,15 @@ const UsersPage = () => {
     );
     const totalStudents = users
         .filter(user => user.role === "USER")
-        .filter(user => selectedGrade === "all" ? true : (user.grade || "").trim() === selectedGrade)
+        .filter(user => selectedGrade === "all" ? true : getGradeBucket(user) === selectedGrade)
+        .filter(user => selectedStudyType === "all" ? true : getStudyTypeBucket(user) === selectedStudyType)
         .length;
 
     // Separate users by role
     const studentUsers = filteredUsers
         .filter(user => user.role === "USER")
-        .filter(user => selectedGrade === "all" ? true : (user.grade || "").trim() === selectedGrade);
+        .filter(user => selectedGrade === "all" ? true : getGradeBucket(user) === selectedGrade)
+        .filter(user => selectedStudyType === "all" ? true : getStudyTypeBucket(user) === selectedStudyType);
     const staffUsers = filteredUsers.filter(user => user.role === "TEACHER" || user.role === "ADMIN");
     const visibleStudentUsers = studentUsers.slice(0, visibleStudentCount);
     const hasMoreStudents = visibleStudentUsers.length < studentUsers.length;
@@ -290,34 +316,66 @@ const UsersPage = () => {
                         />
                         <Button type="submit">بحث</Button>
                     </form>
-                    <div className="flex flex-col gap-2">
-                        <span className="text-sm text-muted-foreground">تصفية حسب الصف:</span>
-                        <div className="flex flex-wrap items-center gap-2">
-                            <Button
-                                type="button"
-                                variant={selectedGrade === "all" ? "default" : "outline"}
-                                className={selectedGrade === "all" ? "bg-[#361e01] hover:bg-[#361e01]/90 text-white" : ""}
-                                onClick={() => {
-                                    setSelectedGrade("all");
-                                    setVisibleStudentCount(25);
-                                }}
-                            >
-                                كل الصفوف
-                            </Button>
-                            {gradeOptions.map((g) => (
+                    <div className="flex flex-col gap-3">
+                        <div className="flex flex-col gap-2">
+                            <span className="text-sm text-muted-foreground">تصفية حسب الصف:</span>
+                            <div className="flex flex-wrap items-center gap-2">
                                 <Button
-                                    key={g}
                                     type="button"
-                                    variant={selectedGrade === g ? "default" : "outline"}
-                                    className={selectedGrade === g ? "bg-[#361e01] hover:bg-[#361e01]/90 text-white" : ""}
+                                    variant={selectedGrade === "all" ? "default" : "outline"}
+                                    className={selectedGrade === "all" ? "bg-[#361e01] hover:bg-[#361e01]/90 text-white" : ""}
                                     onClick={() => {
-                                        setSelectedGrade(g);
+                                        setSelectedGrade("all");
                                         setVisibleStudentCount(25);
                                     }}
                                 >
-                                    {g}
+                                    كل الصفوف
                                 </Button>
-                            ))}
+                                {gradeOptions.map((g) => (
+                                    <Button
+                                        key={g}
+                                        type="button"
+                                        variant={selectedGrade === g ? "default" : "outline"}
+                                        className={selectedGrade === g ? "bg-[#361e01] hover:bg-[#361e01]/90 text-white" : ""}
+                                        onClick={() => {
+                                            setSelectedGrade(g);
+                                            setVisibleStudentCount(25);
+                                        }}
+                                    >
+                                        {gradeLabel(g)}
+                                    </Button>
+                                ))}
+                            </div>
+                        </div>
+                        <div className="flex flex-col gap-2">
+                            <span className="text-sm text-muted-foreground">تصفية حسب نوع الدراسة:</span>
+                            <div className="flex flex-wrap items-center gap-2">
+                                <Button
+                                    type="button"
+                                    variant={selectedStudyType === "all" ? "default" : "outline"}
+                                    className={selectedStudyType === "all" ? "bg-[#361e01] hover:bg-[#361e01]/90 text-white" : ""}
+                                    onClick={() => {
+                                        setSelectedStudyType("all");
+                                        setVisibleStudentCount(25);
+                                    }}
+                                >
+                                    الكل
+                                </Button>
+                                {studyTypeOptions.map((s) => (
+                                    <Button
+                                        key={s}
+                                        type="button"
+                                        variant={selectedStudyType === s ? "default" : "outline"}
+                                        className={selectedStudyType === s ? "bg-[#361e01] hover:bg-[#361e01]/90 text-white" : ""}
+                                        onClick={() => {
+                                            setSelectedStudyType(s);
+                                            setVisibleStudentCount(25);
+                                        }}
+                                    >
+                                        {studyTypeLabel(s)}
+                                    </Button>
+                                ))}
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -512,34 +570,66 @@ const UsersPage = () => {
                                 />
                                 <Button type="submit">بحث</Button>
                             </form>
-                            <div className="flex flex-col gap-2">
-                                <span className="text-sm text-muted-foreground">تصفية حسب الصف:</span>
-                                <div className="flex flex-wrap items-center gap-2">
-                                    <Button
-                                        type="button"
-                                        variant={selectedGrade === "all" ? "default" : "outline"}
-                                        className={selectedGrade === "all" ? "bg-[#361e01] hover:bg-[#361e01]/90 text-white" : ""}
-                                        onClick={() => {
-                                            setSelectedGrade("all");
-                                            setVisibleStudentCount(25);
-                                        }}
-                                    >
-                                        كل الصفوف
-                                    </Button>
-                                    {gradeOptions.map((g) => (
+                            <div className="flex flex-col gap-3">
+                                <div className="flex flex-col gap-2">
+                                    <span className="text-sm text-muted-foreground">تصفية حسب الصف:</span>
+                                    <div className="flex flex-wrap items-center gap-2">
                                         <Button
-                                            key={g}
                                             type="button"
-                                            variant={selectedGrade === g ? "default" : "outline"}
-                                            className={selectedGrade === g ? "bg-[#361e01] hover:bg-[#361e01]/90 text-white" : ""}
+                                            variant={selectedGrade === "all" ? "default" : "outline"}
+                                            className={selectedGrade === "all" ? "bg-[#361e01] hover:bg-[#361e01]/90 text-white" : ""}
                                             onClick={() => {
-                                                setSelectedGrade(g);
+                                                setSelectedGrade("all");
                                                 setVisibleStudentCount(25);
                                             }}
                                         >
-                                            {g}
+                                            كل الصفوف
                                         </Button>
-                                    ))}
+                                        {gradeOptions.map((g) => (
+                                            <Button
+                                                key={g}
+                                                type="button"
+                                                variant={selectedGrade === g ? "default" : "outline"}
+                                                className={selectedGrade === g ? "bg-[#361e01] hover:bg-[#361e01]/90 text-white" : ""}
+                                                onClick={() => {
+                                                    setSelectedGrade(g);
+                                                    setVisibleStudentCount(25);
+                                                }}
+                                            >
+                                                {gradeLabel(g)}
+                                            </Button>
+                                        ))}
+                                    </div>
+                                </div>
+                                <div className="flex flex-col gap-2">
+                                    <span className="text-sm text-muted-foreground">تصفية حسب نوع الدراسة:</span>
+                                    <div className="flex flex-wrap items-center gap-2">
+                                        <Button
+                                            type="button"
+                                            variant={selectedStudyType === "all" ? "default" : "outline"}
+                                            className={selectedStudyType === "all" ? "bg-[#361e01] hover:bg-[#361e01]/90 text-white" : ""}
+                                            onClick={() => {
+                                                setSelectedStudyType("all");
+                                                setVisibleStudentCount(25);
+                                            }}
+                                        >
+                                            الكل
+                                        </Button>
+                                        {studyTypeOptions.map((s) => (
+                                            <Button
+                                                key={s}
+                                                type="button"
+                                                variant={selectedStudyType === s ? "default" : "outline"}
+                                                className={selectedStudyType === s ? "bg-[#361e01] hover:bg-[#361e01]/90 text-white" : ""}
+                                                onClick={() => {
+                                                    setSelectedStudyType(s);
+                                                    setVisibleStudentCount(25);
+                                                }}
+                                            >
+                                                {studyTypeLabel(s)}
+                                            </Button>
+                                        ))}
+                                    </div>
                                 </div>
                             </div>
                         </div>
