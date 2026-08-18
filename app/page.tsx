@@ -6,6 +6,7 @@ import { ArrowRight, ArrowLeft, Star, Users, BookOpen, Award, ChevronDown, Faceb
 import Link from "next/link";
 import { Navbar } from "@/components/navbar";
 import { ScrollProgress } from "@/components/scroll-progress";
+import { StudentReelsFab } from "@/components/student-reels-fab";
 import { useEffect, useMemo, useState } from "react";
 import { useSession } from "next-auth/react";
 import { HOMEPAGE_SETTINGS_DEFAULTS, type HomepageSettingsPayload } from "@/lib/homepage-settings";
@@ -222,26 +223,12 @@ export default function HomePage() {
     <div className="h-full w-full bg-background">
       <Navbar />
       <ScrollProgress />
-      <div className="fixed bottom-6 right-6 z-50 md:bottom-8 md:right-8">
-        <Button
-          asChild
-          size="lg"
-          className="floating-reels-btn h-14 rounded-full border-2 border-white/90 px-6 text-base font-bold !text-white shadow-2xl shadow-black/40 ring-4 active:scale-[0.98] [&_*]:!text-white"
-          style={{
-            backgroundColor: homepageSettings.brandPrimary,
-            borderColor: "rgba(255,255,255,0.9)",
-            boxShadow: `0 0 0 4px ${homepageSettings.brandAccent}73`,
-            color: "#ffffff",
-          }}
-        >
-          <Link href="/reels" className="inline-flex items-center gap-2.5 !text-white" style={{ color: "#ffffff" }}>
-            <PlayCircle className="h-6 w-6 shrink-0 !text-white" aria-hidden />
-            <span className="!text-white" style={{ color: "#ffffff" }}>
-              {homepageSettings.reelsCtaText}
-            </span>
-          </Link>
-        </Button>
-      </div>
+      <StudentReelsFab
+        reelsCtaText={homepageSettings.reelsCtaText}
+        brandPrimary={homepageSettings.brandPrimary}
+        brandAccent={homepageSettings.brandAccent}
+        withMobileNavOffset={false}
+      />
       {/* Hero Section */}
       <section id="hero-section" className="relative min-h-screen flex items-center justify-center overflow-hidden pt-20 md:pt-24 bg-white">
         <div className="container mx-auto px-4 grid grid-cols-1 md:grid-cols-2 gap-0 md:gap-8 items-center">
