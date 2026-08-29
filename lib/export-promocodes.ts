@@ -5,6 +5,7 @@ type ExportablePromoCode = {
   usedCount: number;
   isActive: boolean;
   createdAt: string;
+  copiedAt?: string | null;
   course: { title: string } | null;
 };
 
@@ -15,9 +16,12 @@ export function exportPromocodesToExcel(
   const rows = codes.map((code) => ({
     الكود: code.code,
     الكورس: code.course?.title || "-",
-    "حالة الاستخدام": code.usedCount > 0 ? "مستخدم" : "متاح",
+    "حالة الاستخدام": code.usedCount > 0 ? "مستخدم" : code.copiedAt ? "تم نسخه" : "متاح",
     الحالة: code.isActive ? "نشط" : "غير نشط",
     "تاريخ الإنشاء": new Date(code.createdAt).toLocaleDateString("ar-EG"),
+    "تاريخ النسخ": code.copiedAt
+      ? new Date(code.copiedAt).toLocaleDateString("ar-EG")
+      : "-",
   }));
 
   const worksheet = XLSX.utils.json_to_sheet(rows);
@@ -26,6 +30,7 @@ export function exportPromocodesToExcel(
     { wch: 24 },
     { wch: 14 },
     { wch: 12 },
+    { wch: 16 },
     { wch: 16 },
   ];
 

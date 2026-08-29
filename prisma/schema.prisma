@@ -36,6 +36,7 @@ model User {
   balanceTransactions     BalanceTransaction[]
   quizResults             QuizResult[]
   quizAttempts            QuizAttempt[]
+  studentQuizAttemptLimits StudentQuizAttemptLimit[]
   studentChatThreads      ChatThread[] @relation("StudentChatThreads")
   teacherChatThreads      ChatThread[] @relation("TeacherChatThreads")
   chatMessages            ChatMessage[]
@@ -354,6 +355,7 @@ model Quiz {
     questions Question[]
     quizResults QuizResult[]
   attempts QuizAttempt[]
+    studentAttemptLimits StudentQuizAttemptLimit[]
     contentItems ContentItem[]
     createdAt DateTime @default(now())
     updatedAt DateTime @updatedAt
@@ -414,6 +416,21 @@ model QuizAttempt {
     @@index([quizId])
 }
 
+model StudentQuizAttemptLimit {
+    id          String   @id @default(uuid())
+    studentId   String
+    quizId      String
+    maxAttempts Int
+    createdAt   DateTime @default(now())
+    updatedAt   DateTime @updatedAt
+
+    user User @relation(fields: [studentId], references: [id], onDelete: Cascade)
+    quiz Quiz @relation(fields: [quizId], references: [id], onDelete: Cascade)
+
+    @@unique([studentId, quizId])
+    @@index([quizId])
+}
+
 model QuizAnswer {
     id String @id @default(uuid())
     questionId String
@@ -446,12 +463,15 @@ model PromoCode {
     description String? @db.Text // وصف الكوبون (اختياري)
     courseId String? // الكورس المرتبط بالكود
     course Course? @relation(fields: [courseId], references: [id], onDelete: Cascade)
+    copiedAt DateTime?
+    copiedById String?
     createdAt DateTime @default(now())
     updatedAt DateTime @updatedAt
 
     @@index([code])
     @@index([isActive])
     @@index([courseId])
+    @@index([copiedAt])
 }
 
 model LiveSession {

@@ -10,6 +10,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } f
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Plus, Edit, Trash2, Search, Ticket, Copy, ChevronUp, ChevronDown, FileSpreadsheet } from "lucide-react";
 import { toast } from "sonner";
 import { exportPromocodesToExcel } from "@/lib/export-promocodes";
@@ -34,6 +35,8 @@ interface PromoCode {
     } | null;
     createdAt: string;
     updatedAt: string;
+    copiedAt: string | null;
+    copiedById: string | null;
 }
 
 const AdminPromoCodesPage = () => {
@@ -41,6 +44,7 @@ const AdminPromoCodesPage = () => {
     const [courses, setCourses] = useState<Course[]>([]);
     const [loading, setLoading] = useState(true);
     const [searchTerm, setSearchTerm] = useState("");
+    const [activeTab, setActiveTab] = useState<"available" | "copied" | "used" | "all">("available");
     const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
     const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
     const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
@@ -244,7 +248,7 @@ const AdminPromoCodesPage = () => {
         }
 
         if (copyAvailability === "available") {
-            codes = codes.filter((code) => code.isActive && code.usedCount === 0);
+            codes = codes.filter((code) => code.isActive && code.usedCount === 0 && !code.copiedAt);
         } else if (copyAvailability === "used") {
             codes = codes.filter((code) => code.usedCount > 0);
         }
@@ -275,8 +279,21 @@ const AdminPromoCodesPage = () => {
 
             if (codesText) {
                 await navigator.clipboard.writeText(codesText);
-                toast.success(`تم نسخ ${codesToCopy.length} كود إلى الحافظة`);
+
+                const markResponse = await fetch("/api/promocodes/mark-copied", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ ids: codesToCopy.map((c) => c.id) }),
+                });
+
+                if (!markResponse.ok) {
+                    toast.error("تم النسخ لكن فشل تعليم الأكواد كمنسوخة");
+                } else {
+                    toast.success(`تم نسخ ${codesToCopy.length} كود إلى الحافظة`);
+                }
+
                 setIsCopyPopoverOpen(false);
+                fetchPromocodes();
             } else {
                 toast.error("لا توجد أكواد مطابقة للنسخ");
             }
@@ -314,7 +331,20 @@ const AdminPromoCodesPage = () => {
         }
     };
 
-    const filteredPromocodes = promocodes.filter((promo) =>
+    const tabFilteredPromocodes = promocodes.filter((promo) => {
+        if (activeTab === "available") {
+            return promo.usedCount === 0 && !promo.copiedAt;
+        }
+        if (activeTab === "copied") {
+            return promo.usedCount === 0 && !!promo.copiedAt;
+        }
+        if (activeTab === "used") {
+            return promo.usedCount > 0;
+        }
+        return true;
+    });
+
+    const filteredPromocodes = tabFilteredPromocodes.filter((promo) =>
         promo.code.toLowerCase().includes(searchTerm.toLowerCase()) ||
         (promo.course?.title && promo.course.title.toLowerCase().includes(searchTerm.toLowerCase()))
     );
@@ -425,14 +455,24 @@ const AdminPromoCodesPage = () => {
                 </div>
             </div>
 
-            <div className="flex items-center gap-4 justify-start">
-                <div className="flex items-center space-x-2 max-w-sm">
-                    <Search className="h-4 w-4 text-muted-foreground" />
-                    <Input
-                        placeholder="البحث..."
-                        value={searchTerm}
-                        onChange={(e) => setSearchTerm(e.target.value)}
-                    />
+            <div className="flex flex-col gap-4">
+                <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as typeof activeTab)}>
+                    <TabsList>
+                        <TabsTrigger value="available">متاح</TabsTrigger>
+                        <TabsTrigger value="copied">تم نسخه</TabsTrigger>
+                        <TabsTrigger value="used">مستخدم</TabsTrigger>
+                        <TabsTrigger value="all">الكل</TabsTrigger>
+                    </TabsList>
+                </Tabs>
+                <div className="flex items-center gap-4 justify-start">
+                    <div className="flex items-center space-x-2 max-w-sm">
+                        <Search className="h-4 w-4 text-muted-foreground" />
+                        <Input
+                            placeholder="البحث..."
+                            value={searchTerm}
+                            onChange={(e) => setSearchTerm(e.target.value)}
+                        />
+                    </div>
                 </div>
             </div>
 
@@ -445,6 +485,9 @@ const AdminPromoCodesPage = () => {
                                     <TableHead className="text-right">الكود</TableHead>
                                     <TableHead className="text-right">الكورس</TableHead>
                                     <TableHead className="text-right">حالة الاستخدام</TableHead>
+                                    {activeTab === "copied" && (
+                                        <TableHead className="text-right">تاريخ النسخ</TableHead>
+                                    )}
                                     <TableHead className="text-right">الحالة</TableHead>
                                     <TableHead className="text-right">الإجراءات</TableHead>
                                 </TableRow>
@@ -464,10 +507,19 @@ const AdminPromoCodesPage = () => {
                                         <TableCell>
                                             {promo.usedCount > 0 ? (
                                                 <Badge variant="secondary">مستخدم</Badge>
+                                            ) : promo.copiedAt ? (
+                                                <Badge variant="outline">تم نسخه</Badge>
                                             ) : (
                                                 <Badge variant="default" className="bg-green-500">متاح</Badge>
                                             )}
                                         </TableCell>
+                                        {activeTab === "copied" && (
+                                            <TableCell>
+                                                {promo.copiedAt
+                                                    ? new Date(promo.copiedAt).toLocaleString("ar-EG")
+                                                    : "-"}
+                                            </TableCell>
+                                        )}
                                         <TableCell>
                                             <Badge variant={promo.isActive ? "default" : "secondary"}>
                                                 {promo.isActive ? "نشط" : "غير نشط"}

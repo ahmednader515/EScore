@@ -2,6 +2,7 @@ import { db } from "@/lib/db";
 import { auth } from "@/lib/auth";
 import { NextResponse } from "next/server";
 import { userHasCourseAccess } from "@/lib/user-course-access";
+import { getEffectiveMaxAttempts } from "@/lib/quiz-attempts";
 
 // POST - Reset quiz attempt to allow retry
 export async function POST(
@@ -50,7 +51,9 @@ export async function POST(
         });
 
         // Check if user can retry (hasn't reached max attempts)
-        if (existingResults.length >= quiz.maxAttempts) {
+        const effectiveMaxAttempts = await getEffectiveMaxAttempts(userId, resolvedParams.quizId);
+
+        if (existingResults.length >= effectiveMaxAttempts) {
             return new NextResponse(
                 JSON.stringify({ error: "لقد وصلت إلى الحد الأقصى من المحاولات المسموحة" }),
                 { status: 400, headers: { "Content-Type": "application/json" } }
@@ -104,7 +107,7 @@ export async function POST(
             success: true,
             message: "يمكنك الآن إعادة محاولة الاختبار",
             nextAttempt: existingResults.length + 1,
-            maxAttempts: quiz.maxAttempts
+            maxAttempts: effectiveMaxAttempts
         });
     } catch (error) {
         console.error("[QUIZ_RETRY]", error);

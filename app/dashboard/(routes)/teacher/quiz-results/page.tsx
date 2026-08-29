@@ -9,6 +9,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Search, ArrowLeft, Eye, Download, Filter } from "lucide-react";
 import { toast } from "sonner";
 import { useRouter, useSearchParams } from "next/navigation";
+import { QuizStudentAttemptsManager } from "@/components/quiz-student-attempts-manager";
 
 interface QuizResult {
     id: string;
@@ -171,7 +172,7 @@ const QuizResultsContent = () => {
                         <CardTitle>معلومات الاختبار</CardTitle>
                     </CardHeader>
                     <CardContent>
-                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
                             <div>
                                 <h4 className="font-medium mb-1">عنوان الاختبار</h4>
                                 <p className="text-sm text-muted-foreground">{quizDetails.title}</p>
@@ -186,10 +187,18 @@ const QuizResultsContent = () => {
                                     {quizDetails.questions?.length || 0} سؤال
                                 </Badge>
                             </div>
+                            <div>
+                                <h4 className="font-medium mb-1">المحاولات الافتراضية</h4>
+                                <Badge variant="outline">
+                                    {quizDetails.maxAttempts ?? 1} محاولة
+                                </Badge>
+                            </div>
                         </div>
                     </CardContent>
                 </Card>
             )}
+
+            {quizId && <QuizStudentAttemptsManager quizId={quizId} />}
 
             <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
                 <Card>

@@ -2,6 +2,7 @@ import { db } from "@/lib/db";
 import { auth } from "@/lib/auth";
 import { NextResponse } from "next/server";
 import { userHasCourseAccess } from "@/lib/user-course-access";
+import { getEffectiveMaxAttempts } from "@/lib/quiz-attempts";
 
 export async function GET(
     req: Request,
@@ -138,9 +139,11 @@ export async function GET(
         }
 
         // Add maxAttempts and attempt info to the result
+        const effectiveMaxAttempts = await getEffectiveMaxAttempts(userId, resolvedParams.quizId);
+
         const resultWithAttemptInfo = {
             ...quizResult,
-            maxAttempts: quiz?.maxAttempts || 1,
+            maxAttempts: effectiveMaxAttempts,
             totalAttempts: allResults.length
         };
 

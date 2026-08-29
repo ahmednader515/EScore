@@ -12,6 +12,7 @@ import { Progress } from "@/components/ui/progress";
 import { Search, Eye, Award, TrendingUp, Users, FileText } from "lucide-react";
 import { format } from "date-fns";
 import { ar } from "date-fns/locale";
+import { QuizStudentAttemptsManager } from "@/components/quiz-student-attempts-manager";
 
 interface Course {
     id: string;
@@ -292,6 +293,10 @@ const GradesPage = () => {
                     </div>
                 </CardContent>
             </Card>
+
+            {selectedQuiz && selectedQuiz !== "all" && (
+                <QuizStudentAttemptsManager quizId={selectedQuiz} />
+            )}
 
             {/* Results Table */}
             <Card>

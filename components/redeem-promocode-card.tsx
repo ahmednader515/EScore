@@ -7,7 +7,11 @@ import { Ticket, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 
-export function RedeemPromocodeCard() {
+interface RedeemPromocodeCardProps {
+  variant?: "card" | "banner";
+}
+
+export function RedeemPromocodeCard({ variant = "card" }: RedeemPromocodeCardProps) {
   const router = useRouter();
   const [code, setCode] = useState("");
   const [loading, setLoading] = useState(false);
@@ -43,6 +47,51 @@ export function RedeemPromocodeCard() {
       setLoading(false);
     }
   };
+
+  if (variant === "banner") {
+    return (
+      <div className="bg-gradient-to-r from-amber-50 to-orange-50 dark:from-amber-950/30 dark:to-orange-950/30 rounded-xl p-4 md:p-5 border border-amber-200/60">
+        <form
+          onSubmit={handleRedeem}
+          className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3"
+        >
+          <div className="flex items-center gap-3 shrink-0">
+            <div className="bg-amber-100 p-2.5 rounded-full">
+              <Ticket className="h-5 w-5 text-amber-700" />
+            </div>
+            <div>
+              <p className="text-sm font-semibold">تفعيل كود الكورس</p>
+              <p className="text-xs text-muted-foreground hidden sm:block">
+                أدخل الكود للاشتراك في الكورس
+              </p>
+            </div>
+          </div>
+          <Input
+            value={code}
+            onChange={(e) => setCode(e.target.value)}
+            placeholder="أدخل رمز الكوبون"
+            disabled={loading}
+            className="flex-1 text-center tracking-wider uppercase bg-white dark:bg-background"
+            dir="ltr"
+          />
+          <Button
+            type="submit"
+            disabled={loading || !code.trim()}
+            className="bg-[#361e01] hover:bg-[#4a2a02] text-white shrink-0"
+          >
+            {loading ? (
+              <>
+                <Loader2 className="h-4 w-4 ml-2 animate-spin" />
+                جاري التفعيل...
+              </>
+            ) : (
+              "تفعيل الكود"
+            )}
+          </Button>
+        </form>
+      </div>
+    );
+  }
 
   return (
     <div className="bg-card rounded-xl p-6 border">

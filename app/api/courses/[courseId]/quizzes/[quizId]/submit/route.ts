@@ -3,6 +3,7 @@ import { auth } from "@/lib/auth";
 import { NextResponse } from "next/server";
 import { parseQuizOptions } from "@/lib/utils";
 import { userHasCourseAccess } from "@/lib/user-course-access";
+import { getEffectiveMaxAttempts } from "@/lib/quiz-attempts";
 
 export async function POST(
     req: Request,
@@ -69,7 +70,9 @@ export async function POST(
 
         const currentAttemptNumber = existingResults.length + 1;
 
-        if (existingResults.length >= quiz.maxAttempts) {
+        const effectiveMaxAttempts = await getEffectiveMaxAttempts(userId, resolvedParams.quizId);
+
+        if (existingResults.length >= effectiveMaxAttempts) {
             return new NextResponse("Maximum attempts reached for this quiz", { status: 400 });
         }
 

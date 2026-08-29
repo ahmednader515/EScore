@@ -411,6 +411,9 @@ const CoursesPage = async () => {
         </Alert>
       )}
 
+      {/* Code activation — top of dashboard */}
+      <RedeemPromocodeCard variant="banner" />
+
       {/* My Courses — top */}
       <StudentMyCourses courses={myCourses} />
 
@@ -523,7 +526,7 @@ const CoursesPage = async () => {
       {/* Detailed Statistics */}
       <div className="mb-8">
         <h2 className="text-xl font-semibold mb-4">إحصائيات التعلم</h2>
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           <div className="bg-card rounded-xl p-6 border">
             <div className="flex items-center gap-3 mb-4">
               <div className="bg-blue-100 p-3 rounded-full">
@@ -555,8 +558,6 @@ const CoursesPage = async () => {
               {studentStats.completedQuizzes} من {studentStats.totalQuizzes} مكتمل
             </p>
           </div>
-
-          <RedeemPromocodeCard />
         </div>
       </div>
     </div>
