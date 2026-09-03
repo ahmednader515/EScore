@@ -36,6 +36,11 @@ export async function PATCH(
             return new NextResponse("User not found", { status: 404 });
         }
 
+        // Admins cannot edit ADMIN or TEACHER accounts
+        if (existingUser.role === "ADMIN" || existingUser.role === "TEACHER") {
+            return new NextResponse("Cannot edit admin or teacher accounts", { status: 403 });
+        }
+
         if (phoneNumber && phoneNumber !== existingUser.phoneNumber) {
             const phoneExists = await db.user.findUnique({
                 where: { phoneNumber },
@@ -105,6 +110,11 @@ export async function DELETE(
 
         if (userId === session.user.id) {
             return new NextResponse("Cannot delete your own account", { status: 400 });
+        }
+
+        // Admins cannot delete ADMIN or TEACHER accounts
+        if (existingUser.role === "ADMIN" || existingUser.role === "TEACHER") {
+            return new NextResponse("Cannot delete admin or teacher accounts", { status: 403 });
         }
 
         await db.user.delete({
