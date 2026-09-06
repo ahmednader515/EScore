@@ -1,13 +1,11 @@
 "use client";
 
-import { usePathname } from "next/navigation";
-import { Button } from "@/components/ui/button"
 import { LogOut } from "lucide-react";
-import Link from "next/link";
 import { UserButton } from "./user-button";
 import { useSession, signOut } from "next-auth/react";
 import { LoadingButton } from "@/components/ui/loading-button";
 import { useState } from "react";
+import { Badge } from "@/components/ui/badge";
 
 export const NavbarRoutes = () => {
     const { data: session } = useSession();
@@ -24,8 +22,16 @@ export const NavbarRoutes = () => {
         }
     };
 
+    const isAdmin = session?.user?.role === "ADMIN";
+
     return (
         <div className="flex items-center gap-x-2 rtl:mr-auto ltr:ml-auto">
+            {isAdmin && (
+                <Badge className="bg-orange-600 hover:bg-orange-600 text-white text-sm px-3 py-1">
+                    حساب اسيستنت
+                </Badge>
+            )}
+
             {/* Logout button for all user types */}
             {session?.user && (
                 <LoadingButton 
