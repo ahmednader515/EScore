@@ -56,6 +56,10 @@ export const PlyrVideoPlayer = ({
     // reset fallback when source changes
     setUseIframeFallback(false);
     let isCancelled = false;
+    let captionsPollId: ReturnType<typeof setInterval> | null = null;
+    let captionsStopTimeoutId: ReturnType<typeof setTimeout> | null = null;
+    let youtubeApiChangeHandler: (() => void) | null = null;
+    let youtubeEmbedForCleanup: any = null;
 
     async function setupPlayer() {
       try {
@@ -84,12 +88,15 @@ export const PlyrVideoPlayer = ({
             "duration",
             "mute",
             "volume",
-            "captions",
             "settings",
             "pip",
             "airplay",
             "fullscreen"
           ],
+          captions: {
+            active: false,
+            update: false
+          },
           settings: ["speed", "quality", "loop"],
           quality: {
             default: 720,
@@ -103,7 +110,8 @@ export const PlyrVideoPlayer = ({
             controls: 0,
             iv_load_policy: 3,
             disablekb: 1,
-            playsinline: 1
+            playsinline: 1,
+            cc_load_policy: 0
           },
           ratio: "16:9"
         });
@@ -111,7 +119,89 @@ export const PlyrVideoPlayer = ({
         playerRef.current = player;
 
       const getYoutubeEmbedInstance = () => {
-        return player?.media?.plyr?.embed ?? null;
+        // Plyr stores the YT.Player on `player.embed`
+        return (
+          player?.embed ??
+          player?.media?.plyr?.embed ??
+          player?.media?.embed ??
+          null
+        );
+      };
+
+      const disableYoutubeCaptions = () => {
+        try {
+          const embed = getYoutubeEmbedInstance();
+          if (!embed) return;
+
+          if (typeof embed.unloadModule === "function") {
+            try {
+              embed.unloadModule("captions");
+            } catch {
+              /* module may not be loaded yet */
+            }
+            try {
+              embed.unloadModule("cc");
+            } catch {
+              /* module may not be loaded yet */
+            }
+          }
+
+          if (typeof embed.setOption === "function") {
+            try {
+              embed.setOption("captions", "track", {});
+            } catch {
+              /* ignore */
+            }
+            try {
+              embed.setOption("cc", "track", {});
+            } catch {
+              /* ignore */
+            }
+          }
+        } catch (error) {
+          console.error("Failed to disable YouTube captions:", error);
+        }
+      };
+
+      const startCaptionsGuard = () => {
+        disableYoutubeCaptions();
+
+        const embed = getYoutubeEmbedInstance();
+        if (embed) {
+          youtubeEmbedForCleanup = embed;
+          if (
+            typeof embed.addEventListener === "function" &&
+            !youtubeApiChangeHandler
+          ) {
+            youtubeApiChangeHandler = () => disableYoutubeCaptions();
+            try {
+              embed.addEventListener("onApiChange", youtubeApiChangeHandler);
+            } catch {
+              /* ignore */
+            }
+          }
+        }
+
+        if (captionsPollId) clearInterval(captionsPollId);
+        if (captionsStopTimeoutId) {
+          clearTimeout(captionsStopTimeoutId);
+          captionsStopTimeoutId = null;
+        }
+
+        // Keep forcing captions off while the player is active —
+        // YouTube often re-enables them after modules load.
+        captionsPollId = setInterval(disableYoutubeCaptions, 400);
+      };
+
+      const stopCaptionsGuard = () => {
+        if (captionsPollId) {
+          clearInterval(captionsPollId);
+          captionsPollId = null;
+        }
+        if (captionsStopTimeoutId) {
+          clearTimeout(captionsStopTimeoutId);
+          captionsStopTimeoutId = null;
+        }
       };
 
       const disableYoutubeOverlayInteraction = () => {
@@ -320,12 +410,21 @@ export const PlyrVideoPlayer = ({
         if (videoType === "YOUTUBE") {
           player.on("ready", () => {
             disableYoutubeOverlayInteraction();
+            startCaptionsGuard();
             updateYoutubeQualityMenu();
           });
+          player.on("playing", startCaptionsGuard);
+          player.on("play", startCaptionsGuard);
+          player.on("pause", stopCaptionsGuard);
+          player.on("ended", stopCaptionsGuard);
           disableYoutubeOverlayInteraction();
+          startCaptionsGuard();
           updateYoutubeQualityMenu();
 
-          player.on("loadeddata", updateYoutubeQualityMenu);
+          player.on("loadeddata", () => {
+            startCaptionsGuard();
+            updateYoutubeQualityMenu();
+          });
           player.on("qualitychange", () => {
             const embed = getYoutubeEmbedInstance();
             if (!embed) return;
@@ -362,6 +461,22 @@ export const PlyrVideoPlayer = ({
 
     return () => {
       isCancelled = true;
+      if (captionsPollId) clearInterval(captionsPollId);
+      if (captionsStopTimeoutId) clearTimeout(captionsStopTimeoutId);
+      if (
+        youtubeEmbedForCleanup &&
+        youtubeApiChangeHandler &&
+        typeof youtubeEmbedForCleanup.removeEventListener === "function"
+      ) {
+        try {
+          youtubeEmbedForCleanup.removeEventListener(
+            "onApiChange",
+            youtubeApiChangeHandler
+          );
+        } catch {
+          /* ignore */
+        }
+      }
       if (playerRef.current && typeof playerRef.current.destroy === "function") {
         playerRef.current.destroy();
       }
@@ -385,7 +500,7 @@ export const PlyrVideoPlayer = ({
         useIframeFallback ? (
           <iframe
             className="w-full h-full"
-            src={`https://www.youtube.com/embed/${youtubeVideoId}`}
+            src={`https://www.youtube.com/embed/${youtubeVideoId}?cc_load_policy=0&rel=0&modestbranding=1`}
             allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
             allowFullScreen
           />

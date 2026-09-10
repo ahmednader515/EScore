@@ -22,5 +22,5 @@ export const isValidYouTubeUrl = (url: string): boolean => {
 };
 
 export const getYouTubeEmbedUrl = (videoId: string): string => {
-    return `https://www.youtube.com/embed/${videoId}?enablejsapi=1&rel=0&modestbranding=1`;
+    return `https://www.youtube.com/embed/${videoId}?enablejsapi=1&rel=0&modestbranding=1&cc_load_policy=0`;
 }; 

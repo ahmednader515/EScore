@@ -70,7 +70,7 @@ export default function ReelsPage() {
                 {playingIds[reel.id] ? (
                   <iframe
                     className="h-full w-full"
-                    src={`https://www.youtube.com/embed/${reel.youtubeVideoId}?playsinline=1&rel=0&modestbranding=1&autoplay=1`}
+                    src={`https://www.youtube.com/embed/${reel.youtubeVideoId}?playsinline=1&rel=0&modestbranding=1&autoplay=1&cc_load_policy=0`}
                     title={reel.title}
                     allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
                     allowFullScreen

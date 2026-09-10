@@ -215,3 +215,51 @@ body,
 * {
   font-family: var(--font-cairo), system-ui, sans-serif;
 }
+
+/* Plyr: give progress more space on mobile (non-fullscreen) */
+@media (max-width: 768px) {
+  .plyr:not(.plyr--fullscreen-active) .plyr__controls {
+    flex-wrap: nowrap;
+    gap: 2px;
+    padding: 6px 8px;
+  }
+
+  .plyr:not(.plyr--fullscreen-active) .plyr__controls .plyr__progress,
+  .plyr:not(.plyr--fullscreen-active) .plyr__controls .plyr__progress__container {
+    flex: 1 1 auto;
+    min-width: 0;
+    margin: 0 4px;
+  }
+
+  /* Shrink volume — keep mute button, shorten the slider */
+  .plyr:not(.plyr--fullscreen-active) .plyr__volume {
+    flex: 0 0 auto;
+    max-width: 72px;
+    min-width: 0;
+  }
+
+  .plyr:not(.plyr--fullscreen-active) .plyr__volume input[type="range"] {
+    max-width: 48px;
+    margin: 0;
+  }
+
+  .plyr:not(.plyr--fullscreen-active) .plyr__time {
+    font-size: 11px;
+    flex-shrink: 0;
+  }
+
+  .plyr:not(.plyr--fullscreen-active) .plyr__controls .plyr__control {
+    padding: 4px;
+  }
+}
+
+/* Very narrow phones: hide volume slider entirely, mute only */
+@media (max-width: 420px) {
+  .plyr:not(.plyr--fullscreen-active) .plyr__volume {
+    max-width: 36px;
+  }
+
+  .plyr:not(.plyr--fullscreen-active) .plyr__volume input[type="range"] {
+    display: none;
+  }
+}
