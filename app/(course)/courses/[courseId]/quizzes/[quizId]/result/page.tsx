@@ -313,7 +313,7 @@ export default function QuizResultPage({
                                                 </Badge>
                                             </div>
                                         </div>
-                                        <p className="text-sm text-muted-foreground mb-2">{answer.question.text}</p>
+                                        <p className="text-sm text-muted-foreground mb-2" dir="auto">{answer.question.text}</p>
                                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
                                             <div>
                                                 <span className="font-medium">إجابتك:</span>

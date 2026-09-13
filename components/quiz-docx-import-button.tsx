@@ -30,20 +30,28 @@ export function QuizDocxImportButton({
         "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
 
     if (!isDocx) {
-      toast.error("يرجى اختيار ملف Word بصيغة .docx");
+      toast.error("يرجى اختيار ملف Word بصيغة .docx (وليس .doc)");
       return;
     }
 
     setIsImporting(true);
     try {
       const buffer = await file.arrayBuffer();
-      const { questions, warnings } = await parseQuizQuestionsFromDocx(buffer);
+      const { questions, warnings, debugText } =
+        await parseQuizQuestionsFromDocx(buffer);
+
+      if (debugText) {
+        console.log("[DOCX import] extracted text:\n", debugText);
+      }
 
       if (!questions.length) {
         toast.error(
           warnings[0] ||
             "لم يتم العثور على أسئلة صالحة. تحقق من تنسيق الملف."
         );
+        if (warnings[1]) {
+          toast.message(warnings[1], { duration: 8000 });
+        }
         return;
       }
 

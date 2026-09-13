@@ -301,7 +301,7 @@ export default function QuizPage({
                             </CardTitle>
                         </CardHeader>
                         <CardContent className="space-y-6">
-                            <div className="text-lg">{currentQuestionData.text}</div>
+                            <div className="text-lg" dir="auto">{currentQuestionData.text}</div>
 
                             {/* Question Image */}
                             {currentQuestionData.imageUrl && (
@@ -322,7 +322,7 @@ export default function QuizPage({
                                 >
                                     {(Array.isArray(currentQuestionData.options) ? currentQuestionData.options : parseQuizOptions(currentQuestionData.options || null)).map((option: string, index: number) => (
                                         <div key={index} className="flex items-center justify-end gap-3">
-                                            <Label htmlFor={`option-${index}`} className="text-right">
+                                            <Label htmlFor={`option-${index}`} className="text-start" dir="auto">
                                                 {option}
                                             </Label>
                                             <RadioGroupItem value={option} id={`option-${index}`} />
@@ -353,6 +353,8 @@ export default function QuizPage({
                                     value={answers.find(a => a.questionId === currentQuestionData.id)?.answer || ""}
                                     onChange={(e) => handleAnswerChange(currentQuestionData.id, e.target.value)}
                                     rows={4}
+                                    dir="auto"
+                                    className="text-start"
                                 />
                             )}
                         </CardContent>

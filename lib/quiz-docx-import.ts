@@ -21,31 +21,65 @@ const ARABIC_OPTION_LETTERS = ["أ", "ا", "ب", "ج", "د", "ه", "و"];
 const LATIN_OPTION_LETTERS = ["A", "B", "C", "D", "E", "F"];
 
 const QUESTION_START =
-  /^(?:س(?:ؤال)?\s*)?(\d+)[\.\)\-\:]|^Q\s*(\d+)[\.\)\-\:]|^السؤال\s*(\d+)/i;
+  /^(?:س(?:ؤال)?\s*)?(\d+)[\.\)\-\:]|^Q(?:uestion)?\s*(\d+)[\.\)\-\:]|^السؤال\s*(\d+)/i;
 
+/** A) text | A. text | A - text | A text | (a) text | 1) text */
 const OPTION_LINE =
-  /^(?:[(\[]?\s*([أابجدهوA-Fa-f0-9])\s*[)\].:-]|\*?\s*([أابجدهوA-Fa-f])\s*[)\].:-])\s*(.+)$/u;
+  /^(?:[(\[]\s*)?([أابجدهوA-Fa-f0-9])(?:\s*[)\].:\-–—]|\s+)(?:\s*)(.+)$/u;
+
+const BULLET_OPTION_LINE = /^[\-–—•●○]\s+(.+)$/u;
+
+/** Split inline options: "... decade. a) x b) y c) z d) w*" */
+const INLINE_OPTION_SPLIT =
+  /(?=(?:^|\s)(?:[(\[]\s*)?[أابجدهوA-Fa-f]\s*[)\].:\-–—]\s*)/u;
 
 const ANSWER_LINE =
-  /^(?:الإجابة|الاجابة|الإجابه|الاجابه|Answer|Correct)\s*[:：\-]\s*(.+)$/i;
+  /^(?:الإجابة|الاجابة|الإجابه|الاجابه|Ans(?:wer)?(?:\s*Key)?|Correct(?:\s*Answer)?)\s*[:：\-]\s*(.+)$/i;
 
-const POINTS_LINE = /^(?:النقاط|الدرجة|Points?|Score)\s*[:：\-]\s*(\d+(?:\.\d+)?)$/i;
+const POINTS_LINE =
+  /^(?:النقاط|الدرجة|Points?|Score)\s*[:：\-]\s*(\d+(?:\.\d+)?)$/i;
 
 const TYPE_HINT =
-  /\[(اختيار من متعدد|متعدد|MCQ|MULTIPLE[\s_]?CHOICE|صح وخطأ|صح\/خطأ|TRUE[\s_]?FALSE|TF|إجابة قصيرة|قصير|SHORT[\s_]?ANSWER)\]/i;
+  /\[(اختيار من متعدد|متعدد|MCQ|MULTIPLE[\s_\-]?CHOICE|صح\s*و?\s*خطأ|صح\s*\/\s*خطأ|TRUE\s*[\/_\-]?\s*FALSE|T\s*\/\s*F|TF|إجابة قصيرة|قصير|SHORT[\s_\-]?ANSWER)\]/i;
+
+type ParsedOption = { letter?: string; text: string; starred: boolean };
+
+type QuestionDraft = {
+  number: number;
+  text: string;
+  typeHint?: ImportedQuestionType;
+  options: ParsedOption[];
+  answerRaw?: string;
+  points: number;
+};
 
 function normalizeWhitespace(value: string): string {
-  return value.replace(/\u00a0/g, " ").replace(/[ \t]+/g, " ").trim();
+  return value
+    .replace(/[\u200E\u200F\u202A-\u202E\u2066-\u2069]/g, "") // bidi marks
+    .replace(/[\u200B-\u200D\uFEFF\u00AD]/g, "") // zero-width / soft hyphen
+    .replace(/\u00a0/g, " ")
+    .replace(/[ \t]+/g, " ")
+    .trim();
 }
 
-function stripTypeHint(text: string): { text: string; typeHint?: ImportedQuestionType } {
+/** Normalize look-alike asterisks / footnote markers used in Word */
+function normalizeAsterisks(value: string): string {
+  return value
+    .replace(/[∗＊✱⁎﹡★☆]/g, "*")
+    .replace(/(?:\[\d+\]|\(\d+\))\s*$/g, "*"); // footnote/endnote refs
+}
+
+function stripTypeHint(text: string): {
+  text: string;
+  typeHint?: ImportedQuestionType;
+} {
   const match = text.match(TYPE_HINT);
   if (!match) return { text: normalizeWhitespace(text) };
 
   const raw = match[1].toLowerCase();
   let typeHint: ImportedQuestionType | undefined;
   if (/متعدد|mcq|multiple/.test(raw)) typeHint = "MULTIPLE_CHOICE";
-  else if (/صح|true|tf/.test(raw)) typeHint = "TRUE_FALSE";
+  else if (/صح|true|tf|t\s*\/\s*f/.test(raw)) typeHint = "TRUE_FALSE";
   else if (/قصير|short/.test(raw)) typeHint = "SHORT_ANSWER";
 
   return {
@@ -69,11 +103,9 @@ function letterToIndex(letter: string): number {
   const latin = LATIN_OPTION_LETTERS.indexOf(upper);
   if (latin >= 0) return latin;
 
-  // Treat أ and ا as the first option
   if (letter === "أ" || letter === "ا") return 0;
   const arabic = ARABIC_OPTION_LETTERS.indexOf(letter);
   if (arabic >= 0) {
-    // ARABIC_OPTION_LETTERS: أ(0), ا(1), ب(2)... → map ا to 0, then shift
     if (arabic === 0 || arabic === 1) return 0;
     return arabic - 1;
   }
@@ -86,249 +118,423 @@ function letterToIndex(letter: string): number {
   return -1;
 }
 
-function parseOptionLine(line: string): { letter?: string; text: string; starred: boolean } | null {
-  const cleaned = normalizeWhitespace(line);
-  if (!cleaned) return null;
-
-  const starred = cleaned.includes("*");
-  const withoutStar = normalizeWhitespace(cleaned.replace(/\*/g, ""));
-
-  // Plain صح / خطأ lines (true/false options)
-  if (isTrueToken(withoutStar) || isFalseToken(withoutStar)) {
-    return { text: withoutStar, starred };
-  }
-
-  const match = withoutStar.match(OPTION_LINE);
+function extractQuestionNumber(line: string): number | null {
+  const match = line.match(QUESTION_START);
   if (!match) return null;
-
-  const letter = match[1] || match[2];
-  const text = normalizeWhitespace(match[3] || "");
-  if (!text) return null;
-
-  return { letter, text, starred };
+  const num = match[1] || match[2] || match[3];
+  return num ? Number(num) : null;
 }
 
 function looksLikeQuestionStart(line: string): boolean {
   return QUESTION_START.test(line);
 }
 
-function splitBlocks(rawText: string): string[] {
-  // Word/mammoth often inserts blank lines between every paragraph.
-  // Split only when a new numbered question begins — not on blank lines.
-  const lines = rawText
-    .replace(/\r\n/g, "\n")
-    .split("\n")
-    .map((l) => normalizeWhitespace(l.replace(/\u00a0/g, " ")))
+function parseOptionLine(line: string): ParsedOption | null {
+  const cleaned = normalizeWhitespace(normalizeAsterisks(line));
+  if (!cleaned) return null;
+
+  const starred = cleaned.includes("*");
+  const withoutStar = normalizeWhitespace(cleaned.replace(/\*/g, ""));
+
+  if (isTrueToken(withoutStar) || isFalseToken(withoutStar)) {
+    return { text: withoutStar, starred };
+  }
+
+  const match = withoutStar.match(OPTION_LINE);
+  if (match) {
+    const letter = match[1];
+    const text = normalizeWhitespace(match[2] || "");
+    if (!text) return null;
+    return { letter, text, starred };
+  }
+
+  const bullet = withoutStar.match(BULLET_OPTION_LINE);
+  if (bullet) {
+    const text = normalizeWhitespace(bullet[1] || "");
+    if (!text) return null;
+    return { text, starred };
+  }
+
+  return null;
+}
+
+function parsePlainOptionLine(line: string): ParsedOption | null {
+  const cleaned = normalizeWhitespace(normalizeAsterisks(line));
+  if (!cleaned) return null;
+  if (looksLikeQuestionStart(cleaned)) return null;
+  if (ANSWER_LINE.test(cleaned) || POINTS_LINE.test(cleaned)) return null;
+
+  const starred = cleaned.includes("*");
+  const text = normalizeWhitespace(cleaned.replace(/\*/g, ""));
+  if (!text) return null;
+  return { text, starred };
+}
+
+/**
+ * Expand a line that contains the question plus inline a) b) c) d) options.
+ */
+function expandInlineOptions(line: string): string[] {
+  const cleaned = normalizeAsterisks(normalizeWhitespace(line));
+  if (!cleaned) return [];
+
+  // Need at least two option markers to treat as inline options
+  const optionMarkers = cleaned.match(
+    /(?:^|\s)(?:[(\[]\s*)?[أابجدهوA-Fa-f]\s*[)\].:\-–—]\s+\S/gu
+  );
+  if (!optionMarkers || optionMarkers.length < 2) {
+    return [cleaned];
+  }
+
+  const parts = cleaned
+    .split(INLINE_OPTION_SPLIT)
+    .map((p) => normalizeWhitespace(p))
     .filter(Boolean);
 
-  const blocks: string[] = [];
-  let current: string[] = [];
-  let startedQuestions = false;
+  if (parts.length < 2) return [cleaned];
+  return parts;
+}
 
-  const flush = () => {
-    const joined = current.join("\n").trim();
-    if (joined) blocks.push(joined);
-    current = [];
-  };
+function flattenLines(rawText: string): string[] {
+  const rawLines = rawText
+    .replace(/\r\n/g, "\n")
+    .split("\n")
+    .map((l) => normalizeWhitespace(normalizeAsterisks(l.replace(/\u00a0/g, " "))))
+    .filter(Boolean);
 
-  for (const trimmed of lines) {
-    if (looksLikeQuestionStart(trimmed)) {
-      startedQuestions = true;
-      if (current.length) flush();
-      current.push(trimmed);
+  const out: string[] = [];
+  for (const line of rawLines) {
+    const expanded = expandInlineOptions(line);
+    out.push(...expanded);
+  }
+  return out;
+}
+
+function resolveMcqCorrectIndex(
+  parsedOptions: ParsedOption[],
+  options: string[],
+  answerRaw?: string
+): number {
+  let correctIndex = parsedOptions.findIndex((o) => o.starred);
+
+  if (correctIndex < 0 && answerRaw) {
+    const trimmed = answerRaw.trim();
+    const letterToken = trimmed.replace(/[)\].:\-–—]/g, "").trim();
+    const letterIdx = letterToIndex(letterToken.charAt(0));
+    if (
+      letterToken.length <= 2 &&
+      letterIdx >= 0 &&
+      letterIdx < options.length
+    ) {
+      correctIndex = letterIdx;
+    } else {
+      correctIndex = options.findIndex(
+        (o) =>
+          normalizeWhitespace(o).toLowerCase() ===
+          normalizeWhitespace(trimmed).toLowerCase()
+      );
+    }
+  }
+
+  return correctIndex;
+}
+
+function finalizeQuestion(
+  draft: QuestionDraft,
+  indexLabel: number,
+  warnings: string[]
+): ImportedQuizQuestion | null {
+  let options = draft.options;
+
+  // Fallback: if options were stored as plain text elsewhere — already on draft
+  if (options.length < 2 && draft.answerRaw) {
+    // keep as potentially short answer
+  }
+
+  const looksLikeTrueFalse =
+    draft.typeHint === "TRUE_FALSE" ||
+    (options.length >= 1 &&
+      options.every((o) => isTrueToken(o.text) || isFalseToken(o.text)));
+
+  const looksLikeMcq =
+    draft.typeHint === "MULTIPLE_CHOICE" ||
+    (!looksLikeTrueFalse && options.length >= 2);
+
+  const looksLikeShort =
+    draft.typeHint === "SHORT_ANSWER" ||
+    (!looksLikeTrueFalse && !looksLikeMcq && Boolean(draft.answerRaw));
+
+  if (looksLikeTrueFalse) {
+    let correct: "true" | "false" | undefined;
+    const starred = options.find((o) => o.starred);
+    if (starred) correct = isTrueToken(starred.text) ? "true" : "false";
+    else if (draft.answerRaw) {
+      if (isTrueToken(draft.answerRaw)) correct = "true";
+      else if (isFalseToken(draft.answerRaw)) correct = "false";
+    }
+    if (!correct) {
+      warnings.push(`السؤال ${indexLabel}: لم يتم تحديد إجابة صح/خطأ`);
+      return null;
+    }
+    if (!draft.text) {
+      warnings.push(`السؤال ${indexLabel}: نص السؤال فارغ`);
+      return null;
+    }
+    return {
+      id: `imported-${Date.now()}-${indexLabel}`,
+      text: draft.text,
+      type: "TRUE_FALSE",
+      correctAnswer: correct,
+      points: draft.points,
+    };
+  }
+
+  if (looksLikeMcq) {
+    const optionTexts = options.map((o) => o.text);
+    const correctIndex = resolveMcqCorrectIndex(
+      options,
+      optionTexts,
+      draft.answerRaw
+    );
+    if (correctIndex < 0 || correctIndex >= optionTexts.length) {
+      warnings.push(`السؤال ${indexLabel}: لم يتم تحديد الإجابة الصحيحة`);
+      return null;
+    }
+    if (!draft.text) {
+      warnings.push(`السؤال ${indexLabel}: نص السؤال فارغ`);
+      return null;
+    }
+    return {
+      id: `imported-${Date.now()}-${indexLabel}`,
+      text: draft.text,
+      type: "MULTIPLE_CHOICE",
+      options: optionTexts,
+      correctAnswer: correctIndex,
+      points: draft.points,
+    };
+  }
+
+  if (looksLikeShort || draft.answerRaw) {
+    if (!draft.text) {
+      warnings.push(`السؤال ${indexLabel}: نص السؤال فارغ`);
+      return null;
+    }
+    if (!draft.answerRaw) {
+      warnings.push(`السؤال ${indexLabel}: أضف سطر Answer: أو الإجابة: ...`);
+      return null;
+    }
+    return {
+      id: `imported-${Date.now()}-${indexLabel}`,
+      text: draft.text,
+      type: "SHORT_ANSWER",
+      correctAnswer: draft.answerRaw,
+      points: draft.points,
+    };
+  }
+
+  warnings.push(
+    `السؤال ${indexLabel}: تعذر التعرف على النوع. استخدم * على الخيار الصحيح أو سطر Answer: / الإجابة:`
+  );
+  return null;
+}
+
+/**
+ * Build drafts from lines, handling:
+ * - normal sequential questions
+ * - two-column / table interleaving (Q1, Q6, a, a, b, b, ...)
+ */
+function buildDrafts(lines: string[]): QuestionDraft[] {
+  type Token =
+    | { kind: "question"; number: number; text: string; typeHint?: ImportedQuestionType }
+    | { kind: "option"; option: ParsedOption }
+    | { kind: "answer"; value: string }
+    | { kind: "points"; value: number }
+    | { kind: "text"; value: string };
+
+  const tokens: Token[] = [];
+  let started = false;
+
+  for (const line of lines) {
+    const qNum = extractQuestionNumber(line);
+    if (qNum !== null) {
+      started = true;
+      let rest = line.replace(QUESTION_START, "").trim().replace(/^[\-\–—]\s*/, "");
+      const { text, typeHint } = stripTypeHint(rest);
+      tokens.push({ kind: "question", number: qNum, text, typeHint });
       continue;
     }
 
-    // Skip preamble text before the first numbered question
-    if (!startedQuestions) continue;
+    if (!started) continue;
 
-    current.push(trimmed);
-  }
-
-  flush();
-  return blocks;
-}
-
-function parseBlock(
-  block: string,
-  index: number,
-  warnings: string[]
-): ImportedQuizQuestion | null {
-  const lines = block
-    .split("\n")
-    .map(normalizeWhitespace)
-    .filter(Boolean);
-
-  if (!lines.length) return null;
-
-  let points = 1;
-  let answerRaw: string | undefined;
-  const contentLines: string[] = [];
-
-  for (const line of lines) {
     const pointsMatch = line.match(POINTS_LINE);
     if (pointsMatch) {
-      points = Math.max(1, Math.round(Number(pointsMatch[1])));
+      tokens.push({
+        kind: "points",
+        value: Math.max(1, Math.round(Number(pointsMatch[1]))),
+      });
       continue;
     }
 
     const answerMatch = line.match(ANSWER_LINE);
     if (answerMatch) {
-      answerRaw = normalizeWhitespace(answerMatch[1].replace(/\*/g, ""));
+      tokens.push({
+        kind: "answer",
+        value: normalizeWhitespace(
+          normalizeAsterisks(answerMatch[1]).replace(/\*/g, "")
+        ),
+      });
       continue;
     }
 
-    contentLines.push(line);
+    const opt = parseOptionLine(line);
+    if (opt) {
+      tokens.push({ kind: "option", option: opt });
+      continue;
+    }
+
+    tokens.push({ kind: "text", value: line });
   }
 
-  if (!contentLines.length) {
-    warnings.push(`تم تخطي كتلة فارغة بالقرب من السؤال ${index + 1}`);
-    return null;
-  }
+  const draftsByNumber = new Map<number, QuestionDraft>();
+  const order: number[] = [];
 
-  // First line is the question (may include number prefix)
-  let first = contentLines[0].replace(QUESTION_START, "").trim();
-  first = first.replace(/^[\-\–—]\s*/, "");
-  const { text: questionTextSeed, typeHint } = stripTypeHint(first);
-
-  const optionLines = contentLines.slice(1);
-  const parsedOptions = optionLines
-    .map(parseOptionLine)
-    .filter((o): o is NonNullable<typeof o> => Boolean(o));
-
-  const looksLikeTrueFalse =
-    typeHint === "TRUE_FALSE" ||
-    (parsedOptions.length >= 1 &&
-      parsedOptions.every((o) => isTrueToken(o.text) || isFalseToken(o.text)));
-
-  const looksLikeMcq =
-    typeHint === "MULTIPLE_CHOICE" ||
-    (!looksLikeTrueFalse && parsedOptions.length >= 2);
-
-  const looksLikeShort =
-    typeHint === "SHORT_ANSWER" ||
-    (!looksLikeTrueFalse && !looksLikeMcq && Boolean(answerRaw));
-
-  if (looksLikeTrueFalse) {
-    let correct: "true" | "false" | undefined;
-
-    const starred = parsedOptions.find((o) => o.starred);
-    if (starred) {
-      correct = isTrueToken(starred.text) ? "true" : "false";
-    } else if (answerRaw) {
-      if (isTrueToken(answerRaw)) correct = "true";
-      else if (isFalseToken(answerRaw)) correct = "false";
+  const ensureDraft = (
+    number: number,
+    text = "",
+    typeHint?: ImportedQuestionType
+  ): QuestionDraft => {
+    let draft = draftsByNumber.get(number);
+    if (!draft) {
+      draft = { number, text, typeHint, options: [], points: 1 };
+      draftsByNumber.set(number, draft);
+      order.push(number);
+    } else {
+      if (text && !draft.text) draft.text = text;
+      if (typeHint && !draft.typeHint) draft.typeHint = typeHint;
     }
+    return draft;
+  };
 
-    if (!correct) {
-      warnings.push(`السؤال ${index + 1}: لم يتم تحديد إجابة صح/خطأ`);
-      return null;
-    }
+  let i = 0;
+  while (i < tokens.length) {
+    const token = tokens[i];
 
-    const text =
-      questionTextSeed ||
-      contentLines
-        .filter((l) => {
-          const p = parseOptionLine(l);
-          return !(p && (isTrueToken(p.text) || isFalseToken(p.text)));
-        })
-        .join(" ")
-        .replace(QUESTION_START, "")
-        .trim();
-
-    if (!text) {
-      warnings.push(`السؤال ${index + 1}: نص السؤال فارغ`);
-      return null;
-    }
-
-    return {
-      id: `imported-${Date.now()}-${index}`,
-      text,
-      type: "TRUE_FALSE",
-      correctAnswer: correct,
-      points,
-    };
-  }
-
-  if (looksLikeMcq) {
-    const options = parsedOptions.map((o) => o.text);
-    if (options.length < 2) {
-      warnings.push(`السؤال ${index + 1}: يحتاج خيارين على الأقل`);
-      return null;
-    }
-
-    let correctIndex = parsedOptions.findIndex((o) => o.starred);
-
-    if (correctIndex < 0 && answerRaw) {
-      // الإجابة: أ  / الإجابة: كتب  / الإجابة: 1
-      const letterIdx = letterToIndex(answerRaw.charAt(0));
-      if (answerRaw.length <= 2 && letterIdx >= 0 && letterIdx < options.length) {
-        correctIndex = letterIdx;
-      } else {
-        const byText = options.findIndex(
-          (o) => normalizeWhitespace(o).toLowerCase() === answerRaw.toLowerCase()
-        );
-        correctIndex = byText;
+    if (token.kind === "question") {
+      // Collect consecutive questions (two-column / table row)
+      const group: Array<{
+        number: number;
+        text: string;
+        typeHint?: ImportedQuestionType;
+      }> = [];
+      while (i < tokens.length && tokens[i].kind === "question") {
+        const q = tokens[i] as Extract<Token, { kind: "question" }>;
+        group.push({
+          number: q.number,
+          text: q.text,
+          typeHint: q.typeHint,
+        });
+        i++;
       }
+
+      for (const q of group) {
+        ensureDraft(q.number, q.text, q.typeHint);
+      }
+
+      // Collect following options / meta until next question
+      const trailingOptions: ParsedOption[] = [];
+      const trailingText: string[] = [];
+      let sharedAnswer: string | undefined;
+      let sharedPoints: number | undefined;
+
+      while (i < tokens.length && tokens[i].kind !== "question") {
+        const t = tokens[i];
+        if (t.kind === "option") trailingOptions.push(t.option);
+        else if (t.kind === "answer") sharedAnswer = t.value;
+        else if (t.kind === "points") sharedPoints = t.value;
+        else if (t.kind === "text") trailingText.push(t.value);
+        i++;
+      }
+
+      const plainFromText = trailingText
+        .map(parsePlainOptionLine)
+        .filter((o): o is ParsedOption => Boolean(o));
+
+      // Prefer letter/bullet options; else plain lines as options
+      const opts =
+        trailingOptions.length >= 2
+          ? trailingOptions
+          : plainFromText.length >= 2
+            ? plainFromText
+            : trailingOptions.length > 0
+              ? trailingOptions
+              : plainFromText;
+
+      const usedTextAsOptions =
+        opts === plainFromText && plainFromText.length >= 2;
+
+      // Question continuation only when text was not consumed as options
+      if (group.length === 1 && trailingText.length && !usedTextAsOptions) {
+        if (trailingOptions.length < 2) {
+          const draft = ensureDraft(group[0].number);
+          for (const line of trailingText) {
+            const { text: cont, typeHint } = stripTypeHint(line);
+            if (cont) {
+              draft.text = normalizeWhitespace(`${draft.text} ${cont}`);
+              if (typeHint) draft.typeHint = typeHint;
+            }
+          }
+        }
+      }
+
+      if (group.length === 1) {
+        const draft = ensureDraft(group[0].number);
+        draft.options.push(...opts);
+        if (sharedAnswer) draft.answerRaw = sharedAnswer;
+        if (sharedPoints) draft.points = sharedPoints;
+      } else {
+        // Round-robin distribute options across the question group
+        opts.forEach((opt, idx) => {
+          const target = group[idx % group.length];
+          const draft = ensureDraft(target.number);
+          draft.options.push(opt);
+        });
+        if (sharedAnswer || sharedPoints) {
+          for (const q of group) {
+            const draft = ensureDraft(q.number);
+            if (sharedAnswer && !draft.answerRaw) draft.answerRaw = sharedAnswer;
+            if (sharedPoints) draft.points = sharedPoints;
+          }
+        }
+      }
+      continue;
     }
 
-    if (correctIndex < 0 || correctIndex >= options.length) {
-      warnings.push(`السؤال ${index + 1}: لم يتم تحديد الإجابة الصحيحة`);
-      return null;
-    }
-
-    if (!questionTextSeed) {
-      warnings.push(`السؤال ${index + 1}: نص السؤال فارغ`);
-      return null;
-    }
-
-    return {
-      id: `imported-${Date.now()}-${index}`,
-      text: questionTextSeed,
-      type: "MULTIPLE_CHOICE",
-      options,
-      correctAnswer: correctIndex,
-      points,
-    };
+    // Orphan tokens before any handled question — skip
+    i++;
   }
 
-  if (looksLikeShort || answerRaw) {
-    if (!questionTextSeed) {
-      warnings.push(`السؤال ${index + 1}: نص السؤال فارغ`);
-      return null;
-    }
-    if (!answerRaw) {
-      warnings.push(`السؤال ${index + 1}: أضف سطر الإجابة: ...`);
-      return null;
-    }
-
-    return {
-      id: `imported-${Date.now()}-${index}`,
-      text: questionTextSeed,
-      type: "SHORT_ANSWER",
-      correctAnswer: answerRaw,
-      points,
-    };
-  }
-
-  warnings.push(
-    `السؤال ${index + 1}: تعذر التعرف على النوع. استخدم * على الخيار الصحيح أو سطر "الإجابة:"`
-  );
-  return null;
+  return order.map((n) => draftsByNumber.get(n)!).filter(Boolean);
 }
 
 export function parseQuizQuestionsFromText(rawText: string): QuizDocxImportResult {
   const warnings: string[] = [];
-  const blocks = splitBlocks(rawText);
+  const lines = flattenLines(rawText);
+  const drafts = buildDrafts(lines);
 
-  if (!blocks.length) {
+  if (!drafts.length) {
     return { questions: [], warnings: ["الملف فارغ أو لا يحتوي على أسئلة"] };
   }
 
   const questions: ImportedQuizQuestion[] = [];
-  blocks.forEach((block, index) => {
-    const parsed = parseBlock(block, index, warnings);
+  drafts.forEach((draft, index) => {
+    const parsed = finalizeQuestion(draft, draft.number || index + 1, warnings);
     if (parsed) questions.push(parsed);
+  });
+
+  // Keep quiz order by question number when available
+  questions.sort((a, b) => {
+    const na = drafts.find((d) => d.text === a.text)?.number ?? 0;
+    const nb = drafts.find((d) => d.text === b.text)?.number ?? 0;
+    return na - nb;
   });
 
   if (!questions.length && !warnings.length) {
@@ -338,15 +544,99 @@ export function parseQuizQuestionsFromText(rawText: string): QuizDocxImportResul
   return { questions, warnings };
 }
 
+const LATIN_LIST_LETTERS = ["a", "b", "c", "d", "e", "f", "g", "h"];
+
+/**
+ * Convert mammoth HTML into plain lines, preserving Word auto-list markers
+ * that extractRawText often drops.
+ *
+ * Word lettered option lists (a b c d) become <ol>/<ul> without the letters
+ * in the text — we re-attach a) b) c) so the quiz parser can see options.
+ */
+function htmlToQuizLines(html: string): string {
+  const withBreaks = html
+    .replace(/<\/(p|div|h[1-6]|tr|table|section)>/gi, "\n")
+    .replace(/<br\s*\/?>/gi, "\n")
+    .replace(/<\/li>/gi, "\n");
+
+  let listCounter = 0;
+  const listAware = withBreaks.replace(
+    /<\/?ol\b[^>]*>|<\/?ul\b[^>]*>|<li\b[^>]*>/gi,
+    (tag) => {
+      const lower = tag.toLowerCase();
+      if (lower.startsWith("<ol") || lower.startsWith("<ul")) {
+        listCounter = 0;
+        return "\n";
+      }
+      if (lower.startsWith("</ol") || lower.startsWith("</ul")) {
+        listCounter = 0;
+        return "\n";
+      }
+      if (lower.startsWith("<li")) {
+        const letter = LATIN_LIST_LETTERS[listCounter] || "a";
+        listCounter += 1;
+        // Always letter-prefix list items — Word MCQ options are lists;
+        // numbered questions are usually plain paragraphs ("1. ...").
+        return `\n${letter}) `;
+      }
+      return "\n";
+    }
+  );
+
+  return listAware
+    .replace(/<[^>]+>/g, "")
+    .replace(/&nbsp;/gi, " ")
+    .replace(/&amp;/gi, "&")
+    .replace(/&lt;/gi, "<")
+    .replace(/&gt;/gi, ">")
+    .replace(/&quot;/gi, '"')
+    .replace(/&#39;/gi, "'");
+}
+
 export async function parseQuizQuestionsFromDocx(
   file: ArrayBuffer | Uint8Array
-): Promise<QuizDocxImportResult> {
+): Promise<QuizDocxImportResult & { debugText?: string }> {
   const mammoth = await import("mammoth");
   const input =
     file instanceof ArrayBuffer
       ? { arrayBuffer: file }
-      : { arrayBuffer: file.buffer.slice(file.byteOffset, file.byteOffset + file.byteLength) };
+      : {
+          arrayBuffer: file.buffer.slice(
+            file.byteOffset,
+            file.byteOffset + file.byteLength
+          ),
+        };
 
-  const result = await mammoth.extractRawText(input as { arrayBuffer: ArrayBuffer });
-  return parseQuizQuestionsFromText(result.value || "");
+  const arrayBuffer = (input as { arrayBuffer: ArrayBuffer }).arrayBuffer;
+
+  // Prefer HTML — preserves list structure that raw text drops
+  const htmlResult = await mammoth.convertToHtml({ arrayBuffer });
+  const fromHtml = htmlToQuizLines(htmlResult.value || "");
+  const htmlParsed = parseQuizQuestionsFromText(fromHtml);
+
+  if (htmlParsed.questions.length > 0) {
+    return { ...htmlParsed, debugText: fromHtml };
+  }
+
+  // Fallback to raw text extraction
+  const textResult = await mammoth.extractRawText({ arrayBuffer });
+  const raw = textResult.value || "";
+  const textParsed = parseQuizQuestionsFromText(raw);
+
+  if (textParsed.questions.length > 0) {
+    return { ...textParsed, debugText: raw };
+  }
+
+  // Merge warnings and include a short preview to help diagnose format issues
+  const preview = (fromHtml || raw).slice(0, 240).replace(/\s+/g, " ");
+  return {
+    questions: [],
+    warnings: [
+      ...(htmlParsed.warnings.length ? htmlParsed.warnings : textParsed.warnings),
+      preview
+        ? `معاينة الملف: ${preview}${preview.length >= 240 ? "…" : ""}`
+        : "الملف فارغ أو لا يمكن قراءة النص",
+    ],
+    debugText: fromHtml || raw,
+  };
 }

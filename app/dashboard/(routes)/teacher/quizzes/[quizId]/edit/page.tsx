@@ -770,6 +770,8 @@ const EditQuizPage = () => {
                                         value={question.text}
                                         onChange={(e) => updateQuestion(index, "text", e.target.value)}
                                         placeholder="أدخل نص السؤال"
+                                        dir="auto"
+                                        className="text-start"
                                     />
                                 </div>
 
@@ -874,6 +876,8 @@ const EditQuizPage = () => {
                                                         }
                                                     }}
                                                     placeholder={`الخيار ${optionIndex + 1}`}
+                                                    dir="auto"
+                                                    className="text-start"
                                                 />
                                                 <input
                                                     type="radio"
@@ -911,6 +915,8 @@ const EditQuizPage = () => {
                                             value={typeof question.correctAnswer === 'string' ? question.correctAnswer : ''}
                                             onChange={(e) => updateQuestion(index, "correctAnswer", e.target.value)}
                                             placeholder="أدخل الإجابة الصحيحة"
+                                            dir="auto"
+                                            className="text-start"
                                         />
                                     </div>
                                 )}

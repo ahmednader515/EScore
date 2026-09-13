@@ -186,7 +186,7 @@ const QuizViewPage = ({ params }: { params: Promise<{ quizId: string }> }) => {
                                         <Badge variant="outline">{question.points} درجة</Badge>
                                     </div>
                                     
-                                    <p className="text-muted-foreground mb-3">{question.text}</p>
+                                    <p className="text-muted-foreground mb-3" dir="auto">{question.text}</p>
                                     
                                     <div className="space-y-2">
                                         <div className="flex items-center space-x-2">
@@ -206,7 +206,7 @@ const QuizViewPage = ({ params }: { params: Promise<{ quizId: string }> }) => {
                                                                     : "bg-gray-50"
                                                             }`}
                                                         >
-                                                            <span className="text-sm">
+                                                            <span className="text-sm" dir="auto">
                                                                 {optionIndex + 1}. {option}
                                                                 {option === question.correctAnswer && (
                                                                     <Badge variant="default" className="mr-2">
