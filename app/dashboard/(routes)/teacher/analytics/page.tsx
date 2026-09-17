@@ -45,6 +45,8 @@ interface CourseAnalytic {
   sales: number;
   revenue: number;
   completionRate: number;
+  codeSales?: number;
+  codeRevenue?: number;
 }
 
 interface ChartDataset {
@@ -67,6 +69,15 @@ interface AnalyticsData {
   courseAnalytics: CourseAnalytic[];
   revenueData: ChartData;
   salesData: ChartData;
+  fawaterakDepositsTotal: number;
+  fawaterakDepositsCount: number;
+  codeRedemptionsCount: number;
+  codeRedemptionListRevenue: number;
+  codeRedemptionPaidFromBalance: number;
+  moneyBreakdown: {
+    labels: string[];
+    data: number[];
+  };
 }
 
 const emptyAnalytics: AnalyticsData = {
@@ -108,6 +119,15 @@ const emptyAnalytics: AnalyticsData = {
       },
     ],
   },
+  fawaterakDepositsTotal: 0,
+  fawaterakDepositsCount: 0,
+  codeRedemptionsCount: 0,
+  codeRedemptionListRevenue: 0,
+  codeRedemptionPaidFromBalance: 0,
+  moneyBreakdown: {
+    labels: ["رصيد فواتيرك", "إيرادات الأكواد"],
+    data: [0, 0],
+  },
 };
 
 const AnalyticsPage = () => {
@@ -122,7 +142,7 @@ const AnalyticsPage = () => {
     try {
       setIsLoading(true);
       const response = await axios.get("/api/teacher/analytics");
-      setAnalytics(response.data);
+      setAnalytics({ ...emptyAnalytics, ...response.data });
     } catch (error) {
       console.error("[ANALYTICS_PAGE] Error fetching analytics:", error);
       toast.error("فشل تحميل الإحصائيات");
@@ -242,6 +262,51 @@ const AnalyticsPage = () => {
     },
   };
 
+  const moneyBreakdownData: ChartData = {
+    labels: analytics.moneyBreakdown?.labels ?? [
+      "رصيد فواتيرك",
+      "إيرادات الأكواد",
+    ],
+    datasets: [
+      {
+        label: "التوزيع المالي",
+        data: analytics.moneyBreakdown?.data ?? [0, 0],
+        backgroundColor: [
+          "rgba(16, 185, 129, 0.7)",
+          "rgba(249, 115, 22, 0.7)",
+        ],
+        borderColor: ["rgba(16, 185, 129, 1)", "rgba(249, 115, 22, 1)"],
+        borderWidth: 1,
+      },
+    ],
+  };
+
+  const moneyBreakdownOptions = {
+    responsive: true,
+    color: textColor,
+    plugins: {
+      legend: {
+        position: "top" as const,
+        labels: {
+          color: textColor,
+          font: {
+            family: "Inter, sans-serif",
+          },
+        },
+      },
+      title: {
+        display: true,
+        text: "فواتيرك مقابل الأكواد",
+        color: textColor,
+        font: {
+          family: "Inter, sans-serif",
+          size: 16,
+          weight: "bold" as const,
+        },
+      },
+    },
+  };
+
   if (isLoading) {
     return (
       <div className="h-full flex items-center justify-center">
@@ -328,29 +393,51 @@ const AnalyticsPage = () => {
       </Dialog>
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <Card className="p-6 bg-blue-50 rounded-lg shadow-sm">
+        <Card className="p-6 bg-emerald-50 rounded-lg shadow-sm border border-emerald-100">
           <h3 className="text-sm font-medium text-muted-foreground">
-            إجمالي الإيرادات
+            رصيد مضاف عبر فواتيرك
+          </h3>
+          <p className="text-3xl font-bold text-emerald-700">
+            EGP {analytics.fawaterakDepositsTotal.toFixed(2)}
+          </p>
+          <p className="text-xs text-muted-foreground mt-1">
+            {analytics.fawaterakDepositsCount} عملية شحن ناجحة
+          </p>
+        </Card>
+        <Card className="p-6 bg-orange-50 rounded-lg shadow-sm border border-orange-100">
+          <h3 className="text-sm font-medium text-muted-foreground">
+            أرباح الكورسات بالأكواد
+          </h3>
+          <p className="text-3xl font-bold text-orange-700">
+            EGP {analytics.codeRedemptionListRevenue.toFixed(2)}
+          </p>
+          <p className="text-xs text-muted-foreground mt-1">
+            {analytics.codeRedemptionsCount} عملية استرداد كود
+            {analytics.codeRedemptionPaidFromBalance > 0
+              ? ` · مدفوع من الرصيد EGP ${analytics.codeRedemptionPaidFromBalance.toFixed(2)}`
+              : ""}
+          </p>
+        </Card>
+        <Card className="p-6 bg-slate-50 rounded-lg shadow-sm">
+          <h3 className="text-sm font-medium text-muted-foreground">
+            إجمالي قيمة الاشتراكات
           </h3>
           <p className="text-3xl font-bold">
             EGP {analytics.totalRevenue.toFixed(2)}
           </p>
-        </Card>
-        <Card className="p-6 bg-green-50 rounded-lg shadow-sm">
-          <h3 className="text-sm font-medium text-muted-foreground">
-            إجمالي المبيعات
-          </h3>
-          <p className="text-3xl font-bold">{analytics.totalSales}</p>
-        </Card>
-        <Card className="p-6 bg-amber-50 rounded-lg shadow-sm">
-          <h3 className="text-sm font-medium text-muted-foreground">
-            الكورسات المنشورة
-          </h3>
-          <p className="text-3xl font-bold">{analytics.courseCount}</p>
+          <p className="text-xs text-muted-foreground mt-1">
+            {analytics.totalSales} عملية بيع · {analytics.courseCount} كورس منشور
+          </p>
         </Card>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <Card className="p-6 rounded-lg shadow-sm">
+          <h3 className="text-lg font-medium mb-4">فواتيرك مقابل الأكواد</h3>
+          <div className="h-80 flex items-center justify-center">
+            <Pie options={moneyBreakdownOptions} data={moneyBreakdownData} />
+          </div>
+        </Card>
         <Card className="p-6 rounded-lg shadow-sm">
           <h3 className="text-lg font-medium mb-4">الإيرادات بالكورس</h3>
           <div className="h-80">
@@ -373,7 +460,9 @@ const AnalyticsPage = () => {
               <tr className="border-b">
                 <th className="text-left py-3 px-2">الكورس</th>
                 <th className="text-center py-3 px-2">المبيعات</th>
-                <th className="text-center py-3 px-2">الإيرادات</th>
+                <th className="text-center py-3 px-2">إيرادات الاشتراكات</th>
+                <th className="text-center py-3 px-2">مبيعات الأكواد</th>
+                <th className="text-center py-3 px-2">إيرادات الأكواد</th>
                 <th className="text-center py-3 px-2">معدل الاكتمال</th>
               </tr>
             </thead>
@@ -387,6 +476,12 @@ const AnalyticsPage = () => {
                   <td className="text-center py-3 px-2">{course.sales}</td>
                   <td className="text-center py-3 px-2">
                     EGP {course.revenue.toFixed(2)}
+                  </td>
+                  <td className="text-center py-3 px-2">
+                    {course.codeSales ?? 0}
+                  </td>
+                  <td className="text-center py-3 px-2">
+                    EGP {(course.codeRevenue ?? 0).toFixed(2)}
                   </td>
                   <td className="text-center py-3 px-2">
                     <div className="flex items-center justify-center">
