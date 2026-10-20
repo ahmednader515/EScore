@@ -1,3 +1,4 @@
+import { getQuizPrerequisiteError } from "@/lib/quiz-prerequisites";
 import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
@@ -146,7 +147,8 @@ export async function GET(
         },
       });
 
-    const sanitizedItems = unit.contentItems.map((item) => {
+    const sanitizedItems = await Promise.all(unit.contentItems.map(async (item) => {
+      const prerequisiteError = item.quizId && !staff ? await getQuizPrerequisiteError(userId, courseId, item.quizId) : null;
       const itemLayer = {
         centerAvailableAt: item.centerAvailableAt,
         onlineAvailableAt: item.onlineAvailableAt,
@@ -164,7 +166,7 @@ export async function GET(
         item.isFree ||
         (item.type === "ASSIGNMENT" && item.quiz?.isFree);
 
-      if (itemAccess && released) return { ...item, locked: false };
+      if (itemAccess && released && !prerequisiteError) return { ...item, locked: false };
 
       return {
         ...item,
@@ -177,17 +179,22 @@ export async function GET(
         attachments: [],
         quiz: item.quiz ? { ...item.quiz, id: item.quiz.id } : null,
         locked: true,
+        prerequisiteError,
         releaseLocked: !released,
         availableAt: itemAvailableAt?.toISOString() ?? null,
       };
-    });
+    }));
 
-    return NextResponse.json({
+    const response = NextResponse.json({
       ...unit,
       contentItems: sanitizedItems,
       hasAccess: staff || hasAccess,
       locked: false,
     });
+    if (unit.teacherId) {
+      response.cookies.set(`course-teacher-${userId}-${courseId}`, unit.teacherId, { path: "/", maxAge: 31536000, sameSite: "lax" });
+    }
+    return response;
   } catch (error) {
     console.log("[UNIT_GET]", error);
     return new NextResponse("Internal Error", { status: 500 });

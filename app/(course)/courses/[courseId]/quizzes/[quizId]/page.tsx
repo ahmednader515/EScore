@@ -48,6 +48,7 @@ export default function QuizPage({
     const { courseId, quizId } = use(params);
     const [quiz, setQuiz] = useState<Quiz | null>(null);
     const [loading, setLoading] = useState(true);
+    const [accessError, setAccessError] = useState<string | null>(null);
     const [submitting, setSubmitting] = useState(false);
     const [answers, setAnswers] = useState<QuizAnswer[]>([]);
     const [currentQuestion, setCurrentQuestion] = useState(0);
@@ -96,12 +97,13 @@ export default function QuizPage({
                 setTimeLeft(timerInSeconds);
             } else {
                 const errorText = await response.text();
+                if (response.status === 403) setAccessError(errorText);
                 // Only send to results when attempts are exhausted (a result should exist)
                 if (errorText.includes("Maximum attempts reached")) {
                     toast.error("لقد استنفدت محاولات هذا الاختبار. جاري عرض النتيجة...");
                     setRedirectToResult(true);
                 } else {
-                    toast.error("حدث خطأ أثناء تحميل الاختبار");
+                    toast.error(response.status === 403 ? errorText : "حدث خطأ أثناء تحميل الاختبار");
                 }
             }
         } catch (error) {
@@ -225,7 +227,7 @@ export default function QuizPage({
         return (
             <div className="min-h-screen flex items-center justify-center">
                 <div className="text-center">
-                    <h1 className="text-2xl font-bold mb-4">الاختبار غير موجود</h1>
+                    <h1 className="text-2xl font-bold mb-4">{accessError || "الاختبار غير موجود"}</h1>
                     <Button onClick={() => router.back()}>العودة</Button>
                 </div>
             </div>

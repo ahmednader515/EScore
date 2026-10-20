@@ -1,3 +1,4 @@
+import { getQuizPrerequisiteError } from "@/lib/quiz-prerequisites";
 import { db } from "@/lib/db";
 import { auth } from "@/lib/auth";
 import { NextResponse } from "next/server";
@@ -30,6 +31,11 @@ export async function POST(
 
         if (!quiz) {
             return new NextResponse("Quiz not found", { status: 404 });
+        }
+
+        const prerequisiteError = await getQuizPrerequisiteError(userId, resolvedParams.courseId, resolvedParams.quizId);
+        if (prerequisiteError) {
+            return new NextResponse(prerequisiteError, { status: 403 });
         }
 
         // Check if user has access to the course

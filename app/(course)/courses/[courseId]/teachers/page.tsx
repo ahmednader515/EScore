@@ -1,3 +1,4 @@
+import { getQuizPrerequisiteError } from "@/lib/quiz-prerequisites";
 import { db } from "@/lib/db";
 import { auth } from "@/lib/auth";
 import { redirect } from "next/navigation";
@@ -110,6 +111,10 @@ export default async function CourseTeachersPage({
     );
   }
 
+  const quizErrors = new Map(await Promise.all(course.quizzes.map(async (quiz) =>
+    [quiz.id, await getQuizPrerequisiteError(userId, courseId, quiz.id)] as const
+  )));
+
   return (
     <div className="py-6">
       <CourseBreadcrumbs
@@ -172,11 +177,12 @@ export default async function CourseTeachersPage({
         <div className="mt-12">
           <h2 className="text-xl font-bold mb-2">الاختبارات المشتركة</h2>
           <p className="text-muted-foreground mb-6 text-sm">
-            اختبارات عامة للكورس متاحة لجميع الطلاب
+            تفتح الاختبارات بعد إكمال دروس المدرس الذي اخترته
           </p>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
             {course.quizzes.map((quiz) => {
-              const canOpen = hasAccess || quiz.isFree;
+              const prerequisiteError = quizErrors.get(quiz.id);
+              const canOpen = (hasAccess || quiz.isFree) && !prerequisiteError;
               const href = canOpen
                 ? `/courses/${courseId}/quizzes/${quiz.id}`
                 : `/courses/${courseId}/purchase`;
@@ -184,7 +190,8 @@ export default async function CourseTeachersPage({
               return (
                 <Link
                   key={quiz.id}
-                  href={href}
+                  href={prerequisiteError ? `/courses/${courseId}/teachers` : href}
+                  aria-disabled={!!prerequisiteError}
                   className="border rounded-lg p-4 hover:border-primary/50 hover:shadow-md transition flex items-start gap-3 bg-card"
                 >
                   <div className="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
@@ -201,6 +208,7 @@ export default async function CourseTeachersPage({
                         {quiz.description}
                       </p>
                     )}
+                    {prerequisiteError && <p className="mt-2 text-xs text-muted-foreground">{prerequisiteError}</p>}
                     {quiz.isFree && (
                       <p className="text-xs text-primary mt-2">مجاني</p>
                     )}

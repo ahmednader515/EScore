@@ -20,6 +20,8 @@ export type StudentCourseCard = {
   href: string;
   isLocked?: boolean;
   availableAt?: string | null;
+  releaseAt?: string | null;
+  lessons?: { id: string; title: string; releaseAt: string | null }[];
 };
 
 type StudentMyCoursesProps = {
@@ -147,6 +149,25 @@ export function StudentMyCourses({ courses }: StudentMyCoursesProps) {
                   </div>
                 </div>
 
+                <div className="mb-4 space-y-3 text-sm text-muted-foreground">
+                  <p className="flex items-start gap-2">
+                    <Clock className="mt-0.5 h-4 w-4 shrink-0" />
+                    <span>موعد نشر الكورس: {course.releaseAt ? formatCourseReleaseAt(course.releaseAt) : "متاح فور النشر"}</span>
+                  </p>
+                  {!!course.lessons?.length && (
+                    <details className="rounded-lg border p-3">
+                      <summary className="cursor-pointer font-medium">مواعيد نشر الدروس</summary>
+                      <ul className="mt-3 space-y-3">
+                        {course.lessons.map((lesson) => (
+                          <li key={lesson.id}>
+                            <p className="font-medium text-foreground">{lesson.title}</p>
+                            <p>{lesson.releaseAt ? formatCourseReleaseAt(lesson.releaseAt) : "متاح فور النشر"}</p>
+                          </li>
+                        ))}
+                      </ul>
+                    </details>
+                  )}
+                </div>
                 <div className="space-y-4">
                   {course.isLocked && course.availableAt ? (
                     <div className="rounded-xl border border-amber-300 bg-amber-50 p-4 text-amber-950">

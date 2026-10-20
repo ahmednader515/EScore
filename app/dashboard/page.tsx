@@ -21,6 +21,7 @@ import { isStudentViewEnabled } from "@/lib/student-view";
 import { linkifyText } from "@/lib/linkify-text";
 import {
   getCourseReleaseAt,
+  getEffectiveReleaseAt,
   isCourseReleasedForStudyType,
 } from "@/lib/course-availability";
 
@@ -343,6 +344,16 @@ const CoursesPage = async () => {
     })
   );
 
+  const courseIds = accessibleCourses.map((course) => course.id);
+  const [scheduledLessons, scheduledChapters] = await Promise.all([
+    db.contentItem.findMany({
+      where: { isPublished: true, type: { not: "ASSIGNMENT" }, unit: { isPublished: true, courseId: { in: courseIds } } },
+      include: { unit: { include: { teacher: { select: { name: true } } } } },
+      orderBy: [{ unit: { position: "asc" } }, { position: "asc" }],
+    }),
+    db.chapter.findMany({ where: { isPublished: true, courseId: { in: courseIds } }, orderBy: { position: "asc" } }),
+  ]);
+
   const myCourses = coursesWithProgress.map((course) => {
     const isHierarchical = course.courseType === "HIERARCHICAL";
     const lessonsCount = isHierarchical
@@ -380,6 +391,17 @@ const CoursesPage = async () => {
       href: getCourseLink(course, { subscriptions: activeSubscriptions }).href,
       isLocked: !released,
       availableAt: availableAt ? availableAt.toISOString() : null,
+      releaseAt: getCourseReleaseAt(course, user?.studyType)?.toISOString() ?? null,
+      lessons: isHierarchical
+        ? scheduledLessons.filter((lesson) => lesson.unit.courseId === course.id).map((lesson) => ({
+            id: lesson.id,
+            title: [lesson.unit.teacher?.name, lesson.unit.title, lesson.title].filter(Boolean).join(" — "),
+            releaseAt: getEffectiveReleaseAt([course, lesson.unit, lesson], user?.studyType)?.toISOString() ?? null,
+          }))
+        : scheduledChapters.filter((chapter) => chapter.courseId === course.id).map((chapter) => ({
+            id: chapter.id, title: chapter.title,
+            releaseAt: getEffectiveReleaseAt([course, chapter], user?.studyType)?.toISOString() ?? null,
+          })),
     };
   });
 

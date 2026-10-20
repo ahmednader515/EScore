@@ -1,3 +1,4 @@
+import { RememberCourseTeacher } from "@/components/remember-course-teacher";
 import { db } from "@/lib/db";
 import { auth } from "@/lib/auth";
 import { redirect } from "next/navigation";
@@ -105,6 +106,7 @@ export default async function TeacherUnitsPage({
 
   return (
     <div className="py-6">
+      <RememberCourseTeacher userId={userId} courseId={courseId} teacherId={teacherId} />
       <CourseBreadcrumbs
         items={[
           { label: "الكورسات", href: "/dashboard" },

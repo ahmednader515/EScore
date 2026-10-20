@@ -43,6 +43,7 @@ type ContentItem = {
   quizId: string | null;
   locked?: boolean;
   releaseLocked?: boolean;
+  prerequisiteError?: string | null;
   availableAt?: string | null;
   attachments?: Attachment[];
   contentProgress?: { isCompleted: boolean }[];
@@ -180,6 +181,9 @@ export default function UnitContentPage() {
   }
 
   const renderLock = (item: ContentItem) => {
+    if (item.prerequisiteError) {
+      return <p className="max-w-[14rem] text-xs text-muted-foreground">{item.prerequisiteError}</p>;
+    }
     if (item.releaseLocked) {
       return (
         <div className="text-xs text-muted-foreground flex items-center gap-1 max-w-[14rem] text-left">
