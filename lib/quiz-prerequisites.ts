@@ -1,46 +1,94 @@
 import type { PrismaClient } from "@prisma/client";
-import { cookies } from "next/headers";
 import { db } from "@/lib/db";
-import { isEffectivelyReleased } from "@/lib/course-availability";
+import { isEffectivelyReleased, type AvailabilityFields } from "@/lib/course-availability";
 
-export const SELECT_TEACHER_MESSAGE = "اختر المدرس أولاً ثم أكمل دروسه لفتح الاختبار";
-export const COMPLETE_LESSONS_MESSAGE = "أكمل الدروس السابقة لهذا الاختبار عند المدرس المحدد أولاً";
+export const QUIZ_PASS_PERCENTAGE = 50;
+const UNAVAILABLE = "المحتوى غير متاح بعد";
 
-/** Unit exams follow curriculum order. Shared exams conclude the selected teacher's path. */
-export async function getQuizPrerequisiteError(userId: string, courseId: string, quizId: string) {
+type ProgressionItem = AvailabilityFields & {
+  id: string;
+  title: string;
+  type: string;
+  quizId: string | null;
+  unit: AvailabilityFields;
+  quiz: { isPublished: boolean } | null;
+  contentProgress: { isCompleted: boolean }[];
+};
+
+/** Items are ordered by unit, then by their position within that unit. */
+export function buildTeacherProgression(
+  items: ProgressionItem[],
+  passedQuizIds: Set<string>,
+  course: AvailabilityFields,
+  studyType?: string | null,
+): Map<string, string | null> {
+  const errors = new Map<string, string | null>();
+  let previousError: string | null = null;
+  for (const item of items) {
+    const published = item.type !== "ASSIGNMENT" || !item.quizId || item.quiz?.isPublished;
+    if (!published) {
+      errors.set(item.id, UNAVAILABLE);
+      continue;
+    }
+    const released = isEffectivelyReleased([course, item.unit, item], studyType);
+    errors.set(item.id, previousError ?? (released ? null : UNAVAILABLE));
+    const completed = item.type === "ASSIGNMENT" && item.quizId
+      ? passedQuizIds.has(item.quizId)
+      : item.contentProgress.some((progress) => progress.isCompleted);
+    if (!previousError && (!released || !completed)) {
+      previousError = item.type === "ASSIGNMENT" && item.quizId
+        ? `يجب اجتياز الاختبار «${item.title}» بنسبة ${QUIZ_PASS_PERCENTAGE}% أو أكثر أولاً`
+        : `أكمل «${item.title}» أولاً`;
+    }
+  }
+  return errors;
+}
+
+/** Every teacher has an independent sequence across all of their published units. */
+export async function getTeacherProgressionErrors(userId: string, courseId: string, teacherId: string | null) {
   const database = db as PrismaClient;
-  const course = await database.course.findUnique({ where: { id: courseId } });
-  if (!course || course.courseType !== "HIERARCHICAL") return null;
+  const errors = new Map<string, string | null>();
+  if (!teacherId) return errors;
+  const [course, user] = await Promise.all([
+    database.course.findUnique({ where: { id: courseId } }),
+    database.user.findUnique({ where: { id: userId }, select: { role: true, studyType: true } }),
+  ]);
+  if (!course || course.courseType !== "HIERARCHICAL" || user?.role === "ADMIN" || user?.role === "TEACHER") return errors;
+  const items = await database.contentItem.findMany({
+    where: { isPublished: true, unit: { courseId, teacherId, isPublished: true } },
+    orderBy: [{ unit: { position: "asc" } }, { unitId: "asc" }, { position: "asc" }, { id: "asc" }],
+    include: {
+      unit: true,
+      quiz: { select: { isPublished: true } },
+      contentProgress: { where: { userId }, select: { isCompleted: true } },
+    },
+  });
+  const quizIds = items.flatMap((item) => item.quizId ? [item.quizId] : []);
+  const passed = quizIds.length ? await database.quizResult.findMany({
+    where: { studentId: userId, quizId: { in: quizIds }, percentage: { gte: QUIZ_PASS_PERCENTAGE } },
+    select: { quizId: true },
+  }) : [];
+  return buildTeacherProgression(items, new Set(passed.map((result) => result.quizId)), course, user?.studyType);
+}
 
+export async function getContentPrerequisiteError(userId: string, courseId: string, contentId: string) {
+  const database = db as PrismaClient;
+  const item = await database.contentItem.findFirst({
+    where: { id: contentId, unit: { courseId } },
+    include: { unit: { include: { course: true } } },
+  });
+  if (!item) return UNAVAILABLE;
   const user = await database.user.findUnique({ where: { id: userId }, select: { role: true, studyType: true } });
   if (user?.role === "ADMIN" || user?.role === "TEACHER") return null;
-  if (!course.isPublished || !isEffectivelyReleased([course], user?.studyType)) return COMPLETE_LESSONS_MESSAGE;
+  if (!item.isPublished || !item.unit.isPublished || !item.unit.course.isPublished ||
+    !isEffectivelyReleased([item.unit.course, item.unit, item], user?.studyType)) return UNAVAILABLE;
+  const errors = await getTeacherProgressionErrors(userId, courseId, item.unit.teacherId);
+  return errors.get(item.id) ?? null;
+}
 
-  const linkedItem = await database.contentItem.findFirst({
-    where: { quizId, unit: { courseId } },
-    include: { unit: true },
-  });
-  const cookieStore = await cookies();
-  const teacherId = linkedItem?.unit.teacherId ?? cookieStore.get(`course-teacher-${userId}-${courseId}`)?.value;
-  if (!teacherId) return SELECT_TEACHER_MESSAGE;
-  const teacher = await database.courseTeacher.findFirst({ where: { id: teacherId, courseId }, select: { id: true } });
-  if (!teacher) return SELECT_TEACHER_MESSAGE;
-  if (linkedItem && (!linkedItem.isPublished || !linkedItem.unit.isPublished ||
-    !isEffectivelyReleased([course, linkedItem.unit, linkedItem], user?.studyType))) return COMPLETE_LESSONS_MESSAGE;
-
-  const lessons = await database.contentItem.findMany({
-    where: {
-      isPublished: true,
-      type: { not: "ASSIGNMENT" },
-      unit: { courseId, teacherId, isPublished: true },
-      ...(linkedItem ? { OR: [
-        { unit: { position: { lt: linkedItem.unit.position } } },
-        { unitId: linkedItem.unitId, position: { lt: linkedItem.position } },
-      ] } : {}),
-    },
-    include: { unit: true, contentProgress: { where: { userId, isCompleted: true }, select: { id: true } } },
-  });
-  return lessons.some((lesson) => !lesson.contentProgress.length ||
-    !isEffectivelyReleased([course, lesson.unit, lesson], user?.studyType))
-    ? COMPLETE_LESSONS_MESSAGE : null;
+export async function getQuizPrerequisiteError(userId: string, courseId: string, quizId: string) {
+  const database = db as PrismaClient;
+  const item = await database.contentItem.findFirst({ where: { quizId, unit: { courseId } }, select: { id: true } });
+  // Shared course quizzes do not participate in any teacher's sequence.
+  return item ? getContentPrerequisiteError(userId, courseId, item.id) : null;
 }

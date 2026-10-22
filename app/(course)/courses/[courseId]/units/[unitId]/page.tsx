@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useMemo } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useParams } from "next/navigation";
 import axios from "axios";
 import Link from "next/link";
@@ -14,8 +14,6 @@ import {
   Lock,
   FileText,
   Download,
-  ClipboardList,
-  Video,
   Clock,
 } from "lucide-react";
 import { toast } from "sonner";
@@ -47,7 +45,7 @@ type ContentItem = {
   availableAt?: string | null;
   attachments?: Attachment[];
   contentProgress?: { isCompleted: boolean }[];
-  quiz?: { id: string; title: string; isFree: boolean } | null;
+  quiz?: { id: string; title: string; isFree: boolean; quizResults?: { percentage: number }[] } | null;
 };
 
 type UnitData = {
@@ -68,7 +66,7 @@ export default function UnitContentPage() {
   const [courseProgress, setCourseProgress] = useState(0);
   const [expandedVideo, setExpandedVideo] = useState<string | null>(null);
 
-  const loadUnit = async () => {
+  const loadUnit = useCallback(async () => {
     try {
       const res = await axios.get(
         `/api/courses/${params.courseId}/units/${params.unitId}`,
@@ -80,7 +78,7 @@ export default function UnitContentPage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [params.courseId, params.unitId]);
 
   useEffect(() => {
     loadUnit();
@@ -88,7 +86,7 @@ export default function UnitContentPage() {
       .get(`/api/courses/${params.courseId}/progress`)
       .then((res) => setCourseProgress(res.data.progress))
       .catch(() => {});
-  }, [params.courseId, params.unitId]);
+  }, [params.courseId, params.unitId, loadUnit]);
 
   const toggleComplete = async (item: ContentItem) => {
     if (item.locked || item.releaseLocked) return;
@@ -111,14 +109,6 @@ export default function UnitContentPage() {
     }
   };
 
-  const grouped = useMemo(() => {
-    if (!unit) return { VIDEO: [], PDF: [], ASSIGNMENT: [] };
-    return {
-      VIDEO: unit.contentItems.filter((i) => i.type === "VIDEO"),
-      PDF: unit.contentItems.filter((i) => i.type === "PDF"),
-      ASSIGNMENT: unit.contentItems.filter((i) => i.type === "ASSIGNMENT"),
-    };
-  }, [unit]);
 
   if (loading) {
     return (
@@ -260,14 +250,14 @@ export default function UnitContentPage() {
         </div>
       )}
 
-      {grouped.VIDEO.length > 0 && (
-        <section className="mb-8">
-          <h2 className="text-lg font-semibold mb-3 flex items-center gap-2">
-            <Video className="h-5 w-5" />
-            الدروس
-          </h2>
+      <h2 className="mb-4 text-lg font-semibold">محتوى الوحدة بالترتيب</h2>
+      <p className="mb-4 text-sm text-muted-foreground">أكمل كل درس بالترتيب، واجتز الاختبارات بنسبة 50% أو أكثر لفتح المحتوى التالي لهذا المدرس.</p>
+      {unit.contentItems.map((contentItem) => (
+        <div key={contentItem.id} id={`content-${contentItem.id}`}>
+      {contentItem.type === "VIDEO" && (
+        <section className="mb-3">
           <ul className="space-y-3">
-            {grouped.VIDEO.map((item) => {
+            {[contentItem].map((item) => {
               const videoKey = getVideoPlayerKey(item);
               const isExpanded = expandedVideo === item.id;
 
@@ -339,7 +329,7 @@ export default function UnitContentPage() {
                             (item.videoType as "UPLOAD" | "YOUTUBE") || "UPLOAD"
                           }
                           className="w-full h-full"
-                          onEnded={() => toggleComplete(item)}
+                          onEnded={() => { if (!item.contentProgress?.[0]?.isCompleted) void toggleComplete(item); }}
                         />
                       ) : (
                         <div className="absolute inset-0 flex items-center justify-center text-white">
@@ -399,14 +389,10 @@ export default function UnitContentPage() {
         </section>
       )}
 
-      {grouped.PDF.length > 0 && (
-        <section className="mb-8">
-          <h2 className="text-lg font-semibold mb-3 flex items-center gap-2">
-            <FileText className="h-5 w-5" />
-            ملفات PDF
-          </h2>
+      {contentItem.type === "PDF" && (
+        <section className="mb-3">
           <ul className="space-y-2">
-            {grouped.PDF.map((item) => (
+            {[contentItem].map((item) => (
               <li
                 key={item.id}
                 className="flex items-center justify-between border rounded-lg p-3 bg-card"
@@ -436,19 +422,18 @@ export default function UnitContentPage() {
         </section>
       )}
 
-      {grouped.ASSIGNMENT.length > 0 && (
-        <section className="mb-8">
-          <h2 className="text-lg font-semibold mb-3 flex items-center gap-2">
-            <ClipboardList className="h-5 w-5" />
-            الواجبات والاختبارات
-          </h2>
+      {contentItem.type === "ASSIGNMENT" && (
+        <section className="mb-3">
           <ul className="space-y-2">
-            {grouped.ASSIGNMENT.map((item) => (
+            {[contentItem].map((item) => (
               <li
                 key={item.id}
                 className="flex items-center justify-between border rounded-lg p-3 bg-card"
               >
-                <span>{item.title}</span>
+                <div>
+                  <span>{item.title}</span>
+                  {!!item.quiz?.quizResults?.length && <p className="mt-1 text-xs text-muted-foreground">{item.quiz.quizResults[0].percentage >= 50 ? "تم الاجتياز" : "لم يتم الاجتياز — المطلوب 50% أو أكثر"}</p>}
+                </div>
                 {item.locked ? (
                   renderLock(item)
                 ) : item.quizId ? (
@@ -463,6 +448,9 @@ export default function UnitContentPage() {
           </ul>
         </section>
       )}
+
+        </div>
+      ))}
 
       {unit.contentItems.length === 0 && (
         <p className="text-center text-muted-foreground py-8">

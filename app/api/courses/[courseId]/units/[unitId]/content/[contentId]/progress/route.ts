@@ -3,6 +3,8 @@ import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { isEffectivelyReleased } from "@/lib/course-availability";
 import { isStaff } from "@/lib/course-staff";
+import { getContentPrerequisiteError } from "@/lib/quiz-prerequisites";
+import { userHasCourseAccess } from "@/lib/user-course-access";
 
 export async function PUT(
   _req: Request,
@@ -17,10 +19,14 @@ export async function PUT(
     }
 
     if (!isStaff(user?.role)) {
+      const prerequisiteError = await getContentPrerequisiteError(userId, courseId, contentId);
+      if (prerequisiteError) return new NextResponse(prerequisiteError, { status: 403 });
       const [item, dbUser] = await Promise.all([
         db.contentItem.findFirst({
           where: { id: contentId, unitId, unit: { courseId } },
           select: {
+            isFree: true,
+            quizId: true,
             centerAvailableAt: true,
             onlineAvailableAt: true,
             unit: {
@@ -45,6 +51,10 @@ export async function PUT(
 
       if (!item) {
         return new NextResponse("Not found", { status: 404 });
+      }
+      if (item.quizId) return new NextResponse("يجب اجتياز الاختبار لتسجيل إكماله", { status: 403 });
+      if (!item.isFree && !await userHasCourseAccess(userId, courseId)) {
+        return new NextResponse("Course access required", { status: 403 });
       }
 
       const released = isEffectivelyReleased(

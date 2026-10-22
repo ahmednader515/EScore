@@ -2,6 +2,7 @@ import { db } from "@/lib/db";
 import { auth } from "@/lib/auth";
 import { NextResponse } from "next/server";
 import { userHasCourseAccess } from "@/lib/user-course-access";
+import type { PrismaClient } from "@prisma/client";
 
 export async function GET(
     req: Request,
@@ -38,6 +39,21 @@ export async function GET(
             if (!hasAccess) {
                 return new NextResponse("Course access required", { status: 403 });
             }
+        }
+
+        // Teacher exams return to their own unit instead of course-wide quiz navigation.
+        const item = await (db as PrismaClient).contentItem.findFirst({
+            where: { quizId: resolvedParams.quizId, unit: { courseId: resolvedParams.courseId } },
+            select: { unitId: true },
+        });
+        if (item) {
+            return NextResponse.json({
+                nextContentId: null,
+                previousContentId: null,
+                nextContentType: null,
+                previousContentType: null,
+                teacherUnitHref: `/courses/${resolvedParams.courseId}/units/${item.unitId}`,
+            });
         }
 
         // Get all content (chapters and quizzes) for this course
@@ -78,17 +94,17 @@ export async function GET(
         const sortedContent = [...chaptersWithType, ...quizzesWithType].sort((a, b) => a.position - b.position);
 
         // Find current quiz index
-        const currentIndex = sortedContent.findIndex(content => 
+        const currentIndex = sortedContent.findIndex(content =>
             content.id === resolvedParams.quizId && content.type === 'quiz'
         );
 
         // Find next and previous content
-        const nextContent = currentIndex !== -1 && currentIndex < sortedContent.length - 1 
-            ? sortedContent[currentIndex + 1] 
+        const nextContent = currentIndex !== -1 && currentIndex < sortedContent.length - 1
+            ? sortedContent[currentIndex + 1]
             : null;
-        
-        const previousContent = currentIndex > 0 
-            ? sortedContent[currentIndex - 1] 
+
+        const previousContent = currentIndex > 0
+            ? sortedContent[currentIndex - 1]
             : null;
 
         const response = {
@@ -111,4 +127,4 @@ export async function GET(
         }
         return new NextResponse("Internal Error", { status: 500 });
     }
-} 
+}

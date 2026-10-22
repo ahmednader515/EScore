@@ -46,6 +46,7 @@ export default function QuizResultPage({
     const [willRedirectToDashboard, setWillRedirectToDashboard] = useState(false);
     const [isRetrying, setIsRetrying] = useState(false);
     const [canRetry, setCanRetry] = useState(false);
+    const [teacherUnitHref, setTeacherUnitHref] = useState<string | null>(null);
 
     useEffect(() => {
         fetchResult();
@@ -54,15 +55,23 @@ export default function QuizResultPage({
 
     const checkNextContent = async () => {
         try {
+            const navigationResponse = await fetch(`/api/courses/${courseId}/quizzes/${quizId}/navigation`);
+            if (navigationResponse.ok) {
+                const navigation = await navigationResponse.json();
+                if (navigation.teacherUnitHref) {
+                    setTeacherUnitHref(navigation.teacherUnitHref);
+                    return;
+                }
+            }
             const contentResponse = await fetch(`/api/courses/${courseId}/content`);
             if (contentResponse.ok) {
                 const allContent = await contentResponse.json();
-                
+
                 // Find the current quiz in the content array
-                const currentIndex = allContent.findIndex((content: any) => 
+                const currentIndex = allContent.findIndex((content: any) =>
                     content.id === quizId && content.type === 'quiz'
                 );
-                
+
                 // If no next content, set flag to show dashboard button
                 if (currentIndex === -1 || currentIndex >= allContent.length - 1) {
                     setWillRedirectToDashboard(true);
@@ -162,17 +171,21 @@ export default function QuizResultPage({
     };
 
     const handleNextChapter = async () => {
+        if (teacherUnitHref) {
+            router.push(teacherUnitHref);
+            return;
+        }
         try {
             // Get all course content (chapters and quizzes) sorted by position
             const contentResponse = await fetch(`/api/courses/${courseId}/content`);
             if (contentResponse.ok) {
                 const allContent = await contentResponse.json();
-                
+
                 // Find the current quiz in the content array
-                const currentIndex = allContent.findIndex((content: any) => 
+                const currentIndex = allContent.findIndex((content: any) =>
                     content.id === quizId && content.type === 'quiz'
                 );
-                
+
                                  if (currentIndex !== -1 && currentIndex < allContent.length - 1) {
                      const nextContent = allContent[currentIndex + 1];
                      if (nextContent.type === 'chapter') {
@@ -318,7 +331,7 @@ export default function QuizResultPage({
                                             <div>
                                                 <span className="font-medium">إجابتك:</span>
                                                 <p className="text-muted-foreground">
-                                                    {answer.studentAnswer 
+                                                    {answer.studentAnswer
                                                         ? formatAnswer(answer.studentAnswer, answer.question.type)
                                                         : "لم تجب"
                                                     }
@@ -344,6 +357,11 @@ export default function QuizResultPage({
                     </Card>
 
                     {/* Actions */}
+                    {teacherUnitHref && (
+                        <p className="text-center text-sm text-muted-foreground">
+                            نتيجة هذه المحاولة: {result.percentage >= 50 ? "تم الاجتياز" : "لم يتم الاجتياز"} — درجة النجاح 50% أو أكثر
+                        </p>
+                    )}
                     <div className="flex justify-center gap-4">
                         {canRetry && result && result.maxAttempts && (
                             <Button
@@ -360,11 +378,11 @@ export default function QuizResultPage({
                             onClick={handleNextChapter}
                             className="bg-[#361e01] hover:bg-[#361e01]/90"
                         >
-                            {willRedirectToDashboard ? "لوحة التحكم" : "الفصل التالي"}
+                            {teacherUnitHref ? "العودة لدروس المدرس" : willRedirectToDashboard ? "لوحة التحكم" : "الفصل التالي"}
                         </Button>
                     </div>
                 </div>
             </div>
         </div>
     );
-} 
+}

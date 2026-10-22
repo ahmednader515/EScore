@@ -8,12 +8,15 @@ export async function GET(
   { params }: { params: Promise<{ courseId: string; unitId: string }> }
 ) {
   try {
-    const { userId } = await auth();
+    const { userId, user } = await auth();
     const { courseId, unitId } = await params;
 
     if (!userId) {
       return new NextResponse("Unauthorized", { status: 401 });
     }
+
+    const access = await assertCourseStaffAccess(courseId, userId, user?.role);
+    if ("error" in access) return new NextResponse(access.error, { status: access.status });
 
     const items = await db.contentItem.findMany({
       where: { unitId, unit: { courseId } },
@@ -67,6 +70,17 @@ export async function POST(
     });
 
     let linkedQuizId: string | null = quizId || null;
+
+    if (type === "ASSIGNMENT" && linkedQuizId) {
+      const quiz = await db.quiz.findFirst({
+        where: { id: linkedQuizId, courseId },
+        include: { contentItems: { select: { id: true } } },
+      });
+      if (!quiz || (quiz.unitId && quiz.unitId !== unitId) || quiz.contentItems.length) {
+        return new NextResponse("يجب أن يكون لكل اختبار موضع واحد في محتوى المدرس", { status: 400 });
+      }
+      await db.quiz.update({ where: { id: linkedQuizId }, data: { unitId } });
+    }
 
     if (type === "ASSIGNMENT" && !linkedQuizId) {
       const lastQuiz = await db.quiz.findFirst({

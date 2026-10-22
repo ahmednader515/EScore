@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { getCourseHierarchy } from "@/lib/course-hierarchy";
-import { isStaff } from "@/lib/course-staff";
+import { assertCourseStaffAccess } from "@/lib/course-staff";
 
 export async function GET(
   req: Request,
@@ -17,9 +17,12 @@ export async function GET(
       return new NextResponse("Unauthorized", { status: 401 });
     }
 
+    const access = await assertCourseStaffAccess(courseId, userId, user?.role);
+    if ("error" in access) return new NextResponse(access.error, { status: access.status });
+
     const course = await getCourseHierarchy(
       courseId,
-      publishedOnly || !isStaff(user?.role)
+      publishedOnly
     );
 
     if (!course) {

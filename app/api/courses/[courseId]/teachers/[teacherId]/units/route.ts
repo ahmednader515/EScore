@@ -8,12 +8,15 @@ export async function GET(
   { params }: { params: Promise<{ courseId: string; teacherId: string }> }
 ) {
   try {
-    const { userId } = await auth();
+    const { userId, user } = await auth();
     const { courseId, teacherId } = await params;
 
     if (!userId) {
       return new NextResponse("Unauthorized", { status: 401 });
     }
+
+    const access = await assertCourseStaffAccess(courseId, userId, user?.role);
+    if ("error" in access) return new NextResponse(access.error, { status: access.status });
 
     const units = await db.unit.findMany({
       where: { courseId, teacherId },
