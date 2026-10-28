@@ -1,4 +1,4 @@
-import { getTeacherProgressionErrors } from "@/lib/quiz-prerequisites";
+import { getTeacherProgressionState } from "@/lib/quiz-prerequisites";
 import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
@@ -149,9 +149,12 @@ export async function GET(
         },
       });
 
-    const progressionErrors = staff ? new Map<string, string | null>() : await getTeacherProgressionErrors(userId, courseId, unit.teacherId);
+    const progression = staff
+      ? { errors: new Map<string, string | null>(), completedIds: new Set<string>() }
+      : await getTeacherProgressionState(userId, courseId, unit.teacherId);
     const sanitizedItems = unit.contentItems.map((item) => {
-      const prerequisiteError = progressionErrors.get(item.id) ?? null;
+      const prerequisiteError = progression.errors.get(item.id) ?? null;
+      const unifiedCompleted = progression.completedIds.has(item.id);
       const itemLayer = {
         centerAvailableAt: item.centerAvailableAt,
         onlineAvailableAt: item.onlineAvailableAt,
@@ -169,7 +172,7 @@ export async function GET(
         item.isFree ||
         (item.type === "ASSIGNMENT" && item.quiz?.isFree);
 
-      if (itemAccess && released && !prerequisiteError) return { ...item, locked: false };
+      if (itemAccess && released && !prerequisiteError) return { ...item, unifiedCompleted, locked: false };
 
       return {
         ...item,

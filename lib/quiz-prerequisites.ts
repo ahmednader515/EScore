@@ -21,6 +21,7 @@ export function buildTeacherProgression(
   passedQuizIds: Set<string>,
   course: AvailabilityFields,
   studyType?: string | null,
+  unifiedCompletedIds: Set<string> = new Set(),
 ): Map<string, string | null> {
   const errors = new Map<string, string | null>();
   let previousError: string | null = null;
@@ -32,9 +33,9 @@ export function buildTeacherProgression(
     }
     const released = isEffectivelyReleased([course, item.unit, item], studyType);
     errors.set(item.id, previousError ?? (released ? null : UNAVAILABLE));
-    const completed = item.type === "ASSIGNMENT" && item.quizId
+    const completed = unifiedCompletedIds.has(item.id) || (item.type === "ASSIGNMENT" && item.quizId
       ? passedQuizIds.has(item.quizId)
-      : item.contentProgress.some((progress) => progress.isCompleted);
+      : item.contentProgress.some((progress) => progress.isCompleted));
     if (!previousError && (!released || !completed)) {
       previousError = item.type === "ASSIGNMENT" && item.quizId
         ? `يجب اجتياز الاختبار «${item.title}» بنسبة ${QUIZ_PASS_PERCENTAGE}% أو أكثر أولاً`
@@ -44,18 +45,44 @@ export function buildTeacherProgression(
   return errors;
 }
 
-/** Every teacher has an independent sequence across all of their published units. */
-export async function getTeacherProgressionErrors(userId: string, courseId: string, teacherId: string | null) {
+type TeacherItem = ProgressionItem & { unit: AvailabilityFields & { teacherId: string | null } };
+
+/** Match the nth video, PDF, or quiz across teacher paths, even if their units differ. */
+export function getUnifiedCompletedIds(items: TeacherItem[], passedQuizIds: Set<string>, course: AvailabilityFields, studyType?: string | null) {
+  const counters = new Map<string, Map<string, number>>();
+  const keys = new Map<string, string>();
+  const completedKeys = new Set<string>();
+  for (const item of items) {
+    if (!item.unit.teacherId || (item.quizId && !item.quiz?.isPublished)) continue;
+    let teacherCounters = counters.get(item.unit.teacherId);
+    if (!teacherCounters) {
+      teacherCounters = new Map();
+      counters.set(item.unit.teacherId, teacherCounters);
+    }
+    const kind = item.quizId ? "QUIZ" : item.type;
+    const ordinal = (teacherCounters.get(kind) ?? 0) + 1;
+    teacherCounters.set(kind, ordinal);
+    const key = `${kind}:${ordinal}`;
+    keys.set(item.id, key);
+    const completed = item.quizId ? passedQuizIds.has(item.quizId) : item.contentProgress.some((progress) => progress.isCompleted);
+    if (completed && isEffectivelyReleased([course, item.unit, item], studyType)) completedKeys.add(key);
+  }
+  return new Set(items.filter((item) => completedKeys.has(keys.get(item.id) ?? "")).map((item) => item.id));
+}
+
+/** Share progression credit within this course while retaining teacher-specific records. */
+export async function getTeacherProgressionState(userId: string, courseId: string, teacherId: string | null) {
   const database = db as PrismaClient;
   const errors = new Map<string, string | null>();
-  if (!teacherId) return errors;
+  const completedIds = new Set<string>();
+  if (!teacherId) return { errors, completedIds };
   const [course, user] = await Promise.all([
     database.course.findUnique({ where: { id: courseId } }),
     database.user.findUnique({ where: { id: userId }, select: { role: true, studyType: true } }),
   ]);
-  if (!course || course.courseType !== "HIERARCHICAL" || user?.role === "ADMIN" || user?.role === "TEACHER") return errors;
+  if (!course || course.courseType !== "HIERARCHICAL" || user?.role === "ADMIN" || user?.role === "TEACHER") return { errors, completedIds };
   const items = await database.contentItem.findMany({
-    where: { isPublished: true, unit: { courseId, teacherId, isPublished: true } },
+    where: { isPublished: true, unit: { courseId, teacherId: { not: null }, isPublished: true } },
     orderBy: [{ unit: { position: "asc" } }, { unitId: "asc" }, { position: "asc" }, { id: "asc" }],
     include: {
       unit: true,
@@ -68,7 +95,16 @@ export async function getTeacherProgressionErrors(userId: string, courseId: stri
     where: { studentId: userId, quizId: { in: quizIds }, percentage: { gte: QUIZ_PASS_PERCENTAGE } },
     select: { quizId: true },
   }) : [];
-  return buildTeacherProgression(items, new Set(passed.map((result) => result.quizId)), course, user?.studyType);
+  const passedIds = new Set(passed.map((result) => result.quizId));
+  const unifiedCompletedIds = getUnifiedCompletedIds(items, passedIds, course, user?.studyType);
+  return {
+    errors: buildTeacherProgression(items.filter((item) => item.unit.teacherId === teacherId), passedIds, course, user?.studyType, unifiedCompletedIds),
+    completedIds: unifiedCompletedIds,
+  };
+}
+
+export async function getTeacherProgressionErrors(userId: string, courseId: string, teacherId: string | null) {
+  return (await getTeacherProgressionState(userId, courseId, teacherId)).errors;
 }
 
 export async function getContentPrerequisiteError(userId: string, courseId: string, contentId: string) {

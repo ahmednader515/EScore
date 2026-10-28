@@ -45,6 +45,7 @@ type ContentItem = {
   availableAt?: string | null;
   attachments?: Attachment[];
   contentProgress?: { isCompleted: boolean }[];
+  unifiedCompleted?: boolean;
   quiz?: { id: string; title: string; isFree: boolean; quizResults?: { percentage: number }[] } | null;
 };
 
@@ -251,7 +252,7 @@ export default function UnitContentPage() {
       )}
 
       <h2 className="mb-4 text-lg font-semibold">محتوى الوحدة بالترتيب</h2>
-      <p className="mb-4 text-sm text-muted-foreground">أكمل كل درس بالترتيب، واجتز الاختبارات بنسبة 50% أو أكثر لفتح المحتوى التالي لهذا المدرس.</p>
+      <p className="mb-4 text-sm text-muted-foreground">أكمل الدروس بالترتيب واجتز الاختبارات بنسبة 50% أو أكثر. يتوحد تقدمك في الدروس والاختبارات المقابلة بين جميع المدرسين.</p>
       {unit.contentItems.map((contentItem) => (
         <div key={contentItem.id} id={`content-${contentItem.id}`}>
       {contentItem.type === "VIDEO" && (
@@ -272,7 +273,7 @@ export default function UnitContentPage() {
                     }
                     disabled={!!item.locked}
                   >
-                    {item.contentProgress?.[0]?.isCompleted ? (
+                    {item.unifiedCompleted || item.contentProgress?.[0]?.isCompleted ? (
                       <CheckCircle2 className="h-5 w-5 text-green-600 shrink-0" />
                     ) : item.releaseLocked ? (
                       <Lock className="h-5 w-5 text-muted-foreground shrink-0" />
@@ -300,8 +301,11 @@ export default function UnitContentPage() {
                         variant="ghost"
                         size="sm"
                         onClick={() => toggleComplete(item)}
+                        disabled={item.unifiedCompleted && !item.contentProgress?.[0]?.isCompleted}
                       >
-                        {item.contentProgress?.[0]?.isCompleted
+                        {item.unifiedCompleted && !item.contentProgress?.[0]?.isCompleted
+                          ? "مكتمل مع مدرس آخر"
+                          : item.contentProgress?.[0]?.isCompleted
                           ? "إلغاء الإكمال"
                           : "تم الإكمال"}
                       </Button>
@@ -411,8 +415,8 @@ export default function UnitContentPage() {
                         تحميل
                       </a>
                     </Button>
-                    <Button variant="ghost" size="sm" onClick={() => toggleComplete(item)}>
-                      {item.contentProgress?.[0]?.isCompleted ? "✓" : "تم"}
+                    <Button variant="ghost" size="sm" onClick={() => toggleComplete(item)} disabled={item.unifiedCompleted && !item.contentProgress?.[0]?.isCompleted}>
+                      {item.unifiedCompleted || item.contentProgress?.[0]?.isCompleted ? "✓" : "تم"}
                     </Button>
                   </div>
                 ) : null}
@@ -432,6 +436,7 @@ export default function UnitContentPage() {
               >
                 <div>
                   <span>{item.title}</span>
+                  {item.unifiedCompleted && <p className="mt-1 text-xs text-green-600">تم اجتياز الاختبار المقابل في أحد مسارات المدرسين</p>}
                   {!!item.quiz?.quizResults?.length && <p className="mt-1 text-xs text-muted-foreground">{item.quiz.quizResults[0].percentage >= 50 ? "تم الاجتياز" : "لم يتم الاجتياز — المطلوب 50% أو أكثر"}</p>}
                 </div>
                 {item.locked ? (

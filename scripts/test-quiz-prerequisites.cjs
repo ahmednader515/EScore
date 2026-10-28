@@ -16,7 +16,9 @@ function setup(overrides = {}) {
       findFirst: async () => state.target,
       findMany: async (query) => {
         calls.push(query);
-        return state.items.filter((item) => item.unit.teacherId === query.where.unit.teacherId);
+        return state.items.filter((item) => typeof query.where.unit.teacherId === "object"
+          ? item.unit.teacherId != null
+          : item.unit.teacherId === query.where.unit.teacherId);
       },
     },
     quizResult: { findMany: async (query) => {
@@ -82,5 +84,47 @@ const quiz = lesson("exam", false, { type: "ASSIGNMENT", quizId: "quiz", quiz: {
   assert.ok(await setup({ items, target }).getQuizPrerequisiteError("student", "course", "quiz"));
   assert.equal(await setup({ items, target, scores: [{ quizId: "quiz", percentage: 50 }] }).getContentPrerequisiteError("student", "course", "after"), null);
   assert.ok(await setup({ target: { ...target, isPublished: false } }).getContentPrerequisiteError("student", "course", "after"));
-  console.log("Teacher progression checks passed: sequence, quiz pass threshold, teacher isolation, releases, direct access, and staff preview.");
+  const teacherPath = (teacherId) => {
+    const unit = { teacherId, isPublished: true, course: { isPublished: true } };
+    return [
+      lesson(`${teacherId}-first`, teacherId === "a", { unit }),
+      lesson(`${teacherId}-exam1`, false, { unit, type: "ASSIGNMENT", quizId: `${teacherId}-quiz1`, quiz: { isPublished: true } }),
+      lesson(`${teacherId}-second`, teacherId === "b", { unit }),
+      lesson(`${teacherId}-exam2`, false, { unit, type: "ASSIGNMENT", quizId: `${teacherId}-quiz2`, quiz: { isPublished: true } }),
+      lesson(`${teacherId}-third`, false, { unit }),
+    ];
+  };
+  const unifiedItems = ["a", "b", "c"].flatMap(teacherPath);
+  const unified = setup({ items: unifiedItems, scores: [{ quizId: "a-quiz1", percentage: 50 }] });
+  for (const teacherId of ["a", "b", "c"]) {
+    const path = await unified.getTeacherProgressionState("student", "course", teacherId);
+    assert.equal(path.errors.get(`${teacherId}-second`), null);
+    assert.equal(path.errors.get(`${teacherId}-exam2`), null);
+    assert.ok(path.errors.get(`${teacherId}-third`));
+    assert.equal(path.completedIds.has(`${teacherId}-first`), true);
+    assert.equal(path.completedIds.has(`${teacherId}-exam1`), true);
+    assert.equal(path.completedIds.has(`${teacherId}-second`), true);
+  }
+  unified.state.scores.push({ quizId: "c-quiz2", percentage: 49.99 });
+  assert.ok((await unified.getTeacherProgressionErrors("student", "course", "b")).get("b-third"));
+  unified.state.scores.push({ quizId: "c-quiz2", percentage: 50 });
+  for (const teacherId of ["a", "b", "c"]) {
+    assert.equal((await unified.getTeacherProgressionErrors("student", "course", teacherId)).get(`${teacherId}-third`), null);
+  }
+  unified.state.target = unifiedItems.find((item) => item.id === "b-third");
+  assert.equal(await unified.getContentPrerequisiteError("student", "course", "b-third"), null);
+  unified.state.target = { ...unified.state.target, future: true };
+  assert.ok(await unified.getContentPrerequisiteError("student", "course", "b-third"));
+  assert.equal(unifiedItems.find((item) => item.id === "c-first").contentProgress[0].isCompleted, false);
+  assert.equal(unified.state.scores.some((result) => result.quizId === "b-quiz1"), false);
+  assert.equal(unified.calls[0].where.unit.courseId, "course");
+  const noPass = setup({ items: unifiedItems });
+  assert.ok((await noPass.getTeacherProgressionErrors("student", "course", "c")).get("c-second"));
+  // A PDF inserted in one path does not change which videos or quizzes correspond.
+  const withPdf = [lesson("a-pdf", false, { type: "PDF", unit: { teacherId: "a" } }), ...unifiedItems];
+  const credit = unified.getUnifiedCompletedIds(withPdf, new Set(["a-quiz1"]), {});
+  assert.equal(credit.has("c-first"), true);
+  assert.equal(credit.has("c-exam1"), true);
+  assert.equal(credit.has("a-pdf"), false);
+  console.log("Progression checks passed: shared lesson/quiz credit across three teachers, 50% threshold, release locks, direct access, and original records preserved.");
 })().catch((error) => { console.error(error); process.exitCode = 1; });
