@@ -1,4 +1,6 @@
 import { getTeacherProgressionState } from "@/lib/quiz-prerequisites";
+import type { PrismaClient } from "@prisma/client";
+import { embedSharedAssessments, getSharedAssessments } from "@/lib/shared-assessments";
 import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
@@ -9,6 +11,8 @@ import {
   isEffectivelyReleased,
   normalizeAvailabilityPatch,
 } from "@/lib/course-availability";
+
+const database = db as PrismaClient;
 
 export async function GET(
   req: Request,
@@ -25,7 +29,7 @@ export async function GET(
     const staff = isStaff(user?.role);
 
     const [unit, dbUser] = await Promise.all([
-      db.unit.findUnique({
+      database.unit.findUnique({
         where: { id: unitId, courseId },
         include: {
           course: {
@@ -79,7 +83,7 @@ export async function GET(
       }),
       staff
         ? Promise.resolve(null)
-        : db.user.findUnique({
+        : database.user.findUnique({
             where: { id: userId },
             select: { studyType: true },
           }),
@@ -126,7 +130,7 @@ export async function GET(
     const subscriptions = staff
       ? []
       : (
-          await db.subscription.findMany({
+          await database.subscription.findMany({
             where: {
               userId,
               status: "ACTIVE",
@@ -152,7 +156,9 @@ export async function GET(
     const progression = staff
       ? { errors: new Map<string, string | null>(), completedIds: new Set<string>() }
       : await getTeacherProgressionState(userId, courseId, unit.teacherId);
-    const sanitizedItems = unit.contentItems.map((item) => {
+    const sharedQuizzes = unit.teacherId ? await getSharedAssessments(courseId, userId, staff) : [];
+    const timeline = embedSharedAssessments(unit.contentItems, unit, sharedQuizzes);
+    const sanitizedItems = timeline.filter((item) => staff || item.type !== "ASSIGNMENT" || !item.quizId || item.quiz?.isPublished).map((item) => {
       const prerequisiteError = progression.errors.get(item.id) ?? null;
       const unifiedCompleted = progression.completedIds.has(item.id);
       const itemLayer = {
@@ -172,7 +178,7 @@ export async function GET(
         item.isFree ||
         (item.type === "ASSIGNMENT" && item.quiz?.isFree);
 
-      if (itemAccess && released && !prerequisiteError) return { ...item, unifiedCompleted, locked: false };
+      if (itemAccess && released && !prerequisiteError) return { ...item, unifiedCompleted, locked: false, isUnlocked: true };
 
       return {
         ...item,
@@ -185,6 +191,7 @@ export async function GET(
         attachments: [],
         quiz: item.quiz ? { ...item.quiz, id: item.quiz.id } : null,
         locked: true,
+        isUnlocked: false,
         prerequisiteError,
         releaseLocked: !released,
         availableAt: itemAvailableAt?.toISOString() ?? null,

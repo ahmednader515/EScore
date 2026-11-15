@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { Fragment, useEffect, useState } from "react";
 import { useRouter, usePathname } from "next/navigation";
 import { DragDropContext, Droppable, Draggable, DropResult } from "@hello-pangea/dnd";
 import axios from "axios";
@@ -41,6 +41,7 @@ interface UnitContentFormProps {
   courseId: string;
   unitId: string;
   initialItems: ContentItemData[];
+  sharedQuizzes?: { id: string; title: string; isPublished: boolean; sharedAfterPosition: number | null }[];
 }
 
 const typeLabels: Record<string, string> = {
@@ -53,8 +54,10 @@ export const UnitContentForm = ({
   courseId,
   unitId,
   initialItems,
+  sharedQuizzes = [],
 }: UnitContentFormProps) => {
   const [items, setItems] = useState(initialItems);
+  useEffect(() => { setItems(initialItems); }, [initialItems]);
   const [isUpdating, setIsUpdating] = useState(false);
   const [creating, setCreating] = useState(false);
   const [newType, setNewType] = useState("VIDEO");
@@ -186,6 +189,16 @@ export const UnitContentForm = ({
     }
   };
 
+  const renderShared = (after: number) => sharedQuizzes.filter((quiz) => quiz.sharedAfterPosition === after).map((quiz) => (
+    <div key={quiz.id} className="mb-3 rounded-md border border-primary/30 bg-primary/5 p-3 flex flex-wrap items-center gap-2">
+      <span className="flex-1 font-medium">{quiz.title}</span>
+      <Badge variant="outline">موحد لجميع المدرسين</Badge>
+      <Badge>{quiz.isPublished ? "منشور" : "مسودة"}</Badge>
+      <Button size="sm" variant="outline" onClick={() => onEditQuiz(quiz.id)}>تعديل الاختبار للجميع</Button>
+      <p className="w-full text-xs text-muted-foreground">موضع مشترك ثابت بعد المحتوى رقم {after}. لتغيير الموضع، افتح الاختبارات المشتركة في إعدادات الكورس.</p>
+    </div>
+  ));
+
   return (
     <div className="relative border bg-card rounded-md p-4 mt-6">
       {isUpdating && (
@@ -230,7 +243,9 @@ export const UnitContentForm = ({
         <Droppable droppableId="unit-content">
           {(provided) => (
             <div {...provided.droppableProps} ref={provided.innerRef}>
-              {initialItems.map((item, index) => (
+              {renderShared(0)}
+              {items.map((item, index) => (
+                <Fragment key={item.id}>
                 <Draggable key={item.id} draggableId={item.id} index={index}>
                   {(provided) => (
                     <div
@@ -328,6 +343,8 @@ export const UnitContentForm = ({
                     </div>
                   )}
                 </Draggable>
+                {renderShared(item.position)}
+                </Fragment>
               ))}
               {provided.placeholder}
             </div>

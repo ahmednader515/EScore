@@ -15,16 +15,21 @@ type SharedQuiz = {
   position: number;
   isPublished: boolean;
   isFree?: boolean;
+  isGlobalShared?: boolean;
+  sharedUnitPosition?: number | null;
+  sharedAfterPosition?: number | null;
 };
 
 interface SharedQuizzesFormProps {
   courseId: string;
   initialQuizzes: SharedQuiz[];
+  teachers: { id: string; name: string; units: { position: number; title: string; contentItems: { position: number; title: string }[] }[] }[];
 }
 
 export const SharedQuizzesForm = ({
   courseId,
   initialQuizzes,
+  teachers,
 }: SharedQuizzesFormProps) => {
   const [quizzes, setQuizzes] = useState(initialQuizzes);
   const [isUpdating, setIsUpdating] = useState(false);
@@ -85,7 +90,7 @@ export const SharedQuizzesForm = ({
         <div>
           <span>الاختبارات المشتركة</span>
           <p className="text-xs text-muted-foreground font-normal mt-1">
-            تظهر لجميع الطلاب في صفحة الكورس، وليست مرتبطة بمدرس أو وحدة
+            اربط الاختبار بموضع داخل الوحدة ليظهر بنفس الأسئلة والنتائج في مسار كل مدرس. النجاح فيه يفتح المحتوى التالي عند الجميع.
           </p>
         </div>
         <Button variant="ghost" size="sm" onClick={onCreate}>
@@ -105,7 +110,9 @@ export const SharedQuizzesForm = ({
           >
             <span className="font-medium min-w-0 break-words sm:flex-1">
               {quiz.title}
+              {quiz.isGlobalShared && <span className="block mt-1 text-xs text-primary">مدمج عند جميع المدرسين — الوحدة {quiz.sharedUnitPosition}، بعد المحتوى {quiz.sharedAfterPosition}</span>}
             </span>
+            <SharedPlacementEditor quiz={quiz} teachers={teachers} onSaved={() => router.refresh()} />
             <div className="flex flex-wrap items-center gap-2">
               {quiz.isFree && (
                 <Badge variant="outline" className="shrink-0">
@@ -159,3 +166,53 @@ export const SharedQuizzesForm = ({
     </div>
   );
 };
+
+function SharedPlacementEditor({ quiz, teachers, onSaved }: {
+  quiz: SharedQuiz;
+  teachers: SharedQuizzesFormProps["teachers"];
+  onSaved: () => void;
+}) {
+  const [editing, setEditing] = useState(false);
+  const [unitPosition, setUnitPosition] = useState(String(quiz.sharedUnitPosition ?? ""));
+  const [afterPosition, setAfterPosition] = useState(String(quiz.sharedAfterPosition ?? 0));
+  const [saving, setSaving] = useState(false);
+  const units = (teachers[0]?.units ?? []).filter((unit) => teachers.every((teacher) => teacher.units.filter((candidate) => candidate.position === unit.position).length === 1));
+  const unit = units.find((candidate) => candidate.position === Number(unitPosition));
+  const positions = (unit?.contentItems ?? []).filter((item) => teachers.every((teacher) => teacher.units.find((candidate) => candidate.position === unit?.position)?.contentItems.some((candidate) => candidate.position === item.position)));
+  const save = async (enabled: boolean) => {
+    setSaving(true);
+    try {
+      await axios.patch(`/api/teacher/quizzes/${quiz.id}/placement`, {
+        isGlobalShared: enabled,
+        sharedUnitPosition: Number(unitPosition), sharedAfterPosition: Number(afterPosition),
+      });
+      toast.success(enabled ? "تم دمج الاختبار في مسارات جميع المدرسين" : "تم إلغاء دمج الاختبار");
+      setEditing(false);
+      onSaved();
+    } catch (error) {
+      toast.error(axios.isAxiosError(error) && typeof error.response?.data === "string" ? error.response.data : "تعذر حفظ موضع الاختبار");
+    } finally { setSaving(false); }
+  };
+  if (!editing) return <Button size="sm" variant="outline" onClick={() => setEditing(true)}>موضع الاختبار</Button>;
+  return <div className="space-y-2 rounded-md border p-3 w-full sm:max-w-sm">
+    <p className="text-xs text-muted-foreground">اختر الوحدة والمحتوى المقابلين عند كل المدرسين. الأسماء المعروضة من مسار {teachers[0]?.name}.</p>
+    <label className="block text-xs">الوحدة
+      <select className="block w-full mt-1 border rounded p-2 bg-background" value={unitPosition} onChange={(event) => { setUnitPosition(event.target.value); setAfterPosition("0"); }} disabled={saving}>
+        <option value="">اختر الوحدة</option>
+        {units.map((candidate) => <option key={candidate.position} value={candidate.position}>{candidate.position} — {candidate.title}</option>)}
+      </select>
+    </label>
+    <label className="block text-xs">يظهر الاختبار بعد
+      <select className="block w-full mt-1 border rounded p-2 bg-background" value={afterPosition} onChange={(event) => setAfterPosition(event.target.value)} disabled={saving || !unit}>
+        <option value="0">بداية الوحدة</option>
+        {positions.map((item) => <option key={item.position} value={item.position}>{item.position} — {item.title}</option>)}
+      </select>
+    </label>
+    <p className="text-xs text-muted-foreground">يجب إكمال المحتوى السابق واجتياز هذا الاختبار بنسبة 50% لفتح ما بعده في أي مسار.</p>
+    <div className="flex flex-wrap gap-2">
+      <Button size="sm" disabled={saving || !unit} onClick={() => save(true)}>حفظ الموضع للجميع</Button>
+      {quiz.isGlobalShared && <Button size="sm" variant="outline" disabled={saving} onClick={() => save(false)}>إلغاء الدمج</Button>}
+      <Button size="sm" variant="ghost" disabled={saving} onClick={() => setEditing(false)}>إلغاء</Button>
+    </div>
+  </div>;
+}

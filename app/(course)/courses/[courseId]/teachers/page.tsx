@@ -37,6 +37,7 @@ export default async function CourseTeachersPage({
         where: {
           isPublished: true,
           unitId: null,
+          isGlobalShared: false,
         },
         orderBy: { position: "asc" },
         select: {

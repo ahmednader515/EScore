@@ -1,4 +1,5 @@
 import { db } from "@/lib/db";
+import { getSharedAssessments } from "@/lib/shared-assessments";
 import { auth } from "@/lib/auth";
 import { redirect } from "next/navigation";
 import Link from "next/link";
@@ -27,6 +28,7 @@ export default async function AdminUnitPage({
   });
 
   if (!unit) return redirect(`/dashboard/admin/courses/${courseId}`);
+  const sharedQuizzes = unit.teacherId ? (await getSharedAssessments(courseId, userId, true)).filter((quiz) => quiz.sharedUnitPosition === unit.position) : [];
 
   return (
     <div className="p-6">
@@ -53,6 +55,7 @@ export default async function AdminUnitPage({
         courseId={courseId}
         unitId={unitId}
         initialItems={unit.contentItems}
+        sharedQuizzes={sharedQuizzes}
       />
     </div>
   );

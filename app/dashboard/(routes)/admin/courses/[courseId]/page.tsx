@@ -242,6 +242,7 @@ export default async function CourseIdPage({
                                 <SharedQuizzesForm
                                     courseId={course.id}
                                     initialQuizzes={course.quizzes}
+                                    teachers={course.courseTeachers}
                                 />
                             </div>
                         )}

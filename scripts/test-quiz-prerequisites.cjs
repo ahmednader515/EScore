@@ -2,23 +2,31 @@ const assert = require("node:assert/strict");
 const fs = require("node:fs");
 const ts = require("typescript");
 const source = ts.transpileModule(fs.readFileSync("lib/quiz-prerequisites.ts", "utf8"), {
-  compilerOptions: { module: ts.ModuleKind.CommonJS },
+  compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2020 },
 }).outputText;
 
 function setup(overrides = {}) {
-  const state = { role: "USER", items: [], scores: [], target: null, ...overrides };
+  const state = { role: "USER", items: [], scores: [], target: null, sharedQuizzes: [], ...overrides };
   const calls = [];
   const course = { courseType: "HIERARCHICAL", isPublished: true };
+  const unitFor = (item) => ({ ...item.unit, id: item.unitId ?? item.unit.id ?? `unit-${item.unit.teacherId}-${item.unit.position ?? 1}`, position: item.unit.position ?? 1 });
+  const units = () => state.units ?? [...new Map(state.items.map((item) => { const unit = unitFor(item); return [unit.id, unit]; })).values()];
   const db = {
     course: { findUnique: async () => course },
     user: { findUnique: async () => ({ role: state.role }) },
+    unit: { findMany: async ({ where }) => units().filter((unit) =>
+      (where.position === undefined || unit.position === where.position) && (!where.isPublished || unit.isPublished)) },
+    quiz: {
+      findFirst: async ({ where }) => state.sharedQuizzes.find((quiz) => quiz.id === where.id) ?? null,
+      findMany: async () => state.sharedQuizzes.filter((quiz) => quiz.isPublished),
+    },
     contentItem: {
       findFirst: async () => state.target,
       findMany: async (query) => {
         calls.push(query);
         return state.items.filter((item) => typeof query.where.unit.teacherId === "object"
           ? item.unit.teacherId != null
-          : item.unit.teacherId === query.where.unit.teacherId);
+          : item.unit.teacherId === query.where.unit.teacherId).map((item, index) => ({ ...item, position: item.position ?? index + 1, unitId: unitFor(item).id, unit: unitFor(item) }));
       },
     },
     quizResult: { findMany: async (query) => {
@@ -28,8 +36,16 @@ function setup(overrides = {}) {
     } },
   };
   const exports = {};
+  const sharedExports = {};
+  new Function("require", "exports", ts.transpileModule(fs.readFileSync("lib/shared-assessments.ts", "utf8"), {
+    compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2020 },
+  }).outputText)((name) => {
+    if (name === "@/lib/db") return { db };
+    throw new Error(name);
+  }, sharedExports);
   new Function("require", "exports", source)((name) => {
     if (name === "@/lib/db") return { db };
+    if (name === "@/lib/shared-assessments") return sharedExports;
     if (name === "@/lib/course-availability") return {
       isEffectivelyReleased: (layers) => !layers.some((layer) => layer.future),
     };
@@ -126,5 +142,43 @@ const quiz = lesson("exam", false, { type: "ASSIGNMENT", quizId: "quiz", quiz: {
   assert.equal(credit.has("c-first"), true);
   assert.equal(credit.has("c-exam1"), true);
   assert.equal(credit.has("a-pdf"), false);
+  const globalQuiz = { id: "global", title: "Grammar", description: null, isGlobalShared: true, isPublished: true, isFree: false, sharedUnitPosition: 1, sharedAfterPosition: 2 };
+  const globalItems = ["a", "b", "c"].flatMap((teacherId) => [1, 2, 3].map((position) =>
+    lesson(`${teacherId}-${position}`, (teacherId === "a" && position === 1) || (teacherId === "b" && position === 2), {
+      position, unit: { teacherId, position: 1, isPublished: true, course: { isPublished: true } },
+    })));
+  const global = setup({ items: globalItems, sharedQuizzes: [globalQuiz] });
+  for (const teacherId of ["a", "b", "c"]) {
+    const path = await global.getTeacherProgressionState("student", "course", teacherId);
+    assert.equal(path.errors.get(`shared:global:unit-${teacherId}-1`), null, "Lessons completed across two teachers unlock the exam everywhere");
+    assert.ok(path.errors.get(`${teacherId}-3`), "Next lesson is locked until the exact global quiz is passed");
+  }
+  assert.equal(await global.getQuizPrerequisiteError("student", "course", "global"), null);
+  global.state.scores.push({ quizId: "global", percentage: 49.99 });
+  assert.ok((await global.getTeacherProgressionErrors("student", "course", "c")).get("c-3"));
+  global.state.scores.push({ quizId: "global", percentage: 50 });
+  for (const teacherId of ["a", "b", "c"]) {
+    const path = await global.getTeacherProgressionState("student", "course", teacherId);
+    assert.equal(path.errors.get(`${teacherId}-3`), null);
+    assert.ok(path.completedIds.has(`shared:global:unit-${teacherId}-1`));
+  }
+  const globalState = await global.getCourseProgressionState("student", "course");
+  const keys = global.getLearningMilestoneKeys(globalState.items);
+  assert.equal(new Set(keys.values()).size, 4, "Three teacher paths count as three lessons and one exam");
+  const blockedExam = setup({ items: globalItems.map((item) => ({ ...item, contentProgress: [] })), sharedQuizzes: [globalQuiz], scores: [{ quizId: "global", percentage: 100 }] });
+  assert.ok(await blockedExam.getQuizPrerequisiteError("student", "course", "global"), "A historical passing score cannot bypass incomplete lessons");
+  assert.ok((await blockedExam.getTeacherProgressionErrors("student", "course", "a")).get("a-3"));
+  const unitMismatch = [
+    lesson("a-unit1", true, { unit: { teacherId: "a", position: 1 } }),
+    lesson("b-unit2", false, { unit: { teacherId: "b", position: 2 } }),
+  ];
+  assert.ok(!global.getUnifiedCompletedIds(unitMismatch, new Set(), {}).has("b-unit2"), "Different units must never exchange lesson credit");
+  const missingUnit = setup({ items: [lesson("later-unit", false, { position: 1, unit: { teacherId: "c", position: 2, isPublished: true } })], sharedQuizzes: [globalQuiz] });
+  assert.ok((await missingUnit.getTeacherProgressionErrors("student", "course", "c")).get("later-unit"), "Deleting the milestone unit cannot bypass its gate");
+  assert.ok(await missingUnit.getQuizPrerequisiteError("student", "course", "global"));
+  const extraGlobal = { ...globalQuiz, id: "global-2", sharedAfterPosition: 2 };
+  const twoExams = setup({ items: globalItems, sharedQuizzes: [globalQuiz, extraGlobal], scores: [{ quizId: "global", percentage: 100 }] });
+  assert.ok((await twoExams.getTeacherProgressionErrors("student", "course", "a")).get("a-3"), "Passing another shared exam never substitutes for the required exam");
+  console.log("Global assessment checks passed: inline placement across three paths, mixed-teacher lessons, exact quiz identity, central 50% pass, unit isolation, missing-unit locks, and unique progress milestones.");
   console.log("Progression checks passed: shared lesson/quiz credit across three teachers, 50% threshold, release locks, direct access, and original records preserved.");
 })().catch((error) => { console.error(error); process.exitCode = 1; });

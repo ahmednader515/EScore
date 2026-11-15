@@ -351,6 +351,11 @@ model Quiz {
     maxAttempts Int @default(1) // Maximum number of attempts allowed
     courseId String
     unitId String?
+    isGlobalShared Boolean @default(false)
+    /// Corresponding Unit.position in every teacher path.
+    sharedUnitPosition Int?
+    /// Insert after this ContentItem.position (0 = start of unit).
+    sharedAfterPosition Int?
     course Course @relation(fields: [courseId], references: [id], onDelete: Cascade)
     questions Question[]
     quizResults QuizResult[]

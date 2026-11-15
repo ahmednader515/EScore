@@ -5,6 +5,40 @@ import { parseQuizOptions, stringifyQuizOptions } from "@/lib/utils";
 
 const isStaff = (role?: string | null) => role === "ADMIN" || role === "TEACHER";
 
+export async function DELETE(
+    _req: Request,
+    { params }: { params: Promise<{ quizId: string }> }
+) {
+    try {
+        const { userId, user } = await auth();
+
+        if (!userId) {
+            return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+        }
+
+        if (!isStaff(user?.role)) {
+            return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+        }
+
+        const { quizId } = await params;
+        const quiz = await db.quiz.findUnique({
+            where: { id: quizId },
+            select: { id: true }
+        });
+
+        if (!quiz) {
+            return NextResponse.json({ error: "Quiz not found" }, { status: 404 });
+        }
+
+        await db.quiz.delete({ where: { id: quizId } });
+
+        return new NextResponse(null, { status: 204 });
+    } catch (error) {
+        console.error("[TEACHER_QUIZ_DELETE]", error);
+        return NextResponse.json({ error: "Internal Error" }, { status: 500 });
+    }
+}
+
 export async function GET(
     req: Request,
     { params }: { params: Promise<{ quizId: string }> }
@@ -95,7 +129,7 @@ export async function PATCH(
 
         const currentQuiz = await db.quiz.findUnique({
             where: { id: resolvedParams.quizId },
-            select: { courseId: true, position: true }
+            select: { courseId: true, position: true, isGlobalShared: true }
         });
 
         if (!currentQuiz) {
@@ -104,6 +138,9 @@ export async function PATCH(
 
         // Use the courseId from request if provided, otherwise use current quiz's courseId
         const targetCourseId = courseId || currentQuiz.courseId;
+        if (currentQuiz.isGlobalShared && targetCourseId !== currentQuiz.courseId) {
+            return NextResponse.json({ error: "ألغِ دمج الاختبار قبل نقله إلى كورس آخر" }, { status: 400 });
+        }
 
         // Validate required fields
         if (!title || !title.trim()) {
@@ -251,4 +288,4 @@ export async function PATCH(
         console.log("[QUIZ_PATCH]", error);
         return NextResponse.json({ error: "Internal Error" }, { status: 500 });
     }
-} 
+}

@@ -10,7 +10,8 @@ import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import {
   CheckCircle2,
-  Circle,
+  Play,
+  ChevronDown,
   Lock,
   FileText,
   Download,
@@ -18,6 +19,8 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { formatCourseReleaseAt } from "@/lib/course-availability";
+import { QuizRunner } from "@/components/quiz-runner";
+import { cn } from "@/lib/utils";
 
 type Attachment = {
   id: string;
@@ -39,6 +42,7 @@ type ContentItem = {
   fileUrl: string | null;
   fileName: string | null;
   quizId: string | null;
+  isGlobalShared?: boolean;
   locked?: boolean;
   releaseLocked?: boolean;
   prerequisiteError?: string | null;
@@ -66,6 +70,7 @@ export default function UnitContentPage() {
   const [loading, setLoading] = useState(true);
   const [courseProgress, setCourseProgress] = useState(0);
   const [expandedVideo, setExpandedVideo] = useState<string | null>(null);
+  const [activeQuiz, setActiveQuiz] = useState<string | null>(null);
 
   const loadUnit = useCallback(async () => {
     try {
@@ -88,6 +93,12 @@ export default function UnitContentPage() {
       .then((res) => setCourseProgress(res.data.progress))
       .catch(() => {});
   }, [params.courseId, params.unitId, loadUnit]);
+
+  useEffect(() => {
+    const refresh = () => { void loadUnit(); };
+    window.addEventListener("focus", refresh);
+    return () => window.removeEventListener("focus", refresh);
+  }, [loadUnit]);
 
   const toggleComplete = async (item: ContentItem) => {
     if (item.locked || item.releaseLocked) return;
@@ -173,7 +184,7 @@ export default function UnitContentPage() {
 
   const renderLock = (item: ContentItem) => {
     if (item.prerequisiteError) {
-      return <p className="max-w-[14rem] text-xs text-muted-foreground">{item.prerequisiteError}</p>;
+      return <p className="flex items-center gap-2 max-w-[16rem] text-xs text-muted-foreground"><Lock className="h-4 w-4 shrink-0" />{item.prerequisiteError} — يمكنك إكمال المطلوب عند أي مدرس.</p>;
     }
     if (item.releaseLocked) {
       return (
@@ -263,22 +274,30 @@ export default function UnitContentPage() {
               const isExpanded = expandedVideo === item.id;
 
               return (
-              <li key={item.id} className="border rounded-lg p-4 bg-card">
-                <div className="flex items-center justify-between gap-2">
+              <li key={item.id} className={cn(
+                "border rounded-xl p-4 bg-card transition-colors",
+                !item.locked && "hover:border-primary/40",
+                isExpanded && !item.locked && "border-primary/40 bg-primary/[0.02]"
+              )}>
+                <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                   <button
-                    className="flex items-center gap-2 flex-1 text-right"
+                    type="button"
+                    className="group flex min-w-0 flex-1 items-center gap-3 rounded-lg text-right outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-4 disabled:cursor-not-allowed"
+                    aria-expanded={isExpanded && !item.locked}
+                    aria-controls={`lesson-player-${item.id}`}
+                    aria-label={`${isExpanded ? "إخفاء" : "مشاهدة"} الدرس: ${item.title}`}
                     onClick={() =>
                       !item.locked &&
                       setExpandedVideo(isExpanded ? null : item.id)
                     }
                     disabled={!!item.locked}
                   >
-                    {item.unifiedCompleted || item.contentProgress?.[0]?.isCompleted ? (
-                      <CheckCircle2 className="h-5 w-5 text-green-600 shrink-0" />
-                    ) : item.releaseLocked ? (
+                    {item.locked ? (
                       <Lock className="h-5 w-5 text-muted-foreground shrink-0" />
                     ) : (
-                      <Circle className="h-5 w-5 text-muted-foreground shrink-0" />
+                      <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary transition-colors group-hover:bg-primary group-hover:text-primary-foreground">
+                        <Play className="h-5 w-5 fill-current" />
+                      </span>
                     )}
                     {item.imageUrl && (
                       // eslint-disable-next-line @next/next/no-img-element
@@ -288,33 +307,40 @@ export default function UnitContentPage() {
                         className="h-10 w-16 object-cover rounded shrink-0"
                       />
                     )}
-                    <span className="font-medium">{item.title}</span>
+                    <span className="min-w-0 flex-1">
+                      <span className="flex flex-wrap items-center gap-2 font-medium">
+                        {item.title}
+                        {(item.unifiedCompleted || item.contentProgress?.[0]?.isCompleted) && <CheckCircle2 className="h-4 w-4 shrink-0 text-green-600" />}
+                      </span>
+                      {!item.locked && <span className="mt-1 block text-xs text-primary/80">{isExpanded ? "الدرس مفتوح — اضغط لإخفاء الفيديو" : "اضغط لمشاهدة الدرس"}</span>}
+                    </span>
                     {item.isFree && (
                       <span className="text-xs bg-primary/10 text-primary px-2 py-0.5 rounded">
                         مجاني
                       </span>
                     )}
+                    {!item.locked && <ChevronDown className={cn("h-5 w-5 shrink-0 text-primary transition-transform motion-reduce:transition-none", isExpanded && "rotate-180")} />}
                   </button>
-                  <div className="flex gap-2 items-center">
+                  <div className="flex gap-2 items-center sm:shrink-0">
                     {!item.locked && (
                       <Button
                         variant="ghost"
                         size="sm"
                         onClick={() => toggleComplete(item)}
-                        disabled={item.unifiedCompleted && !item.contentProgress?.[0]?.isCompleted}
+                        disabled={!item.contentProgress?.[0]?.isCompleted}
                       >
                         {item.unifiedCompleted && !item.contentProgress?.[0]?.isCompleted
                           ? "مكتمل مع مدرس آخر"
                           : item.contentProgress?.[0]?.isCompleted
                           ? "إلغاء الإكمال"
-                          : "تم الإكمال"}
+                          : "يكتمل بعد الاستماع للفيديو"}
                       </Button>
                     )}
                     {renderLock(item)}
                   </div>
                 </div>
                 {isExpanded && !item.locked && (
-                  <div className="mt-4 space-y-4">
+                  <div id={`lesson-player-${item.id}`} className="mt-4 space-y-4">
                     <div className="aspect-video relative bg-black rounded-lg overflow-hidden">
                       {videoKey ? (
                         <PlyrVideoPlayer
@@ -436,13 +462,16 @@ export default function UnitContentPage() {
               >
                 <div>
                   <span>{item.title}</span>
-                  {item.unifiedCompleted && <p className="mt-1 text-xs text-green-600">تم اجتياز الاختبار المقابل في أحد مسارات المدرسين</p>}
+                  {item.isGlobalShared && <p className="mt-1 text-xs text-primary">اختبار موحد لجميع المدرسين — الأسئلة والدرجات والمحاولات مشتركة</p>}
+                  {item.unifiedCompleted && <p className="mt-1 text-xs text-green-600">{item.isGlobalShared ? "تم اجتياز الاختبار الموحد — تم فتح المحتوى التالي في جميع المسارات" : "تم اجتياز الاختبار المقابل في أحد مسارات المدرسين"}</p>}
                   {!!item.quiz?.quizResults?.length && <p className="mt-1 text-xs text-muted-foreground">{item.quiz.quizResults[0].percentage >= 50 ? "تم الاجتياز" : "لم يتم الاجتياز — المطلوب 50% أو أكثر"}</p>}
                 </div>
                 {item.locked ? (
                   renderLock(item)
                 ) : item.quizId ? (
-                  <Button size="sm" asChild>
+                  item.isGlobalShared ? <Button size="sm" onClick={() => setActiveQuiz(activeQuiz === item.quizId ? null : item.quizId)}>
+                    {activeQuiz === item.quizId ? "إخفاء الاختبار" : item.unifiedCompleted ? "محاولة أخرى" : "بدء الاختبار هنا"}
+                  </Button> : <Button size="sm" asChild>
                     <Link href={`/courses/${params.courseId}/quizzes/${item.quizId}`}>
                       بدء الاختبار
                     </Link>
@@ -451,6 +480,15 @@ export default function UnitContentPage() {
               </li>
             ))}
           </ul>
+          {contentItem.isGlobalShared && activeQuiz === contentItem.quizId && !contentItem.locked && contentItem.quizId && (
+            <QuizRunner key={contentItem.quizId} courseId={params.courseId} quizId={contentItem.quizId} embedded
+              onComplete={() => {
+                void loadUnit();
+                void axios.get(`/api/courses/${params.courseId}/progress`).then((res) => setCourseProgress(res.data.progress));
+              }}
+              onClose={() => { setActiveQuiz(null); void loadUnit(); }}
+            />
+          )}
         </section>
       )}
 

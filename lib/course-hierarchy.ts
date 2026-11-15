@@ -1,5 +1,6 @@
-import { CourseType, Purchase } from "@prisma/client";
+import { CourseType, Purchase, type PrismaClient } from "@prisma/client";
 import { db } from "@/lib/db";
+import { getCourseProgressionState, getLearningMilestoneKeys, QUIZ_PASS_PERCENTAGE } from "@/lib/quiz-prerequisites";
 
 export function isHierarchicalCourse(courseType?: CourseType): boolean {
   return courseType === "HIERARCHICAL";
@@ -113,89 +114,23 @@ export async function getHierarchicalProgress(
   userId: string,
   courseId: string
 ): Promise<{ progress: number; total: number; completed: number }> {
-  const [contentItems, sharedQuizzes] = await Promise.all([
-    db.contentItem.findMany({
-      where: {
-        isPublished: true,
-        unit: {
-          isPublished: true,
-          courseId,
-        },
-      },
-      select: {
-        id: true,
-        type: true,
-        quizId: true,
-      },
-    }),
-    db.quiz.findMany({
-      where: {
-        courseId,
-        isPublished: true,
-        unitId: null,
-      },
-      select: { id: true },
-    }),
-  ]);
-
-  const sharedQuizIds = sharedQuizzes.map((quiz) => quiz.id);
-  const total = contentItems.length + sharedQuizIds.length;
-  if (total === 0) {
-    return { progress: 0, total: 0, completed: 0 };
+  const state = await getCourseProgressionState(userId, courseId);
+  const keys = getLearningMilestoneKeys(state.items);
+  const totalKeys = new Set(keys.values());
+  const completedKeys = new Set(state.items.filter((item) => state.completedIds.has(item.id)).map((item) => keys.get(item.id)!));
+  // Preserve old standalone quizzes, counting a quiz only after it is passed.
+  const standalone = await (db as PrismaClient).quiz.findMany({
+    where: { courseId, isPublished: true, unitId: null, isGlobalShared: false, contentItems: { none: {} } },
+    select: { id: true, quizResults: { where: { studentId: userId, percentage: { gte: QUIZ_PASS_PERCENTAGE } }, select: { id: true }, take: 1 } },
+  });
+  for (const quiz of standalone) {
+    const key = `standalone:${quiz.id}`;
+    totalKeys.add(key);
+    if (quiz.quizResults.length) completedKeys.add(key);
   }
-
-  const nonQuizIds = contentItems
-    .filter((item) => item.type !== "ASSIGNMENT")
-    .map((item) => item.id);
-
-  const unitQuizIds = contentItems
-    .filter((item) => item.type === "ASSIGNMENT" && item.quizId)
-    .map((item) => item.quizId!)
-    .filter(Boolean);
-
-  const allQuizIds = Array.from(new Set([...unitQuizIds, ...sharedQuizIds]));
-
-  const [completedContent, completedQuizResults] = await Promise.all([
-    db.contentProgress.count({
-      where: {
-        userId,
-        contentItemId: { in: nonQuizIds },
-        isCompleted: true,
-      },
-    }),
-    allQuizIds.length
-      ? db.quizResult.findMany({
-          where: {
-            studentId: userId,
-            quizId: { in: allQuizIds },
-          },
-          select: { quizId: true },
-        })
-      : Promise.resolve([] as { quizId: string }[]),
-  ]);
-
-  const completedQuizzes = new Set(completedQuizResults.map((r) => r.quizId)).size;
-  const assignmentItemsWithoutQuiz = contentItems.filter(
-    (item) => item.type === "ASSIGNMENT" && !item.quizId
-  );
-
-  const completedAssignmentsWithoutQuiz = assignmentItemsWithoutQuiz.length
-    ? await db.contentProgress.count({
-        where: {
-          userId,
-          contentItemId: {
-            in: assignmentItemsWithoutQuiz.map((item) => item.id),
-          },
-          isCompleted: true,
-        },
-      })
-    : 0;
-
-  const completed =
-    completedContent + completedQuizzes + completedAssignmentsWithoutQuiz;
-  const progress = Math.round((completed / total) * 100);
-
-  return { progress, total, completed };
+  const total = totalKeys.size;
+  const completed = completedKeys.size;
+  return { progress: total ? Math.round(completed / total * 100) : 0, total, completed };
 }
 
 export type CourseLinkInput = {

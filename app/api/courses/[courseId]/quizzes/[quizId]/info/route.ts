@@ -3,6 +3,7 @@ import { db } from "@/lib/db";
 import { auth } from "@/lib/auth";
 import { NextResponse } from "next/server";
 import { userHasCourseAccess } from "@/lib/user-course-access";
+import { getEffectiveMaxAttempts } from "@/lib/quiz-attempts";
 
 export async function GET(
     req: Request,
@@ -26,6 +27,7 @@ export async function GET(
             select: {
                 id: true,
                 title: true,
+                description: true,
                 maxAttempts: true,
                 timer: true,
                 isFree: true
@@ -63,10 +65,12 @@ export async function GET(
         });
 
         const currentAttemptNumber = existingResults.length + 1;
+        const maxAttempts = await getEffectiveMaxAttempts(userId, resolvedParams.quizId);
 
         // Return quiz info with attempt data
         const quizInfo = {
             ...quiz,
+            maxAttempts,
             currentAttempt: currentAttemptNumber,
             previousAttempts: existingResults.length
         };
@@ -76,4 +80,4 @@ export async function GET(
         console.log("[QUIZ_INFO_GET]", error);
         return new NextResponse("Internal Error", { status: 500 });
     }
-} 
+}

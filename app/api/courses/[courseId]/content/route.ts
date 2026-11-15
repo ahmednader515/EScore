@@ -58,7 +58,7 @@ export async function GET(
         include: {
           quizResults: userId
             ? {
-                where: { userId },
+                where: { studentId: userId },
                 select: {
                   id: true,
                   score: true,
@@ -66,14 +66,7 @@ export async function GET(
                   percentage: true,
                 },
               }
-            : {
-                select: {
-                  id: true,
-                  score: true,
-                  totalPoints: true,
-                  percentage: true,
-                },
-              },
+            : false,
         },
         orderBy: {
           position: "asc",
