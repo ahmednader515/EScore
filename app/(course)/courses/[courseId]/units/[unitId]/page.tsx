@@ -43,6 +43,7 @@ type ContentItem = {
   fileName: string | null;
   quizId: string | null;
   isGlobalShared?: boolean;
+  isStandaloneShared?: boolean;
   locked?: boolean;
   releaseLocked?: boolean;
   prerequisiteError?: string | null;
@@ -441,9 +442,6 @@ export default function UnitContentPage() {
                         تحميل
                       </a>
                     </Button>
-                    <Button variant="ghost" size="sm" onClick={() => toggleComplete(item)} disabled={item.unifiedCompleted && !item.contentProgress?.[0]?.isCompleted}>
-                      {item.unifiedCompleted || item.contentProgress?.[0]?.isCompleted ? "✓" : "تم"}
-                    </Button>
                   </div>
                 ) : null}
               </li>
@@ -463,7 +461,8 @@ export default function UnitContentPage() {
                 <div>
                   <span>{item.title}</span>
                   {item.isGlobalShared && <p className="mt-1 text-xs text-primary">اختبار موحد لجميع المدرسين — الأسئلة والدرجات والمحاولات مشتركة</p>}
-                  {item.unifiedCompleted && <p className="mt-1 text-xs text-green-600">{item.isGlobalShared ? "تم اجتياز الاختبار الموحد — تم فتح المحتوى التالي في جميع المسارات" : "تم اجتياز الاختبار المقابل في أحد مسارات المدرسين"}</p>}
+                  {item.isStandaloneShared && <p className="mt-1 text-xs text-muted-foreground">اختبار مشترك متاح — غير مرتبط بفتح الدروس</p>}
+                  {item.unifiedCompleted && <p className="mt-1 text-xs text-green-600">{item.isStandaloneShared ? "تم اجتياز الاختبار المشترك" : item.isGlobalShared ? "تم اجتياز الاختبار الموحد — تم فتح المحتوى التالي في جميع المسارات" : "تم اجتياز الاختبار المقابل في أحد مسارات المدرسين"}</p>}
                   {!!item.quiz?.quizResults?.length && <p className="mt-1 text-xs text-muted-foreground">{item.quiz.quizResults[0].percentage >= 50 ? "تم الاجتياز" : "لم يتم الاجتياز — المطلوب 50% أو أكثر"}</p>}
                 </div>
                 {item.locked ? (

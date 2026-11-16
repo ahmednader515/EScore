@@ -27,7 +27,7 @@ const formSchema = z.object({
 });
 
 interface EditGradeDivisionDialogProps {
-    course: Course;
+    course: Pick<Course, "id"> & Partial<Pick<Course, "grade">>;
 }
 
 export const EditGradeDivisionDialog = ({ course }: EditGradeDivisionDialogProps) => {

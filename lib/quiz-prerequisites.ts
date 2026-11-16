@@ -33,6 +33,11 @@ export function buildTeacherProgression(
       continue;
     }
     const released = item.unit.isPublished !== false && isEffectivelyReleased([course, item.unit, item], studyType);
+    // PDFs are reference material, independent of the sequential learning path.
+    if (item.type === "PDF") {
+      errors.set(item.id, released ? null : UNAVAILABLE);
+      continue;
+    }
     errors.set(item.id, previousError ?? (released ? null : UNAVAILABLE));
     const completed = unifiedCompletedIds.has(item.id) || (item.type === "ASSIGNMENT" && item.quizId
       ? passedQuizIds.has(item.quizId)
@@ -53,7 +58,7 @@ export function getLearningMilestoneKeys(items: TeacherItem[]) {
   const counters = new Map<string, Map<string, number>>();
   const keys = new Map<string, string>();
   for (const item of items) {
-    if (!item.unit.teacherId || (item.quizId && !item.quiz?.isPublished)) continue;
+    if (item.type === "PDF" || !item.unit.teacherId || (item.quizId && !item.quiz?.isPublished)) continue;
     let teacherCounters = counters.get(item.unit.teacherId);
     if (!teacherCounters) {
       teacherCounters = new Map();

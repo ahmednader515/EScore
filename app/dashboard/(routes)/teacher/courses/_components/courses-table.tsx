@@ -23,6 +23,7 @@ import {
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useState } from "react";
 import Link from "next/link";
 import { Pencil, Trash2, Search } from "lucide-react";
@@ -41,13 +42,13 @@ import {
     AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 
-interface DataTableProps<TData extends { id: string }, TValue> {
+interface DataTableProps<TData extends { id: string; grade?: string | null }, TValue> {
     columns: ColumnDef<TData, TValue>[];
     data: TData[];
     hideActions?: boolean;
 }
 
-export function CoursesTable<TData extends { id: string }, TValue>({
+export function CoursesTable<TData extends { id: string; grade?: string | null }, TValue>({
     columns,
     data,
     hideActions = false,
@@ -56,6 +57,8 @@ export function CoursesTable<TData extends { id: string }, TValue>({
     const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([]);
     const [filterValue, setFilterValue] = useState("");
     const router = useRouter();
+    const grades = [...new Set(data.map((course) => course.grade?.trim()).filter((grade): grade is string => !!grade))]
+        .sort((a, b) => a.localeCompare(b, "ar"));
 
     const table = useReactTable({
         data,
@@ -96,7 +99,7 @@ export function CoursesTable<TData extends { id: string }, TValue>({
 
     return (
         <div>
-            <div className="flex items-center py-4">
+            <div className="flex flex-col gap-3 py-4 sm:flex-row sm:items-center">
                 <div className="relative w-full max-w-sm">
                     <Search className="absolute h-4 w-4 top-3 left-3 text-muted-foreground" />
                     <Input
@@ -106,6 +109,20 @@ export function CoursesTable<TData extends { id: string }, TValue>({
                         className="w-full pl-9"
                     />
                 </div>
+                <Select
+                    dir="rtl"
+                    value={(table.getColumn("grade")?.getFilterValue() as string) ?? "__all"}
+                    onValueChange={(value) => table.getColumn("grade")?.setFilterValue(value === "__all" ? undefined : value)}
+                >
+                    <SelectTrigger className="w-full sm:w-56" aria-label="تصفية حسب الصف الدراسي">
+                        <SelectValue placeholder="جميع الكورسات" />
+                    </SelectTrigger>
+                    <SelectContent>
+                        <SelectItem value="__all">جميع الكورسات</SelectItem>
+                        <SelectItem value="__unassigned">بدون صف دراسي</SelectItem>
+                        {grades.map((grade) => <SelectItem key={grade} value={grade}>{grade === "الكل" ? "الكل (جميع الصفوف)" : grade}</SelectItem>)}
+                    </SelectContent>
+                </Select>
             </div>
             <div className="rounded-md border">
                 <Table>
@@ -150,7 +167,7 @@ export function CoursesTable<TData extends { id: string }, TValue>({
                                                         <Pencil className="h-4 w-4" />
                                                     </Button>
                                                 </Link>
-                                                <EditGradeDivisionDialog course={row.original as any} />
+                                                <EditGradeDivisionDialog course={row.original} />
                                                 <AlertDialog>
                                                     <AlertDialogTrigger asChild>
                                                         <Button variant="ghost" size="icon" title="حذف الكورس">
@@ -210,4 +227,4 @@ export function CoursesTable<TData extends { id: string }, TValue>({
             </div>
         </div>
     );
-} 
+}

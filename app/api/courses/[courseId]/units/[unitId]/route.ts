@@ -1,6 +1,6 @@
 import { getTeacherProgressionState } from "@/lib/quiz-prerequisites";
 import type { PrismaClient } from "@prisma/client";
-import { embedSharedAssessments, getSharedAssessments } from "@/lib/shared-assessments";
+import { embedSharedAssessments, getSharedAssessments, getUnplacedSharedAssessments } from "@/lib/shared-assessments";
 import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
@@ -157,10 +157,16 @@ export async function GET(
       ? { errors: new Map<string, string | null>(), completedIds: new Set<string>() }
       : await getTeacherProgressionState(userId, courseId, unit.teacherId);
     const sharedQuizzes = unit.teacherId ? await getSharedAssessments(courseId, userId, staff) : [];
-    const timeline = embedSharedAssessments(unit.contentItems, unit, sharedQuizzes);
+    const unplacedQuizzes = unit.teacherId ? await getUnplacedSharedAssessments(courseId, userId) : [];
+    const lastPosition = Math.max(0, ...unit.contentItems.map((item) => item.position));
+    const standaloneItems = embedSharedAssessments([], unit, unplacedQuizzes.map((quiz) => ({
+      ...quiz, sharedUnitPosition: unit.position, sharedAfterPosition: lastPosition,
+    }))).map((item) => ({ ...item, isStandaloneShared: true }));
+    const timeline = [...embedSharedAssessments(unit.contentItems, unit, sharedQuizzes), ...standaloneItems];
     const sanitizedItems = timeline.filter((item) => staff || item.type !== "ASSIGNMENT" || !item.quizId || item.quiz?.isPublished).map((item) => {
       const prerequisiteError = progression.errors.get(item.id) ?? null;
-      const unifiedCompleted = progression.completedIds.has(item.id);
+      const unifiedCompleted = progression.completedIds.has(item.id) ||
+        ("isStandaloneShared" in item && !!item.quiz?.quizResults?.some((result) => result.percentage >= 50));
       const itemLayer = {
         centerAvailableAt: item.centerAvailableAt,
         onlineAvailableAt: item.onlineAvailableAt,

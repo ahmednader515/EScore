@@ -142,6 +142,16 @@ const quiz = lesson("exam", false, { type: "ASSIGNMENT", quizId: "quiz", quiz: {
   assert.equal(credit.has("c-first"), true);
   assert.equal(credit.has("c-exam1"), true);
   assert.equal(credit.has("a-pdf"), false);
+  const referencePdf = lesson("reference-pdf", false, { type: "PDF" });
+  const pdfAfterLockedLesson = evaluate([lesson("unfinished"), referencePdf, lesson("next")]);
+  assert.equal(pdfAfterLockedLesson.get("reference-pdf"), null, "PDF access does not require completing earlier lessons");
+  assert.ok(pdfAfterLockedLesson.get("next"), "PDF access must not unlock unfinished lessons");
+  assert.equal(evaluate([referencePdf, lesson("next")]).get("next"), null, "An unread PDF must not block the next lesson");
+  assert.equal(evaluate([quiz, referencePdf]).get("reference-pdf"), null, "An unpassed exam must not lock PDFs");
+  assert.ok(evaluate([{ ...referencePdf, future: true }]).get("reference-pdf"), "PDF release dates remain respected");
+  assert.equal(unified.getLearningMilestoneKeys([referencePdf]).size, 0, "PDFs do not count toward course progress");
+  const pdfTarget = { ...referencePdf, unit: { teacherId: "teacher-a", isPublished: true, course: { isPublished: true } } };
+  assert.equal(await setup({ items: [lesson("unfinished"), referencePdf], target: pdfTarget }).getContentPrerequisiteError("student", "course", "reference-pdf"), null);
   const globalQuiz = { id: "global", title: "Grammar", description: null, isGlobalShared: true, isPublished: true, isFree: false, sharedUnitPosition: 1, sharedAfterPosition: 2 };
   const globalItems = ["a", "b", "c"].flatMap((teacherId) => [1, 2, 3].map((position) =>
     lesson(`${teacherId}-${position}`, (teacherId === "a" && position === 1) || (teacherId === "b" && position === 2), {

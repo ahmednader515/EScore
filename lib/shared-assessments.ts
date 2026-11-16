@@ -26,6 +26,19 @@ export async function getSharedAssessments(courseId: string, userId: string, inc
   });
 }
 
+/** Keep existing course-wide quizzes accessible until a milestone is assigned. */
+export async function getUnplacedSharedAssessments(courseId: string, userId: string) {
+  return (db as PrismaClient).quiz.findMany({
+    where: { courseId, unitId: null, isGlobalShared: false, isPublished: true, contentItems: { none: {} } },
+    orderBy: [{ position: "asc" }, { id: "asc" }],
+    select: {
+      id: true, title: true, description: true, isPublished: true, isFree: true,
+      sharedUnitPosition: true, sharedAfterPosition: true,
+      quizResults: { where: { studentId: userId }, select: { percentage: true }, orderBy: { percentage: "desc" }, take: 1 },
+    },
+  });
+}
+
 /** Virtual placements always reference the original quiz; no questions or scores are copied. */
 export function embedSharedAssessments<T extends { id: string; position: number }>(
   items: T[], unit: { id: string; position: number }, quizzes: SharedAssessment[],

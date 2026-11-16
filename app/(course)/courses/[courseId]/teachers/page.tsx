@@ -4,7 +4,7 @@ import { redirect } from "next/navigation";
 import Image from "next/image";
 import Link from "next/link";
 import { CourseBreadcrumbs } from "@/components/course-breadcrumbs";
-import { ClipboardList, Clock, Lock } from "lucide-react";
+import { Clock, Lock } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { canAccessCourseContent } from "@/lib/course-access";
 import { getCourseReleaseStatus } from "@/lib/course-release-status";
@@ -31,20 +31,6 @@ export default async function CourseTeachersPage({
             where: { isPublished: true },
             select: { id: true },
           },
-        },
-      },
-      quizzes: {
-        where: {
-          isPublished: true,
-          unitId: null,
-          isGlobalShared: false,
-        },
-        orderBy: { position: "asc" },
-        select: {
-          id: true,
-          title: true,
-          description: true,
-          isFree: true,
         },
       },
     },
@@ -169,49 +155,6 @@ export default async function CourseTeachersPage({
         </p>
       )}
 
-      {course.quizzes.length > 0 && (
-        <div className="mt-12">
-          <h2 className="text-xl font-bold mb-2">الاختبارات المشتركة</h2>
-          <p className="text-muted-foreground mb-6 text-sm">
-            اختبارات مستقلة لا تؤثر على تقدمك مع أي مدرس
-          </p>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-            {course.quizzes.map((quiz) => {
-              const canOpen = hasAccess || quiz.isFree;
-              const href = canOpen
-                ? `/courses/${courseId}/quizzes/${quiz.id}`
-                : `/courses/${courseId}/purchase`;
-
-              return (
-                <Link
-                  key={quiz.id}
-                  href={href}
-                  className="border rounded-lg p-4 hover:border-primary/50 hover:shadow-md transition flex items-start gap-3 bg-card"
-                >
-                  <div className="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
-                    {canOpen ? (
-                      <ClipboardList className="h-6 w-6 text-primary" />
-                    ) : (
-                      <Lock className="h-5 w-5 text-muted-foreground" />
-                    )}
-                  </div>
-                  <div className="min-w-0">
-                    <h3 className="font-semibold truncate">{quiz.title}</h3>
-                    {quiz.description && (
-                      <p className="text-xs text-muted-foreground mt-1 line-clamp-2">
-                        {quiz.description}
-                      </p>
-                    )}
-                    {quiz.isFree && (
-                      <p className="text-xs text-primary mt-2">مجاني</p>
-                    )}
-                  </div>
-                </Link>
-              );
-            })}
-          </div>
-        </div>
-      )}
     </div>
   );
 }

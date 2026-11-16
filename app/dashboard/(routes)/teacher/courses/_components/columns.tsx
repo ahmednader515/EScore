@@ -106,6 +106,10 @@ export const columns: ColumnDef<Course>[] = [
     },
     {
         id: "grade",
+        accessorFn: (course) => course.grade?.trim() || null,
+        filterFn: (row, columnId, value) => value === "__unassigned"
+            ? row.getValue(columnId) === null
+            : row.getValue(columnId) === value,
         header: "الصف",
         cell: ({ row }) => {
             const grade = row.original.grade;
@@ -133,4 +137,4 @@ export const columns: ColumnDef<Course>[] = [
             );
         },
     }
-]; 
+];
