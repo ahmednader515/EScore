@@ -8,7 +8,7 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
-import { Grip, Pencil, PlusCircle, Trash2, Clock } from "lucide-react";
+import { Grip, Pencil, PlusCircle, Trash2, Clock, Eye, EyeOff, LockKeyhole, LockKeyholeOpen } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { FileUpload } from "@/components/file-upload";
 import {
@@ -207,9 +207,9 @@ export const UnitContentForm = ({
         </div>
       )}
 
-      <div className="font-medium flex items-center justify-between mb-4">
+      <div className="font-medium flex flex-wrap items-center justify-between gap-2 mb-4">
         محتوى الوحدة
-        <Button variant="ghost" size="sm" onClick={() => setCreating(true)}>
+        <Button size="sm" className="h-10" onClick={() => setCreating(true)}>
           <PlusCircle className="h-4 w-4 mr-2" />
           إضافة محتوى
         </Button>
@@ -252,29 +252,51 @@ export const UnitContentForm = ({
                       ref={provided.innerRef}
                       {...provided.draggableProps}
                       className={cn(
-                        "border rounded-md mb-3 p-3 bg-muted/20",
+                        "overflow-hidden border rounded-lg mb-3 bg-background shadow-sm",
                         item.isPublished && "border-primary/30"
                       )}
                     >
-                      <div className="flex items-center gap-2">
-                        <div {...provided.dragHandleProps}>
+                      <div className="flex flex-wrap items-center gap-3 p-4">
+                        <div {...provided.dragHandleProps} className="shrink-0 cursor-grab rounded-md border bg-muted/50 p-2 text-muted-foreground" title="اسحب لترتيب المحتوى">
                           <Grip className="h-4 w-4" />
                         </div>
-                        <span className="flex-1 font-medium">{item.title}</span>
+                        <span className="min-w-0 flex-1 break-words text-base font-semibold">{item.title}</span>
+                        <div className="flex flex-wrap items-center gap-2">
                         <Badge variant="outline">{typeLabels[item.type] || item.type}</Badge>
                         {item.isFree && <Badge>مجاني</Badge>}
                         <Badge className={cn(item.isPublished && "bg-primary text-primary-foreground")}>
                           {item.isPublished ? "منشور" : "مسودة"}
                         </Badge>
-                        <Button variant="ghost" size="sm" onClick={() => onTogglePublish(item)}>
-                          {item.isPublished ? "إلغاء" : "نشر"}
+                        </div>
+                      </div>
+                      <div className="flex flex-wrap items-center gap-2 border-t bg-muted/40 px-4 py-3">
+                        {(item.type === "VIDEO" || (item.type === "ASSIGNMENT" && item.quizId)) && (
+                          <Button size="sm" className="h-10 flex-1 sm:flex-none" onClick={() => onEditContent(item)}>
+                            <Pencil className="h-4 w-4" aria-hidden="true" />
+                            {item.type === "ASSIGNMENT" ? "تعديل الاختبار" : "تعديل المحتوى"}
+                          </Button>
+                        )}
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className={cn(
+                            "h-10 flex-1 sm:flex-none",
+                            !item.isPublished && "border-emerald-600/40 bg-emerald-50 text-emerald-800 hover:bg-emerald-100 hover:text-emerald-900 dark:bg-emerald-950/40 dark:text-emerald-300 dark:hover:bg-emerald-950/60 dark:hover:text-emerald-200"
+                          )}
+                          onClick={() => onTogglePublish(item)}
+                        >
+                          {item.isPublished ? <EyeOff className="h-4 w-4" aria-hidden="true" /> : <Eye className="h-4 w-4" aria-hidden="true" />}
+                          {item.isPublished ? "إلغاء النشر" : "نشر المحتوى"}
                         </Button>
-                        <Button variant="ghost" size="sm" onClick={() => onToggleFree(item)}>
-                          {item.isFree ? "مدفوع" : "مجاني"}
+                        <Button variant="outline" size="sm" className="h-10" onClick={() => onToggleFree(item)}>
+                          {item.isFree ? <LockKeyhole className="h-4 w-4" aria-hidden="true" /> : <LockKeyholeOpen className="h-4 w-4" aria-hidden="true" />}
+                          {item.isFree ? "جعله مدفوعًا" : "جعله مجانيًا"}
                         </Button>
                         <Button
-                          variant="ghost"
+                          variant="outline"
                           size="sm"
+                          className="h-10"
+                          aria-expanded={schedulingId === item.id}
                           onClick={() =>
                             setSchedulingId(
                               schedulingId === item.id ? null : item.id
@@ -282,18 +304,19 @@ export const UnitContentForm = ({
                           }
                           title="مواعيد الظهور"
                         >
-                          <Clock className="h-4 w-4" />
+                          <Clock className="h-4 w-4" aria-hidden="true" />
+                          مواعيد الظهور
                         </Button>
-                        {(item.type === "VIDEO" || item.type === "ASSIGNMENT") && (
-                          <Pencil
-                            className="h-4 w-4 cursor-pointer"
-                            onClick={() => onEditContent(item)}
-                          />
-                        )}
-                        <Trash2
-                          className="h-4 w-4 cursor-pointer text-destructive"
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="h-10 border-destructive/30 bg-destructive/5 text-destructive hover:bg-destructive/10 hover:text-destructive sm:ms-auto"
                           onClick={() => onDelete(item.id)}
-                        />
+                          aria-label="حذف المحتوى"
+                        >
+                          <Trash2 className="h-4 w-4" aria-hidden="true" />
+                          حذف
+                        </Button>
                       </div>
 
                       {schedulingId === item.id && (
@@ -304,12 +327,12 @@ export const UnitContentForm = ({
                             centerAvailableAt: item.centerAvailableAt ?? null,
                             onlineAvailableAt: item.onlineAvailableAt ?? null,
                           }}
-                          className="mt-3"
+                          className="m-4"
                         />
                       )}
 
                       {item.type === "PDF" && (
-                        <div className="mt-3">
+                        <div className="p-4">
                           <FileUpload
                             endpoint="courseAttachment"
                             onChange={(res) => onPdfUpload(item.id, res)}
@@ -323,22 +346,9 @@ export const UnitContentForm = ({
                       )}
 
                       {item.type === "VIDEO" && (
-                        <p className="text-xs text-muted-foreground mt-2">
-                          انقر على أيقونة التعديل لإعداد الفيديو والصورة والوصف والمستندات
+                        <p className="px-4 py-3 text-xs text-muted-foreground">
+                          انقر على تعديل المحتوى لإعداد الفيديو والصورة والوصف والمستندات
                         </p>
-                      )}
-
-                      {item.type === "ASSIGNMENT" && item.quizId && (
-                        <div className="mt-3">
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => onEditQuiz(item.quizId!)}
-                          >
-                            <Pencil className="h-4 w-4 mr-2" />
-                            تعديل الاختبار
-                          </Button>
-                        </div>
                       )}
                     </div>
                   )}

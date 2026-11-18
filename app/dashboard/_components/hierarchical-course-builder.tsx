@@ -8,7 +8,7 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
-import { Grip, PlusCircle, Trash2, ChevronDown, ChevronUp, Pencil, ImageIcon } from "lucide-react";
+import { Grip, PlusCircle, Trash2, ChevronDown, ChevronUp, Pencil, ImageIcon, Eye, EyeOff } from "lucide-react";
 import { cn } from "@/lib/utils";
 import Image from "next/image";
 import { FileUpload } from "@/components/file-upload";
@@ -375,15 +375,13 @@ export const HierarchicalCourseBuilder = ({
                           {teacher.units.map((unit) => (
                             <div
                               key={unit.id}
-                              className={cn(
-                                "flex flex-col gap-2 p-3 rounded-md bg-background text-sm sm:flex-row sm:items-center sm:gap-2",
-                                unit.isPublished && "border border-primary/30"
-                              )}
+                              className="overflow-hidden rounded-lg border border-border bg-background text-sm shadow-sm"
                             >
-                              <span className="font-medium min-w-0 break-words sm:flex-1">
-                                {unit.title}
-                              </span>
-                              <div className="flex flex-wrap items-center gap-2">
+                              <div className="flex flex-wrap items-center justify-between gap-3 p-4">
+                                <span className="min-w-0 flex-1 break-words text-base font-semibold">
+                                  {unit.title}
+                                </span>
+                                <div className="flex flex-wrap items-center gap-2">
                                 <Badge variant="outline" className="shrink-0">
                                   {unit.contentItems.length} عنصر
                                 </Badge>
@@ -396,33 +394,41 @@ export const HierarchicalCourseBuilder = ({
                                 >
                                   {unit.isPublished ? "منشور" : "مسودة"}
                                 </Badge>
+                                </div>
+                              </div>
+                              <div className="flex flex-wrap items-center gap-2 border-t bg-muted/40 px-4 py-3">
                                 <Button
-                                  variant="ghost"
+                                  variant="default"
                                   size="sm"
-                                  className="h-8 px-2"
+                                  className="h-10 flex-1 sm:flex-none"
+                                  onClick={() => onEditUnit(unit.id)}
+                                >
+                                  <Pencil className="h-4 w-4" aria-hidden="true" />
+                                  تعديل الوحدة
+                                </Button>
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  className={cn(
+                                    "h-10 flex-1 sm:flex-none",
+                                    !unit.isPublished && "border-emerald-600/40 bg-emerald-50 text-emerald-800 hover:bg-emerald-100 hover:text-emerald-900 dark:bg-emerald-950/40 dark:text-emerald-300 dark:hover:bg-emerald-950/60 dark:hover:text-emerald-200"
+                                  )}
                                   onClick={() =>
                                     onToggleUnitPublish(unit.id, !unit.isPublished)
                                   }
                                 >
-                                  {unit.isPublished ? "إلغاء النشر" : "نشر"}
+                                  {unit.isPublished ? <EyeOff className="h-4 w-4" aria-hidden="true" /> : <Eye className="h-4 w-4" aria-hidden="true" />}
+                                  {unit.isPublished ? "إلغاء النشر" : "نشر الوحدة"}
                                 </Button>
                                 <Button
-                                  variant="ghost"
-                                  size="icon"
-                                  className="h-8 w-8"
-                                  onClick={() => onEditUnit(unit.id)}
-                                  aria-label="تعديل الوحدة"
-                                >
-                                  <Pencil className="h-4 w-4" />
-                                </Button>
-                                <Button
-                                  variant="ghost"
-                                  size="icon"
-                                  className="h-8 w-8 text-destructive hover:text-destructive"
+                                  variant="outline"
+                                  size="sm"
+                                  className="h-10 border-destructive/30 bg-destructive/5 text-destructive hover:bg-destructive/10 hover:text-destructive sm:ms-auto"
                                   onClick={() => onDeleteUnit(teacher.id, unit.id)}
                                   aria-label="حذف الوحدة"
                                 >
-                                  <Trash2 className="h-4 w-4" />
+                                  <Trash2 className="h-4 w-4" aria-hidden="true" />
+                                  حذف
                                 </Button>
                               </div>
                             </div>

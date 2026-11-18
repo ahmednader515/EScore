@@ -6,7 +6,7 @@ import axios from "axios";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Pencil, PlusCircle, Trash2 } from "lucide-react";
+import { CheckCircle2, Pencil, PlusCircle, Trash2, TriangleAlert } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 type SharedQuiz = {
@@ -109,8 +109,30 @@ export const SharedQuizzesForm = ({
             )}
           >
             <span className="font-medium min-w-0 break-words sm:flex-1">
-              {quiz.title}
-              {quiz.isGlobalShared && <span className="block mt-1 text-xs text-primary">مدمج عند جميع المدرسين — الوحدة {quiz.sharedUnitPosition}، بعد المحتوى {quiz.sharedAfterPosition}</span>}
+              <span className="flex flex-wrap items-center gap-2">
+                {quiz.title}
+                {quiz.isGlobalShared && quiz.sharedUnitPosition != null && quiz.sharedAfterPosition != null ? (
+                  <span className="inline-flex items-center gap-1 text-xs text-emerald-700 dark:text-emerald-400">
+                    <CheckCircle2 className="h-4 w-4 shrink-0" aria-hidden="true" />
+                    تم تحديد الموضع
+                  </span>
+                ) : (
+                  <span className="inline-flex items-center gap-1 text-xs text-amber-700 dark:text-amber-400">
+                    <TriangleAlert className="h-4 w-4 shrink-0" aria-hidden="true" />
+                    لم يتم تحديد الموضع
+                  </span>
+                )}
+              </span>
+              {quiz.isGlobalShared && (
+                <span className="block mt-1 text-xs text-primary">
+                  {quiz.sharedAfterPosition === 0
+                    ? "بداية الوحدة"
+                    : <>بعد المحتوى: <bdi>{teachers[0]?.units
+                        .find((unit) => unit.position === quiz.sharedUnitPosition)
+                        ?.contentItems.find((item) => item.position === quiz.sharedAfterPosition)
+                        ?.title ?? "محتوى غير متاح"}</bdi></>}
+                </span>
+              )}
             </span>
             <SharedPlacementEditor quiz={quiz} teachers={teachers} onSaved={() => router.refresh()} />
             <div className="flex flex-wrap items-center gap-2">
@@ -199,13 +221,13 @@ function SharedPlacementEditor({ quiz, teachers, onSaved }: {
     <label className="block text-xs">الوحدة
       <select className="block w-full mt-1 border rounded p-2 bg-background" value={unitPosition} onChange={(event) => { setUnitPosition(event.target.value); setAfterPosition("0"); }} disabled={saving}>
         <option value="">اختر الوحدة</option>
-        {units.map((candidate) => <option key={candidate.position} value={candidate.position}>{candidate.position} — {candidate.title}</option>)}
+        {units.map((candidate) => <option key={candidate.position} value={candidate.position}>{candidate.title}</option>)}
       </select>
     </label>
     <label className="block text-xs">يظهر الاختبار بعد
       <select className="block w-full mt-1 border rounded p-2 bg-background" value={afterPosition} onChange={(event) => setAfterPosition(event.target.value)} disabled={saving || !unit}>
         <option value="0">بداية الوحدة</option>
-        {positions.map((item) => <option key={item.position} value={item.position}>{item.position} — {item.title}</option>)}
+        {positions.map((item) => <option key={item.position} value={item.position}>{item.title}</option>)}
       </select>
     </label>
     <p className="text-xs text-muted-foreground">يجب إكمال المحتوى السابق واجتياز هذا الاختبار بنسبة 50% لفتح ما بعده في أي مسار.</p>
